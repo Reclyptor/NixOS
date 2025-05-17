@@ -26,6 +26,36 @@
 
   swapDevices = [ ];
 
+  fileSystems."/data/nvme/ssd-4tb" = {
+    device = "/dev/disk/by-uuid/7970db63-f32c-42cc-aeba-8838c3fcabbc";
+    fsType = "ext4";
+    options = [ "defaults" ];
+  };
+
+  fileSystems."/data/nvme/ssd-2tb" = {
+    device = "/dev/disk/by-uuid/91613b5f-5174-46c9-9644-e9b027eb5e67";
+    fsType = "ext4";
+    options = [ "defaults" ];
+  };
+
+  fileSystems."/data/nfs/truenas/videos" = {
+    device = "192.168.1.50:/mnt/primary/videos";
+    fsType = "nfs4";
+    options = [ "defaults" "_netdev" "x-systemd.automount" ];
+  };
+
+  fileSystems."/data/nfs/flashstor/videos" = {
+    device = "192.168.1.253:/mnt/primary/videos";
+    fsType = "nfs4";
+    options = [ "defaults" "_netdev" "x-systemd.automount" ];
+  };
+
+  fileSystems."/data/nfs/asustor/videos" = {
+    device = "192.168.1.252:/volume1/Videos";
+    fsType = "nfs4";
+    options = [ "defaults" "_netdev" "x-systemd.automount" ];
+  };
+
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
   # (the default) this is the recommended approach. When using systemd-networkd it's
   # still possible to use this option, but it's recommended to use it in conjunction
