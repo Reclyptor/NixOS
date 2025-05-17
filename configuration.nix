@@ -67,8 +67,13 @@
   users.users.reclyptor = {
     isNormalUser = true;
     description = "Reclyptor";
-    extraGroups = [ "reclyptor" "networkmanager" "wheel" ];
     shell = pkgs.bash;
+    extraGroups = [
+      "reclyptor"
+      "networkmanager"
+      "wheel"
+      "docker"
+    ];
     packages = with pkgs; [];
   };
 
@@ -81,6 +86,7 @@
     aseprite
     brave
     discord
+    docker
     fastfetch
     git
     gnupg
@@ -107,13 +113,6 @@
 
   # Add fonts
   fonts.packages = with pkgs; [ nerdfonts ];
-
-  # XDG Portal (Plex)
-  xdg.portal = {
-    enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-    xdgOpenUsePortal = true;
-  };
 
   # Default applications
   xdg.mime.defaultApplications = {
@@ -143,6 +142,15 @@
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
+  };
+  
+  # Docker
+  virtualisation.docker = {
+    enable = true;
+    rootless = {
+      enable = true;
+      setSocketVariable = true;
+    };
   };
 
   # List services that you want to enable:
