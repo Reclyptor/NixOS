@@ -91,6 +91,7 @@
     nautilus
     neovim
     oh-my-posh
+    playerctl
     spotify
     steam
     waybar
