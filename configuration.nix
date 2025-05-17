@@ -85,18 +85,27 @@
   environment.systemPackages = with pkgs; [
     aseprite
     brave
+    bibata-cursors
     discord
     docker
     eza
     fastfetch
     git
     gnupg
+    hyprcursor
+    hypridle
     hyprland
+    hyprlock
+    hyprpaper
+    hyprpicker
+    hyprsunset
+    imv
     kitty
     kitty-themes
     krita
     makemkv
     mongosh
+    mpv
     mysql84
     nautilus
     neovim
