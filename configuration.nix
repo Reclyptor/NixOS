@@ -124,6 +124,11 @@
   };
 
   # Environment variables
+  environment.variables = {
+    EDITOR = "nvim";
+  };
+
+  # Session variables
   environment.sessionVariables = {
     __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     GBM_BACKEND = "nvidia-drm";
