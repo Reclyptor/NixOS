@@ -87,6 +87,7 @@
     brave
     discord
     docker
+    eza
     fastfetch
     git
     gnupg
