@@ -85,10 +85,12 @@
     gnupg
     hyprland
     kitty
+    kitty-themes
     mongosh
     mysql84
     nautilus
     neovim
+    oh-my-posh
     spotify
     steam
     waybar
@@ -97,6 +99,9 @@
     xdg-desktop-portal-hyprland
     xdg-utils
   ];
+
+  # Add fonts
+  fonts.packages = with pkgs; [ nerdfonts ];
 
   # Default applications
   xdg.mime.defaultApplications = {
