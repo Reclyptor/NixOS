@@ -78,6 +78,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    aseprite
     brave
     discord
     fastfetch
@@ -86,12 +87,15 @@
     hyprland
     kitty
     kitty-themes
+    krita
+    makemkv
     mongosh
     mysql84
     nautilus
     neovim
     oh-my-posh
     playerctl
+    plex-desktop
     spotify
     steam
     waybar
@@ -103,6 +107,13 @@
 
   # Add fonts
   fonts.packages = with pkgs; [ nerdfonts ];
+
+  # XDG Portal (Plex)
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    xdgOpenUsePortal = true;
+  };
 
   # Default applications
   xdg.mime.defaultApplications = {
