@@ -142,6 +142,13 @@
     wayland.enable = true;
   };
 
+  # Enable Sound
+  services.pipewire = {
+    enable = true;
+    audio.enable = true;
+    pulse.enable = true;
+  };
+
   # Enable Hyprland
   programs.hyprland = {
     enable = true;
@@ -151,11 +158,11 @@
   # Enable Waybar
   programs.waybar.enable = true;
 
-  # Enable Sound
-  services.pipewire = {
+  # Enable Steam
+  programs.steam = {
     enable = true;
-    audio.enable = true;
-    pulse.enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = true;
   };
 
   # Enable the OpenSSH daemon.
