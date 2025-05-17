@@ -95,7 +95,17 @@
     wget
     wofi
     xdg-desktop-portal-hyprland
+    xdg-utils
   ];
+
+  # Default applications
+  xdg.mime.defaultApplications = {
+    "text/html" = "brave.desktop";
+    "x-scheme-handler/http" = "brave.desktop";
+    "x-scheme-handler/https" = "brave.desktop";
+    "x-scheme-handler/about" = "brave.desktop";
+    "x-scheme-handler/unknown" = "brave.desktop";
+  };
 
   # Environment variables
   environment.sessionVariables = {
@@ -105,6 +115,7 @@
     NIXOS_OZONE_WL = "1";
     WLR_NO_HARDWARE_CURSORS = "1";
     XDG_SESSION_TYPE = "wayland";
+    DEFAULT_BROWSER = "${ pkgs.brave }/bin/brave";
   };
 
   # Some programs need SUID wrappers, can be configured further or are
