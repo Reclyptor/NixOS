@@ -24,5 +24,10 @@
         vulkan-loader
       ];
     };
+
+    bluetooth = {
+      enable = true;
+      powerOnBoot = true;
+    };
   };
 }
