@@ -12,9 +12,11 @@
     eza
     fastfetch
     gamescope
+    gcc
     git
     gnome-themes-extra
     gnupg
+    go
     gsettings-desktop-schemas
     hyprcursor
     hypridle
@@ -24,6 +26,7 @@
     hyprpicker
     hyprsunset
     imv
+    jdk
     jetbrains.clion
     jetbrains.datagrip
     jetbrains.goland
@@ -44,6 +47,7 @@
     neovim
     networkmanager
     networkmanagerapplet
+    nodejs
     oh-my-posh
     pavucontrol
     playerctl
