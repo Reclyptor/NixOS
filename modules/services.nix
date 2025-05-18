@@ -9,4 +9,6 @@
     audio.enable = true;
     pulse.enable = true;
   };
+
+  services.blueman.enable = true;
 }

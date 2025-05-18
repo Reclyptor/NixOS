@@ -5,6 +5,7 @@
     adwaita-icon-theme
     aseprite
     bibata-cursors
+    blueman
     brave
     discord
     docker
