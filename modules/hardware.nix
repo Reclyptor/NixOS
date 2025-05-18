@@ -8,12 +8,12 @@
       open = true;
       package = config.boot.kernelPackages.nvidiaPackages.stable;
     };
+
     graphics = {
       enable = true;
       enable32Bit = true;
       extraPackages = with pkgs; [
-	libGL
-        libglvnd
+	mesa
         vulkan-loader
         vulkan-tools
         vulkan-validation-layers
