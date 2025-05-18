@@ -41,6 +41,7 @@
     nautilus
     neovim
     oh-my-posh
+    pavucontrol
     playerctl
     plex-desktop
     qt6.qtbase
