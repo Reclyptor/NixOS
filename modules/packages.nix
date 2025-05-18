@@ -11,6 +11,7 @@
     docker
     eza
     fastfetch
+    gamescope
     git
     gnome-themes-extra
     gnupg
@@ -47,6 +48,7 @@
     pavucontrol
     playerctl
     plex-desktop
+    protonup-qt
     qt6.qtbase
     spotify
     steam
