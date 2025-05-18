@@ -41,6 +41,8 @@
     mysql84
     nautilus
     neovim
+    networkmanager
+    networkmanagerapplet
     oh-my-posh
     pavucontrol
     playerctl
