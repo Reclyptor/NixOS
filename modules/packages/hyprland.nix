@@ -6,6 +6,7 @@
     hyprlock
     hyprpaper
     hyprpicker
+    hyprshot
     hyprsunset
     kitty
     kitty-themes

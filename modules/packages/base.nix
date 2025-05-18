@@ -9,5 +9,6 @@
     neovim
     oh-my-posh
     wget
+    yt-dlp
   ];
 }

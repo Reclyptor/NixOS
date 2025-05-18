@@ -8,6 +8,7 @@
     makemkv
     mpv
     plex-desktop
+    signal-desktop
     spotify
   ];
 }
