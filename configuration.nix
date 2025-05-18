@@ -83,6 +83,7 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    adwaita-icon-theme
     aseprite
     brave
     bibata-cursors
@@ -91,7 +92,9 @@
     eza
     fastfetch
     git
+    gnome-themes-extra
     gnupg
+    gsettings-desktop-schemas
     hyprcursor
     hypridle
     hyprland
@@ -112,6 +115,7 @@
     oh-my-posh
     playerctl
     plex-desktop
+    qt6.qtbase
     spotify
     steam
     waybar
@@ -136,6 +140,8 @@
   # Environment variables
   environment.variables = {
     EDITOR = "nvim";
+    GTK_THEME = "Adwaita-dark";
+    QT_STYLE_OVERRIDE = "Adwaita-dark";
   };
 
   # Session variables
