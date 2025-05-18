@@ -1,65 +1,8 @@
-{ config, pkgs, ... }: {
-  nixpkgs.config.allowUnfree = true;
+{ lib, ... }:
 
-  environment.systemPackages = with pkgs; [
-    adwaita-icon-theme
-    aseprite
-    bibata-cursors
-    blueman
-    brave
-    discord
-    docker
-    eza
-    fastfetch
-    gamescope
-    gcc
-    git
-    gnome-themes-extra
-    gnupg
-    go
-    gsettings-desktop-schemas
-    hyprcursor
-    hypridle
-    hyprland
-    hyprlock
-    hyprpaper
-    hyprpicker
-    hyprsunset
-    imv
-    jdk
-    jetbrains.clion
-    jetbrains.datagrip
-    jetbrains.goland
-    jetbrains.idea-ultimate
-    jetbrains.phpstorm
-    jetbrains.pycharm-professional
-    jetbrains.ruby-mine
-    jetbrains.rust-rover
-    jetbrains.webstorm
-    kitty
-    kitty-themes
-    krita
-    makemkv
-    mongosh
-    mpv
-    mysql84
-    nautilus
-    neovim
-    networkmanager
-    networkmanagerapplet
-    nodejs
-    oh-my-posh
-    pavucontrol
-    playerctl
-    plex-desktop
-    protonup-qt
-    qt6.qtbase
-    spotify
-    steam
-    waybar
-    wget
-    wofi
-    xdg-desktop-portal-hyprland
-    xdg-utils
-  ];
+let
+  pkgModulesDir = ./packages;
+  pkgModules = builtins.attrValues (lib.genAttrs (builtins.attrNames (builtins.readDir pkgModulesDir)) (name: import (pkgModulesDir + "/${name}")));
+in {
+  imports = pkgModules;
 }
