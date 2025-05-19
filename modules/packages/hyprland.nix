@@ -12,5 +12,6 @@
     kitty-themes
     waybar
     wofi
+    xwayland
   ];
 }

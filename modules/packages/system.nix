@@ -2,9 +2,9 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    steam
-    mangohud
-    gamescope
-    protonup-qt
+    libdecor
+    libglvnd
+    libGL
+    mesa-demos
   ];
 }
