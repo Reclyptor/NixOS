@@ -5,7 +5,7 @@
     steam
     mangohud
     gamescope
-    vulkan-tools
     protonup-qt
+    libdecor
   ];
 }
