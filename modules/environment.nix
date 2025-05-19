@@ -18,7 +18,7 @@
     WLR_NO_HARDWARE_CURSORS = "1";
 
     # Vulkan runtime
-    VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d";
+    VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.x86_64.json";
     VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/etc/vulkan/explicit_layer.d";
 
     # NVIDIA-specific
