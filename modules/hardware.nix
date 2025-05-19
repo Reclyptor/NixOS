@@ -3,25 +3,25 @@
 
   hardware = {
     nvidia = {
-      modesetting.enable = true;
-      nvidiaSettings = true;
       open = true;
+      nvidiaSettings = true;
       package = config.boot.kernelPackages.nvidiaPackages.stable;
+      modesetting.enable = true;
+      powerManagement.enable = false;
     };
 
     graphics = {
       enable = true;
       enable32Bit = true;
       extraPackages = with pkgs; [
-	mesa
         vulkan-loader
         vulkan-tools
         vulkan-validation-layers
+        libvdpau
       ];
       extraPackages32 = with pkgs; [
-	libGL
-        libglvnd
         vulkan-loader
+        libvdpau
       ];
     };
 
