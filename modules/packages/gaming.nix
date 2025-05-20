@@ -15,5 +15,6 @@
       mangohud
       pinnedPkgs.gamescope
       protonup-qt
-    ];
+    ]
+  ;
 }
