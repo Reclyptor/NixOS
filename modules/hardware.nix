@@ -15,13 +15,15 @@
       enable32Bit = true;
       extraPackages = with pkgs; [
         vulkan-loader
-        vulkan-tools
         vulkan-validation-layers
-        libvdpau
+	vulkan-extension-layer
+        vulkan-tools
       ];
       extraPackages32 = with pkgs; [
         vulkan-loader
-        libvdpau
+        vulkan-validation-layers
+	vulkan-extension-layer
+        vulkan-tools
       ];
     };
 
