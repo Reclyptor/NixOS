@@ -18,12 +18,18 @@
         vulkan-validation-layers
 	vulkan-extension-layer
         vulkan-tools
+	libvdpau
+        vaapiVdpau
+        libglvnd
       ];
       extraPackages32 = with pkgs; [
         vulkan-loader
         vulkan-validation-layers
 	vulkan-extension-layer
         vulkan-tools
+	libvdpau
+        vaapiVdpau
+        libglvnd
       ];
     };
 
