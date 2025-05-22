@@ -9,6 +9,7 @@
     neovim
     oh-my-posh
     wget
+    xclip
     yt-dlp
   ];
 }
