@@ -1,7 +1,12 @@
 { config, pkgs, ... }: {
-  services.displayManager.sddm = {
+  services.greetd = {
     enable = true;
-    wayland.enable = true;
+    settings = {
+      default_session = {
+        command = "${pkgs.greetd.tuigreet}/bin/tuigreet --cmd ${pkgs.hyprland}/bin/Hyprland";
+        user = "reclyptor";
+      };
+    };
   };
 
   services.pipewire = {
