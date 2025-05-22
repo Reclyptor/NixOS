@@ -9,25 +9,21 @@
     DEFAULT_BROWSER = "${pkgs.brave}/bin/brave";
 
     # Wayland / SDL / Qt
-    NIXOS_OZONE_WL = "1";
-    XDG_SESSION_TYPE = "wayland";
-    MOZ_ENABLE_WAYLAND = "1";
+    GBM_BACKEND = "nvidia-drm";
     QT_QPA_PLATFORM = "wayland";
     SDL_VIDEODRIVER = "wayland";
+    XDG_SESSION_TYPE = "wayland";
     LIBDECOR_ENABLE = "1";
+    MOZ_ENABLE_WAYLAND = "1";
+    NIXOS_OZONE_WL = "1";
     WLR_NO_HARDWARE_CURSORS = "1";
+    WLR_RENDERER_ALLOW_SOFTWARE = "0";
 
-    # Vulkan runtime
-    VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.x86_64.json";
-    VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/etc/vulkan/explicit_layer.d";
-
-    # NVIDIA-specific
-    GBM_BACKEND = "nvidia-drm";
+    # NVIDIA
     __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     __GL_VRR_ALLOWED = "1";
     __GL_GSYNC_ALLOWED = "1";
-    __VK_LAYER_NV_optimus = "NVIDIA_only";
-    WLR_RENDERER_ALLOW_SOFTWARE = "1";
+    __GL_GPU = "0";
 
     # Steam/Proton
     STEAM_RUNTIME = "1";
