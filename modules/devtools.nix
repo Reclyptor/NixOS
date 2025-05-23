@@ -2,9 +2,11 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    libdecor
-    libglvnd
-    libGL
-    mesa-demos
+    gcc
+    go
+    jdk
+    mongosh
+    mysql84
+    nodejs
   ];
 }
