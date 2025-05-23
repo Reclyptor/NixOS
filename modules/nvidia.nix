@@ -5,20 +5,22 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
 
   services.xserver.videoDrivers = [ "nvidia" ];
 
+  environment.sessionVariables = {
+    GBM_BACKEND = "nvidia-drm";
+    LIBVA_DRIVER_NAME = "nvidia";
+    __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+    __GL_VRR_ALLOWED = "1";
+    __GL_GSYNC_ALLOWED = "1";
+  };
+
   environment.systemPackages = with pkgs; [
     libdecor
-    libglvnd
-    libGL
     mesa-demos
   ];
 
-  boot.kernelModules = [
-    "nvidia"
-    "nvidia_modeset"
-    "nvidia_uvm"
-    "nvidia_drm"
-    "i2c-nvidia_gpu"
-  ];
+  boot.kernelModules = [ "nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm" ];
+  boot.kernelParams = [ "nvidia-drm.modeset=1" ];
+  boot.extraModprobeConfig = "options nvidia_drm modeset=1";
 
   hardware = {
     graphics = {
@@ -26,7 +28,12 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
       enable32Bit = true;
       package = driver;
       extraPackages = with pkgs; [
-        nvidia-vaapi-driver
+        vaapiVdpau
+	libvdpau-va-gl
+      ];
+      extraPackages32 = with pkgs.pkgsi686Linux; [
+        vaapiVdpau
+	libvdpau-va-gl
       ];
     };
 
@@ -41,4 +48,6 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
       };
     };
   };
+
+  hardware.nvidia-container-toolkit.enable = true;
 }
