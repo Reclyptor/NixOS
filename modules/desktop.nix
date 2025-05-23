@@ -1,9 +1,16 @@
-{ config, pkgs, ... }: {
-  xdg.mime.defaultApplications = {
-    "text/html" = "brave.desktop";
-    "x-scheme-handler/http" = "brave.desktop";
-    "x-scheme-handler/https" = "brave.desktop";
-    "x-scheme-handler/about" = "brave.desktop";
-    "x-scheme-handler/unknown" = "brave.desktop";
-  };
+{ pkgs, ... }: {
+  environment.systemPackages = with pkgs; [
+    adwaita-icon-theme
+    bibata-cursors
+    gnome-themes-extra
+    gsettings-desktop-schemas
+    nautilus
+    qt6.qtbase
+    xdg-desktop-portal-hyprland
+    xdg-utils
+    playerctl
+    pavucontrol
+    networkmanager
+    networkmanagerapplet
+  ];
 }
