@@ -39,19 +39,19 @@
   };
 
   fileSystems."/data/nfs/truenas/videos" = {
-    device = "192.168.1.50:/mnt/primary/videos";
+    device = "192.168.1.2:/mnt/primary/videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
   fileSystems."/data/nfs/flashstor/videos" = {
-    device = "192.168.1.253:/mnt/primary/videos";
+    device = "192.168.1.3:/mnt/primary/videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
   fileSystems."/data/nfs/asustor/videos" = {
-    device = "192.168.1.252:/volume1/Videos";
+    device = "192.168.1.4:/volume1/Videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
