@@ -8,9 +8,5 @@
     qt6.qtbase
     xdg-desktop-portal-hyprland
     xdg-utils
-    playerctl
-    pavucontrol
-    networkmanager
-    networkmanagerapplet
   ];
 }

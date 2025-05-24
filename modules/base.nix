@@ -6,7 +6,9 @@
     fastfetch
     git
     gnupg
+    jq
     neovim
+    nmap
     oh-my-posh
     wget
     xclip
