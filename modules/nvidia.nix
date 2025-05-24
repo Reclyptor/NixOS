@@ -52,6 +52,4 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
       };
     };
   };
-
-  hardware.nvidia-container-toolkit.enable = true;
 }
