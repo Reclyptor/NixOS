@@ -4,6 +4,7 @@
   environment.systemPackages = with pkgs; [
     eza
     fastfetch
+    ffmpeg-full
     git
     gnupg
     jq
