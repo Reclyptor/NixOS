@@ -7,6 +7,7 @@
     krita
     makemkv
     mpv
+    obsidian
     plex-desktop
     signal-desktop
     spotify
