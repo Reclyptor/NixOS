@@ -56,6 +56,12 @@
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
+  fileSystems."/data/nfs/asustor/archive" = {
+    device = "192.168.1.4:/volume1/Archive";
+    fsType = "nfs4";
+    options = [ "defaults" "_netdev" "x-systemd.automount" ];
+  };
+
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
   # (the default) this is the recommended approach. When using systemd-networkd it's
   # still possible to use this option, but it's recommended to use it in conjunction
