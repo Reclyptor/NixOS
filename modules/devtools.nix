@@ -8,5 +8,6 @@
     mongosh
     mysql84
     nodejs
+    python3
   ];
 }
