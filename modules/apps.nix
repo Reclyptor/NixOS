@@ -8,6 +8,7 @@
     krita
     makemkv
     mpv
+    obs-studio
     obsidian
     plex-desktop
     signal-desktop
