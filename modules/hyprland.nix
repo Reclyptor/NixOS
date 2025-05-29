@@ -1,7 +1,7 @@
 { pkgs, ... }: {
   environment.sessionVariables = {
     QT_QPA_PLATFORM = "wayland";
-    SDL_VIDEODRIVER = "wayland";
+    SDL_VIDEODRIVER = "wayland,x11,windows";
     XDG_SESSION_TYPE = "wayland";
     LIBDECOR_ENABLE = "1";
     MOZ_ENABLE_WAYLAND = "1";
