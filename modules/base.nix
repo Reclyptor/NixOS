@@ -8,9 +8,11 @@
     git
     gnupg
     jq
+    kubectl
     neovim
     nmap
     oh-my-posh
+    talosctl
     wget
     xclip
     yt-dlp
