@@ -12,6 +12,7 @@
     neovim
     nmap
     oh-my-posh
+    openssl
     talosctl
     wget
     xclip
