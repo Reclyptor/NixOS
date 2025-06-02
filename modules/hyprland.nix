@@ -17,6 +17,7 @@
     hyprlock
     hyprpaper
     hyprpicker
+    hyprshade
     hyprshot
     hyprsunset
     kitty
