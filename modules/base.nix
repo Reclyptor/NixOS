@@ -9,6 +9,7 @@
     gnupg
     jq
     kubectl
+    kubernetes-helm
     neovim
     nmap
     oh-my-posh
