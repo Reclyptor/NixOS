@@ -10,7 +10,6 @@
     mpv
     obs-studio
     obsidian
-    plex-desktop
     signal-desktop
     spotify
   ];
