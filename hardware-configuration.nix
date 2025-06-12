@@ -12,6 +12,10 @@
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" "sg" ];
   boot.extraModulePackages = [ ];
+  boot.blacklistedKernelModules = [ "hid_playstation" ];
+  boot.extraModprobeConfig = ''
+    install hid_playstation /bin/false
+  '';
 
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/16a5ec29-306a-46d0-af93-9d2e9149e99a";
