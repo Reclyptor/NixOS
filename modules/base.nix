@@ -10,6 +10,7 @@
     jq
     kubectl
     kubernetes-helm
+    libnatpmp
     neovim
     nmap
     oh-my-posh
