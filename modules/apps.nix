@@ -10,6 +10,7 @@
     mpv
     obs-studio
     obsidian
+    qbittorrent
     signal-desktop
     spotify
   ];
