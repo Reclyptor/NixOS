@@ -16,8 +16,10 @@
     oh-my-posh
     openssl
     talosctl
+    unzip
     wget
     xclip
     yt-dlp
+    zip
   ];
 }
