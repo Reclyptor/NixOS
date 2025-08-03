@@ -5,6 +5,7 @@
     brave
     discord
     imv
+    inkscape
     krita
     makemkv
     mpv
