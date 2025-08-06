@@ -4,6 +4,7 @@
     audacity
     brave
     discord
+    firefox
     imv
     inkscape
     krita
