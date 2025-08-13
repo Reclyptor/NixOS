@@ -14,6 +14,9 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
   };
 
   environment.systemPackages = with pkgs; [
+    cudatoolkit
+    cudaPackages.cudnn
+    cudaPackages.nccl
     libdecor
     mesa-demos
   ];
