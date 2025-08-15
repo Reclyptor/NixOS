@@ -5,6 +5,7 @@
     eza
     fastfetch
     ffmpeg-full
+    fluxcd
     git
     gnupg
     jq
