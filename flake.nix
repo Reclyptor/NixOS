@@ -7,8 +7,8 @@
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ./configuration.nix
-        ./hardware-configuration.nix
+        ./hosts/nixos/configuration.nix
+        ./hosts/nixos/hardware-configuration.nix
       ];
     };
   };
