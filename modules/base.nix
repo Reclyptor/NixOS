@@ -2,6 +2,8 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
+    age
+    age-plugin-yubikey
     eza
     fastfetch
     ffmpeg-full
@@ -16,6 +18,7 @@
     nmap
     oh-my-posh
     openssl
+    sops
     talosctl
     unzip
     wget
