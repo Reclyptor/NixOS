@@ -9,6 +9,7 @@
     inkscape
     krita
     makemkv
+    mkvtoolnix
     mpv
     obs-studio
     obsidian
