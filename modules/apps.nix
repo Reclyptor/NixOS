@@ -3,6 +3,7 @@
     aseprite
     audacity
     brave
+    google-chrome
     discord
     firefox
     imv
