@@ -3,7 +3,7 @@
     isNormalUser = true;
     description = "Reclyptor";
     shell = pkgs.bash;
-    extraGroups = [ "reclyptor" "networkmanager" "wheel" "docker" ];
+    extraGroups = [ "reclyptor" "networkmanager" "wheel" "docker" "cdrom" ];
     packages = with pkgs; [ ];
   };
 }
