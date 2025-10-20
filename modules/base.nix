@@ -11,6 +11,7 @@
     kubectl
     kubernetes-helm
     libnatpmp
+    ncdu
     neovim
     nmap
     oh-my-posh
