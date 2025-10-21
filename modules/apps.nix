@@ -18,5 +18,6 @@
     qbittorrent
     signal-desktop
     spotify
+    vlc
   ];
 }
