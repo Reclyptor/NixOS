@@ -1,6 +1,5 @@
 { config, pkgs, ... }:
 let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
-  nixpkgs.config.allowUnfree = true;
   nixpkgs.config.nvidia.acceptLicense = true;
 
   services.xserver.videoDrivers = [ "nvidia" ];

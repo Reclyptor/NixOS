@@ -1,6 +1,4 @@
 { pkgs, ... }: {
-  nixpkgs.config.allowUnfree = true;
-
   environment.systemPackages = with pkgs; [
     cmake
     gcc
@@ -11,4 +9,8 @@
     nodejs
     python3
   ];
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
 }

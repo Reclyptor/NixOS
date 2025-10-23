@@ -1,6 +1,4 @@
 { config, pkgs, ... }: {
-  nixpkgs.config.allowUnfree = true;
-
   environment.sessionVariables = {
     STEAM_RUNTIME = "1";
     ENABLE_GAMESCOPE_WSI = "1";
