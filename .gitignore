@@ -1,0 +1,25 @@
+# Secrets and keys
+secrets/keys.txt
+*.key
+keys.txt
+
+# SOPS age keys should never be committed
+.config/sops/age/
+
+# Build outputs
+result
+result-*
+
+# Nix build artifacts
+*.drv
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+

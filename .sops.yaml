@@ -1,0 +1,9 @@
+keys:
+  - &reclyptor age1yubikey1q2u7ajmktdc5e5ejq98qmrwha8xglt06k96zupqmh6e6qzfvh434s0wa5yy
+  - &nixos age1l7n9aghzclqux8v903ty5fgz37dvkrwp32x2djsva9nqk76dqu8skyufqh
+creation_rules:
+  - path_regex: secrets/secrets\.yaml$
+    key_groups:
+      - age:
+          - *reclyptor
+          - *nixos

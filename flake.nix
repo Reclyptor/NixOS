@@ -14,22 +14,22 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }@inputs: {
+  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs: {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
         ./hosts/nixos/configuration.nix
         ./hosts/nixos/hardware-configuration.nix
-
-	home-manager.nixosModules.home-manager {
-	  home-manager = {
-	    useGlobalPkgs = true;
-	    useUserPackages = true;
-	    users.reclyptor = import ./home.nix;
-	    extraSpecialArgs = { inherit inputs; };
-	  };
-	}
+      	home-manager.nixosModules.home-manager {
+      	  home-manager = {
+      	    useGlobalPkgs = true;
+      	    useUserPackages = true;
+      	    users.reclyptor = import ./home.nix;
+      	    extraSpecialArgs = { inherit inputs; };
+      	    sharedModules = [ sops-nix.homeManagerModules.sops ];
+      	  };
+      	}
       ];
     };
   };
