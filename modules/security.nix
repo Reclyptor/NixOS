@@ -4,11 +4,6 @@
     plugins = [ pkgs.ccid ];
   };
 
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-  };
-
   services.openssh = {
     enable = false;
     openFirewall = false;
@@ -19,11 +14,17 @@
     };
   };
 
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
+
   environment.systemPackages = with pkgs; [
     age
     age-plugin-yubikey
     gnupg
     openssl
+    opensc
     sops
   ];
 

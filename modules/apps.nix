@@ -19,5 +19,7 @@
     signal-desktop
     spotify
     vlc
+    yubikey-manager
+    yubico-piv-tool
   ];
 }
