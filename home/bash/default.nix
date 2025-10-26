@@ -3,6 +3,9 @@
     programs.bash = {
       enable = true;
       enableCompletion = true;
+      shellOptions = [
+        nullglob
+      ];
     };
   
     imports = builtins.filter (path: path != ./default.nix) (
