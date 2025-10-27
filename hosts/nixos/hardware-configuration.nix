@@ -4,29 +4,26 @@
 { config, lib, pkgs, modulesPath, ... }:
 
 {
-  imports =
-    [ (modulesPath + "/installer/scan/not-detected.nix")
-    ];
+  imports = [
+    (modulesPath + "/installer/scan/not-detected.nix")
+  ];
 
   boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "usb_storage" "sd_mod" "sr_mod" ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" "sg" ];
   boot.extraModulePackages = [ ];
   boot.blacklistedKernelModules = [ "hid_playstation" ];
-  boot.extraModprobeConfig = ''
-    install hid_playstation /bin/false
-  '';
+  boot.extraModprobeConfig = "install hid_playstation /bin/false";
 
-  fileSystems."/" =
-    { device = "/dev/disk/by-uuid/16a5ec29-306a-46d0-af93-9d2e9149e99a";
-      fsType = "ext4";
-    };
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/1C46-571F";
+    fsType = "vfat";
+    options = [ "fmask=0077" "dmask=0077" ];
+  };
 
-  fileSystems."/boot" =
-    { device = "/dev/disk/by-uuid/1C46-571F";
-      fsType = "vfat";
-      options = [ "fmask=0077" "dmask=0077" ];
-    };
+  fileSystems."/" = { device = "/dev/disk/by-uuid/16a5ec29-306a-46d0-af93-9d2e9149e99a";
+    fsType = "ext4";
+  };
 
   swapDevices = [ ];
 
@@ -42,26 +39,38 @@
     options = [ "defaults" ];
   };
 
-  fileSystems."/data/nfs/truenas/videos" = {
+  fileSystems."/data/nfs/dxp6800" = {
     device = "192.168.1.2:/mnt/primary/videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
-  fileSystems."/data/nfs/flashstor/videos" = {
+  fileSystems."/data/nfs/dxp4800" = {
     device = "192.168.1.3:/mnt/primary/videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
-  fileSystems."/data/nfs/asustor/videos" = {
-    device = "192.168.1.4:/volume1/Videos";
+  fileSystems."/data/nfs/flashstor/videos" = {
+    device = "192.168.1.4:/mnt/primary/videos";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
 
-  fileSystems."/data/nfs/asustor/archive" = {
-    device = "192.168.1.4:/volume1/Archive";
+  fileSystems."/data/nfs/flashstor/data" = {
+    device = "192.168.1.4:/mnt/primary/data";
+    fsType = "nfs4";
+    options = [ "defaults" "_netdev" "x-systemd.automount" ];
+  };
+
+  fileSystems."/data/nfs/dh4300" = {
+    device = "192.168.1.5:/volume1/data";
+    fsType = "nfs";
+    options = [ "defaults" "_netdev" "x-systemd.automount" "nfsvers=3" ];
+  };
+
+  fileSystems."/data/nfs/asustor" = {
+    device = "192.168.1.6:/volume1/data";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };

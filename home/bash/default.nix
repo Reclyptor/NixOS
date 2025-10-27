@@ -4,7 +4,7 @@
       enable = true;
       enableCompletion = true;
       shellOptions = [
-        nullglob
+        "nullglob"
       ];
     };
   
