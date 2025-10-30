@@ -22,11 +22,11 @@
       "$terminal" = "kitty";
       "$fileManager" = "env GSK_RENDERER=gl nautilus";
       "$browser" = "brave";
-      "$menu" = "wofi --show drun";
+      "$menu" = "pkill wofi || wofi --show drun";
 
       # Autostart applications
       exec-once = [
-        "waybar"
+        # waybar is managed by systemd (see programs.waybar.systemd.enable below)
         "hyprpaper"
         "nm-applet --indicator"
       ];
@@ -382,7 +382,7 @@
         "custom/launcher" = {
           format = "  ";
           interval = 7200;
-          on-click = "wofi --show drun";
+          on-click = "pkill wofi || wofi --show drun";
           signal = 8;
         };
 
