@@ -355,9 +355,9 @@
           monitor = "";
           dots_center = true;
           fade_on_empty = false;
-          font_color = "rgb(202, 211, 245)";
-          inner_color = "rgb(91, 96, 120)";
-          outer_color = "rgb(24, 25, 38)";
+          font_color = "rgb(164, 198, 57)";
+          inner_color = "rgb(20, 25, 20)";
+          outer_color = "rgb(12, 15, 12)";
           outline_thickness = 5;
           placeholder_text = "Password...";
           shadow_passes = 2;
