@@ -16,6 +16,8 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
   environment.systemPackages = with pkgs; [
     libdecor
     mesa-demos
+    nvidia-vaapi-driver
+    libva-utils
   ];
 
   boot.kernelModules = [ "nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm" ];
