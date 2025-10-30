@@ -289,13 +289,16 @@
     enable = true;
     settings = {
       preload = [
-        "~/Pictures/wallpaper/wallhaven-p852rp.jpg"
+        "${config.home.homeDirectory}/.config/wallpapers/default.jpg"
       ];
       wallpaper = [
-        ", ~/Pictures/wallpaper/wallhaven-p852rp.jpg"
+        ", ${config.home.homeDirectory}/.config/wallpapers/default.jpg"
       ];
     };
   };
+
+  # Copy wallpaper from Nix configuration to home directory
+  home.file.".config/wallpapers/default.jpg".source = ../wallpapers/default.jpg;
 
   # Hypridle configuration (optional - enable if you want idle management)
   # services.hypridle = {
