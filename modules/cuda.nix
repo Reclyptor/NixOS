@@ -1,7 +1,4 @@
 { config, pkgs, ... }: {
-  # Enable CUDA support
-  nixpkgs.config.cudaSupport = true;
-
   # CUDA environment variables
   environment.sessionVariables = {
     CUDA_PATH = "${pkgs.cudaPackages.cudatoolkit}";
