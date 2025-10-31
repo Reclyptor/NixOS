@@ -26,7 +26,6 @@
 
       # Autostart applications
       exec-once = [
-        # waybar is managed by systemd (see programs.waybar.systemd.enable below)
         "hyprpaper"
         "nm-applet --indicator"
       ];
@@ -369,7 +368,7 @@
   # Waybar configuration
   programs.waybar = {
     enable = true;
-    systemd.enable = true;
+    systemd.enable = false;
     
     settings = {
       mainBar = {
