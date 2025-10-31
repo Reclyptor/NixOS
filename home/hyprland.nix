@@ -28,6 +28,7 @@
       exec-once = [
         "hyprpaper"
         "nm-applet --indicator"
+        "waybar"
       ];
 
       # Environment variables (user-level)
