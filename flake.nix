@@ -39,6 +39,7 @@
       modules = [
         ./hosts/archeon/configuration.nix
         ./hosts/archeon/hardware-configuration.nix
+        sops-nix.nixosModules.sops
       ];
     };
 
@@ -48,6 +49,7 @@
       modules = [
         ./hosts/fluxeon/configuration.nix
         ./hosts/fluxeon/hardware-configuration.nix
+        sops-nix.nixosModules.sops
       ];
     };
 
@@ -57,6 +59,7 @@
       modules = [
         ./hosts/voideon/configuration.nix
         ./hosts/voideon/hardware-configuration.nix
+        sops-nix.nixosModules.sops
       ];
     };
   };
