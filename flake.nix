@@ -32,5 +32,32 @@
       	}
       ];
     };
+
+    nixosConfigurations.archeon = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/archeon/configuration.nix
+        ./hosts/archeon/hardware-configuration.nix
+      ];
+    };
+
+    nixosConfigurations.fluxeon = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/fluxeon/configuration.nix
+        ./hosts/fluxeon/hardware-configuration.nix
+      ];
+    };
+
+    nixosConfigurations.voideon = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/voideon/configuration.nix
+        ./hosts/voideon/hardware-configuration.nix
+      ];
+    };
   };
 }
