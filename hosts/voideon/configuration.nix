@@ -10,6 +10,8 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  boot.kernelModules = [ "iscsi_tcp" ];
+
   networking.hostName = "voideon";
   networking.networkmanager.enable = true;
 
@@ -37,6 +39,7 @@
     git
     kubectl
     neovim
+    openiscsi
     wget
   ];
 
@@ -62,9 +65,15 @@
   };
 
   networking.firewall = {
-    allowedTCPPorts = [ 10250 ];
+    allowedTCPPorts = [ 10250 3260 ];
     allowedUDPPorts = [ 8472 ];
   };
 
   services.openssh.enable = true;
+
+  services.openiscsi.enable = true;
+  services.openiscsi.name = "iqn.2005-10.org.freenas.ctl";
+
+  systemd.services.k3s.after = [ "iscsid.service" ];
+  systemd.services.k3s.requires = [ "iscsid.service" ];
 }
