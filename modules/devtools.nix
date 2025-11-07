@@ -46,6 +46,8 @@ in {
     mongosh
     mysql84
     nodejs
+    redis
+
     pythonWithML
   ];
   
