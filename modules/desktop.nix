@@ -5,6 +5,7 @@
     cliphist
     gnome-themes-extra
     gsettings-desktop-schemas
+    libnotify
     mako
     nautilus
     qt6.qtbase

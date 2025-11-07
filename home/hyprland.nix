@@ -574,6 +574,7 @@
   services.mako = {
     enable = true;
     settings = {
+      anchor = "top-center";
       default-timeout = 5000;
       background-color = "#0C0F0C";
       text-color = "#A4C639";
