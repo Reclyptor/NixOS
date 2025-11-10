@@ -10,7 +10,9 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.kernelModules = [ "iscsi_tcp" ];
+  boot.kernelModules = [ "iscsi_tcp" "amdgpu" "kvm-amd" ];
+  boot.kernelParams = [ "amdgpu.dc=1" "amdgpu.dpm=1" ];
+  boot.supportedFilesystems = [ "nfs" ];
 
   networking.hostName = "archeon";
   networking.networkmanager.enable = true;
@@ -35,12 +37,43 @@
 
   nixpkgs.config.allowUnfree = true;
 
+  # AMD GPU Hardware Acceleration
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      mesa.drivers
+      vaapiVdpau
+      libvdpau-va-gl
+      rocmPackages.clr.icd
+    ];
+    extraPackages32 = with pkgs.pkgsi686Linux; [
+      mesa.drivers
+      vaapiVdpau
+      libvdpau-va-gl
+    ];
+  };
+
+  environment.sessionVariables = {
+    LIBVA_DRIVER_NAME = "radeonsi";
+    ROC_ENABLE_PRE_VEGA = "1";
+    AMD_VULKAN_ICD = "RADV";
+    RADV_PERFTEST = "gpl";
+  };
+
   environment.systemPackages = with pkgs; [
     git
     kubectl
     neovim
     openiscsi
     wget
+    pciutils
+    libva-utils
+    vulkan-tools
+    clinfo
+    ffmpeg-full
+    radeontop
+    mesa-demos
   ];
 
   programs.gnupg.agent = {
@@ -72,6 +105,18 @@
 
   services.openiscsi.enable = true;
   services.openiscsi.name = "iqn.2005-10.org.freenas.ctl";
+
+  users.groups.video = {};
+  users.groups.render = {};
+
+  systemd.tmpfiles.rules = [
+    "d /usr/sbin 0755 root root -"
+    "L+ /usr/sbin/iscsiadm - - - - /run/current-system/sw/bin/iscsiadm"
+    "d /sbin 0755 root root -"
+    "L+ /sbin/iscsiadm - - - - /run/current-system/sw/bin/iscsiadm"
+    "d /dev/dri 0755 root video -"
+    "d /var/lib/plex-transcode 0755 root root -"
+  ];
 
   systemd.services.k3s.after = [ "iscsid.service" ];
   systemd.services.k3s.requires = [ "iscsid.service" ];
