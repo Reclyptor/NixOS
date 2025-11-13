@@ -9,13 +9,13 @@
           sources = {
             x86_64-linux = prev.fetchurl {
               url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/2.0";
-              hash = "sha256-zT9GhdwGDWZJQl+WpV2txbmp3/tJRtL6ds1UZQoKNzA=";
+              hash = "sha256-e/FNGAN+AErgEv4GaMQLPhV0LmSuHF9RNQ+SJEiP2z4=";
             };
           };
           
           source = sources.${hostPlatform.system};
           pname = "cursor";
-          version = "2.0.38";
+          version = "2.0.75";
         in {
           # Override version and src with proper AppImage extraction
           inherit version;
