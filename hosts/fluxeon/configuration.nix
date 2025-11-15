@@ -10,7 +10,14 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.kernelModules = [ "iscsi_tcp" "amdgpu" "kvm-amd" ];
+  boot.kernelModules = [ 
+    "iscsi_tcp" 
+    "amdgpu" 
+    "kvm-amd"
+    "sr_mod"
+    "cdrom"
+    "sg"
+  ];
   boot.kernelParams = [ "amdgpu.dc=1" "amdgpu.dpm=1" ];
   boot.supportedFilesystems = [ "nfs" ];
 
