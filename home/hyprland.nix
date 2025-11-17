@@ -224,6 +224,17 @@
         "$mainMod SHIFT, 8, movetoworkspace, 8"
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
+
+        "$mainMod SHIFT CTRL, 1, movetoworkspacesilent, 1"
+        "$mainMod SHIFT CTRL, 2, movetoworkspacesilent, 2"
+        "$mainMod SHIFT CTRL, 3, movetoworkspacesilent, 3"
+        "$mainMod SHIFT CTRL, 4, movetoworkspacesilent, 4"
+        "$mainMod SHIFT CTRL, 5, movetoworkspacesilent, 5"
+        "$mainMod SHIFT CTRL, 6, movetoworkspacesilent, 6"
+        "$mainMod SHIFT CTRL, 7, movetoworkspacesilent, 7"
+        "$mainMod SHIFT CTRL, 8, movetoworkspacesilent, 8"
+        "$mainMod SHIFT CTRL, 9, movetoworkspacesilent, 9"
+        "$mainMod SHIFT CTRL, 0, movetoworkspacesilent, 10"
         
         "$mainMod, Tab, workspace, m+1"
         "$mainMod SHIFT, Tab, workspace, m-1"
