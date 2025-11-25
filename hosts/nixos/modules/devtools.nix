@@ -45,6 +45,8 @@ in {
     jdk
     mongosh
     mysql84
+    postgresql
+    natscli
     nodejs
     redis
 
