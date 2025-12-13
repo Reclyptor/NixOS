@@ -28,6 +28,7 @@
     usbutils
     wget
     xclip
+    xxd
     xz
     yq
     yt-dlp
