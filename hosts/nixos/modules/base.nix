@@ -8,7 +8,6 @@
     ffmpeg-full
     fluxcd
     git
-    home-manager
     htop
     iotop
     jq

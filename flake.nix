@@ -14,20 +14,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs: 
-    let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-    in {
-    homeConfigurations."nixos" = home-manager.lib.homeManagerConfiguration {
-      inherit pkgs;
-      modules = [
-        ./home.nix
-        sops-nix.homeManagerModules.sops
-      ];
-      extraSpecialArgs = { inherit inputs; };
-    };
-
+  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs: {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };

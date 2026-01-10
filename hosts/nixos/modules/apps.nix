@@ -1,8 +1,10 @@
 { pkgs, ... }: {
   environment.systemPackages = with pkgs; [
+    aseprite
     audacity
     brave
     code-cursor
+    google-chrome
     discord
     firefox
     imv

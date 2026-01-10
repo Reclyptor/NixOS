@@ -30,13 +30,13 @@ let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
       enable32Bit = true;
       package = driver;
       extraPackages = with pkgs; [
-        libva-vdpau-driver
+        nvidia-vaapi-driver
         libvdpau-va-gl
         libGL
         xorg.libXrandr
       ];
       extraPackages32 = with pkgs.pkgsi686Linux; [
-        libva-vdpau-driver
+        nvidia-vaapi-driver
         libvdpau-va-gl
         libGL
         xorg.libXrandr
