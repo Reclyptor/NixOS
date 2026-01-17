@@ -295,6 +295,9 @@
     '';
   };
 
+  # Override sops-nix service environment to include age-plugin-yubikey in PATH
+  systemd.user.services.sops-nix.Service.Environment = lib.mkForce "PATH=${lib.makeBinPath [ pkgs.age-plugin-yubikey ]}:/run/current-system/sw/bin";
+
   # Hyprpaper configuration
   services.hyprpaper = {
     enable = true;
@@ -687,6 +690,7 @@
 
   # Additional home packages for Hyprland
   home.packages = with pkgs; [
+    age-plugin-yubikey
     brave
     brightnessctl
     playerctl
