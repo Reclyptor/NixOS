@@ -3,9 +3,9 @@
     jetbrains.clion
     jetbrains.datagrip
     jetbrains.goland
-    jetbrains.idea-ultimate
+    jetbrains.idea
     jetbrains.phpstorm
-    jetbrains.pycharm-professional
+    jetbrains.pycharm
     jetbrains.ruby-mine
     jetbrains.rust-rover
     jetbrains.webstorm
