@@ -8,14 +8,14 @@
           # Define new sources with updated version
           sources = {
             x86_64-linux = prev.fetchurl {
-	      url = "https://api2.cursor.sh/updates/download/golden/linux-x64/cursor/2.2";
-	      hash = "sha256-dY42LaaP7CRbqY2tuulJOENa+QUGSL09m07PvxsZCr0=";
+	      url = "https://downloads.cursor.com/production/2ca326e0d1ce10956aea33d54c0e2d8c13c58a32/linux/x64/Cursor-2.3.41-x86_64.AppImage";
+	      hash = "sha256-ItUgknMzSDeXxN3Yi/pz2wZoz7vVVqx9nGXuGmbHbXc=";
             };
           };
           
           source = sources.${hostPlatform.system};
           pname = "cursor";
-          version = "2.2.20";
+          version = "2.3.41";
         in {
           # Override version and src with proper AppImage extraction
           inherit version;
