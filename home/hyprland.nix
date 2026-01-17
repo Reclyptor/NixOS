@@ -26,7 +26,6 @@
 
       # Autostart applications
       exec-once = [
-        "hyprpaper"
         "nm-applet --indicator"
         "waybar"
       ];
@@ -298,15 +297,23 @@
   # Override sops-nix service environment to include age-plugin-yubikey in PATH
   systemd.user.services.sops-nix.Service.Environment = lib.mkForce "PATH=${lib.makeBinPath [ pkgs.age-plugin-yubikey ]}:/run/current-system/sw/bin";
 
-  # Hyprpaper configuration
+  # Hyprpaper configuration (Home Manager module with new syntax)
   services.hyprpaper = {
     enable = true;
     settings = {
+      ipc = true;
+      splash = false;
+
       preload = [
-        "${config.home.homeDirectory}/.config/wallpapers/default.jpg"
+        "/home/reclyptor/.config/wallpapers/default.jpg"
       ];
+
       wallpaper = [
-        ", ${config.home.homeDirectory}/.config/wallpapers/default.jpg"
+        {
+          monitor = "DP-1";
+          path = "/home/reclyptor/.config/wallpapers/default.jpg";
+          fit_mode = "cover";
+        }
       ];
     };
   };
