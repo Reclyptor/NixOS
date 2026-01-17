@@ -11,6 +11,7 @@
     htop
     iotop
     jq
+    killall
     kubectl
     kubernetes-helm
     libnatpmp
