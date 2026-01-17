@@ -20,7 +20,7 @@
 
       # Programs
       "$terminal" = "kitty";
-      "$fileManager" = "env GSK_RENDERER=gl nautilus";
+      "$fileManager" = "nautilus";
       "$browser" = "brave";
       "$menu" = "pkill wofi || wofi --show drun";
 
@@ -42,17 +42,6 @@
         "XDG_CURRENT_DESKTOP,Hyprland"
         "XDG_SESSION_DESKTOP,Hyprland"
         "XDG_SESSION_TYPE,wayland"
-        
-        # Hyprcursor and Xcursor settings
-        "HYPRCURSOR_SIZE,24"
-        "HYPRCURSOR_THEME,Bibata-Modern-Ice"
-        "XCURSOR_SIZE,24"
-        "XCURSOR_THEME,Bibata-Modern-Ice"
-        
-        # GTK/Qt theming
-        "GTK_THEME,Adwaita-dark"
-        "QT_STYLE_OVERRIDE,Adwaita-dark"
-        "QT_QPA_PLATFORMTHEME,gtk4"
         
         # Hyprshot config
         "HYPRSHOT_DIR,/home/reclyptor/Screenshots"
