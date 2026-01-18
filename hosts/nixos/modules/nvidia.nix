@@ -1,5 +1,5 @@
 { config, pkgs, ... }:
-let driver = config.boot.kernelPackages.nvidiaPackages.beta; in {
+let driver = config.boot.kernelPackages.nvidiaPackages.stable; in {
   nixpkgs.config.nvidia.acceptLicense = true;
   nixpkgs.config.allowUnfree = true;
 
