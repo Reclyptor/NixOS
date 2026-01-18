@@ -9,9 +9,11 @@
     WLR_NO_HARDWARE_CURSORS = "1";
     WLR_RENDERER_ALLOW_SOFTWARE = "0";
     GTK_THEME = "adw-gtk3-dark";
+    ADW_DISABLE_PORTAL = "1";
   };
 
   environment.systemPackages = with pkgs; [
+    adw-gtk3
     hyprcursor
     hypridle
     hyprland
