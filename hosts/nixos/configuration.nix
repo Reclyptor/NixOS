@@ -1,5 +1,8 @@
 { config, pkgs, lib, ... }: (
-  let moduleDirectory = ./modules; in {
+  let
+    moduleDirectory = ./modules; 
+    overlayDirectory = ./overlays;
+  in {
     system.stateVersion = "24.11";
     nix.settings = {
       experimental-features = [ "nix-command" "flakes" ];
@@ -15,6 +18,7 @@
       automatic = true;
       dates = [ "weekly" ];
     };
-    imports = builtins.attrValues (lib.genAttrs (builtins.attrNames (builtins.readDir moduleDirectory)) (name: import (moduleDirectory + "/${name}")));
+    imports = builtins.attrValues (lib.genAttrs (builtins.attrNames (builtins.readDir moduleDirectory)) (name: import (moduleDirectory + "/${name}")))
+      ++ builtins.attrValues (lib.genAttrs (builtins.attrNames (builtins.readDir overlayDirectory)) (name: import (overlayDirectory + "/${name}")));
   }
 )

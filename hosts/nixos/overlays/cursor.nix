@@ -38,46 +38,6 @@
           };
         }
       );
-
-      hytale = let
-        version = "latest";
-        src = prev.fetchzip {
-          url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.zip";
-          hash = "sha256-F46outZwTxjfaUTbi1ZYNhjKTQWFlfKDymG7RdnC7gQ=";
-        };
-      in prev.buildFHSEnv {
-        pname = "hytale";
-        inherit version;
-
-        targetPkgs = pkgs: with pkgs; [
-          # Launcher dependencies
-          libsoup_3
-          gdk-pixbuf
-          glib
-          gtk3
-          webkitgtk_4_1
-          
-          # Game dependencies
-          alsa-lib
-          icu
-          libGL
-          openssl
-          udev
-          xorg.libX11
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXi
-        ];
-
-        runScript = "${src}/hytale-launcher";
-
-        meta = with prev.lib; {
-          description = "Hytale Launcher";
-          homepage = "https://hytale.com";
-          license = licenses.unfree;
-          platforms = [ "x86_64-linux" ];
-        };
-      };
     })
   ];
 }
