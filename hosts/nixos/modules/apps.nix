@@ -5,6 +5,7 @@
     brave
     code-cursor
     google-chrome
+    hytale
     discord
     firefox
     imv
