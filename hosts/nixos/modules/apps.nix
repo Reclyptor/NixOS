@@ -20,6 +20,7 @@
     signal-desktop
     spotify
     vlc
+    vintagestory
     whipper
     yubikey-manager
     yubico-piv-tool
