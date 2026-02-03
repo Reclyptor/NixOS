@@ -40,6 +40,7 @@ let
 in {
   environment.systemPackages = with pkgs; [
     cmake
+    deno
     gcc
     go
     jdk
