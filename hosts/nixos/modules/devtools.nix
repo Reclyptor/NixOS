@@ -39,10 +39,14 @@ let
   ]);
 in {
   environment.systemPackages = with pkgs; [
+    claude-code
     cmake
+    codex
     deno
     gcc
+    gh
     go
+    gum
     jdk
     mongosh
     mysql84
