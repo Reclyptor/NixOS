@@ -171,20 +171,20 @@
         "$mainMod, P, pseudo"
         "$mainMod SHIFT, T, workspaceopt, allfloat"
         "$mainMod, J, togglesplit"
-        "$mainMod SHIFT, right, resizeactive, 100 0"
-        "$mainMod SHIFT, left, resizeactive, -100 0"
-        "$mainMod SHIFT, down, resizeactive, 0 100"
-        "$mainMod SHIFT, up, resizeactive, 0 -100"
+        "$mainMod SHIFT, l, resizeactive, 100 0"
+        "$mainMod SHIFT, h, resizeactive, -100 0"
+        "$mainMod SHIFT, j, resizeactive, 0 100"
+        "$mainMod SHIFT, k, resizeactive, 0 -100"
         "$mainMod, G, togglegroup"
         "$mainMod, K, swapsplit"
-        "$mainMod ALT, left, swapwindow, l"
-        "$mainMod ALT, right, swapwindow, r"
-        "$mainMod ALT, up, swapwindow, u"
-        "$mainMod ALT, down, swapwindow, d"
+        "CTRL ALT, h, swapwindow, l"
+        "CTRL ALT, l, swapwindow, r"
+        "CTRL ALT, k, swapwindow, u"
+        "CTRL ALT, j, swapwindow, d"
         
         # Actions
         "$mainMod SHIFT, R, exec, hyprctl reload"
-        "$mainMod, PRINT, exec, hyprshot -m output"
+        "$mainMod SHIFT, P, exec, hyprshot -m output"
         "$mainMod SHIFT, S, exec, hyprshot -m region"
         "$mainMod CTRL, RETURN, exec, $menu"
         "$mainMod, H, exec, hyprshade toggle blue-light-filter"
@@ -232,10 +232,10 @@
         "$mainMod CTRL, down, workspace, empty"
         
         # Move focus
-        "$mainMod, left, movefocus, l"
-        "$mainMod, right, movefocus, r"
-        "$mainMod, up, movefocus, u"
-        "$mainMod, down, movefocus, d"
+        "ALT, h, movefocus, l"
+        "ALT, l, movefocus, r"
+        "ALT, k, movefocus, u"
+        "ALT, j, movefocus, d"
       ];
 
       # Bind with repeat (binde)
