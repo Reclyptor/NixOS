@@ -62,5 +62,15 @@
         sops-nix.nixosModules.sops
       ];
     };
+
+    nixosConfigurations.darkeon = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/darkeon/configuration.nix
+        ./hosts/darkeon/hardware-configuration.nix
+        sops-nix.nixosModules.sops
+      ];
+    };
   };
 }
