@@ -15,12 +15,12 @@
   };
 
   outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs: {
-    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.astreon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
-        ./hosts/nixos/configuration.nix
-        ./hosts/nixos/hardware-configuration.nix
+        ./hosts/astreon/configuration.nix
+        ./hosts/astreon/hardware-configuration.nix
       	home-manager.nixosModules.home-manager {
       	  home-manager = {
       	    useGlobalPkgs = true;
@@ -63,12 +63,22 @@
       ];
     };
 
-    nixosConfigurations.darkeon = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.styxeon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
-        ./hosts/darkeon/configuration.nix
-        ./hosts/darkeon/hardware-configuration.nix
+        ./hosts/styxeon/configuration.nix
+        ./hosts/styxeon/hardware-configuration.nix
+        sops-nix.nixosModules.sops
+      ];
+    };
+
+    nixosConfigurations.bytheon = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [
+        ./hosts/bytheon/configuration.nix
+        ./hosts/bytheon/hardware-configuration.nix
         sops-nix.nixosModules.sops
       ];
     };
