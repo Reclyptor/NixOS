@@ -1,5 +1,5 @@
 { config, pkgs, ... }: {
-  networking.hostName = "nixos";
+  networking.hostName = "astreon";
   networking.networkmanager.enable = true;
   networking.firewall = {
     enable = true;
