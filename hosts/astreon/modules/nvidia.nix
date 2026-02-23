@@ -25,6 +25,8 @@ let driver = config.boot.kernelPackages.nvidiaPackages.stable; in {
   boot.extraModprobeConfig = "options nvidia_drm modeset=1";
 
   hardware = {
+    nvidia-container-toolkit.enable = true;
+
     graphics = {
       enable = true;
       enable32Bit = true;

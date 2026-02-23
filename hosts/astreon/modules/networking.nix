@@ -1,5 +1,6 @@
 { config, pkgs, ... }: {
   networking.hostName = "astreon";
+  networking.hostId = "bca3551f";
   networking.networkmanager.enable = true;
   networking.firewall = {
     enable = true;
