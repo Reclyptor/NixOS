@@ -19,7 +19,6 @@
     ncdu
     neovim
     nmap
-    oh-my-posh
     p7zip
     pciutils
     rar
