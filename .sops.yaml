@@ -1,6 +1,6 @@
 keys:
   - &reclyptor age1yubikey1q2u7ajmktdc5e5ejq98qmrwha8xglt06k96zupqmh6e6qzfvh434s0wa5yy
-  - &astreon age1kl5r8agkag633lhsk8mk3f7qjrrfj3dyg66vfa58pp45ukf23f6quhlh8a
+  - &nixos age1kl5r8agkag633lhsk8mk3f7qjrrfj3dyg66vfa58pp45ukf23f6quhlh8a
   - &archeon age1ty4q89p8lj5y9wrd4hzumzvza74mrdfzlk06r0v84cx55hg4x5eqte6awl
   - &fluxeon age18ev8yxmrzvvlqm5x0ccsz2mzfj8j4fdus905rv5hn27j70t6hd2quqnjyd
   - &voideon age1gyqwaunj0tg8stefsvun8zwaqr76wwk8r6da7wdl20rlz09r2f0qxa4a8u
@@ -11,7 +11,7 @@ creation_rules:
     key_groups:
       - age:
           - *reclyptor
-          - *astreon
+          - *nixos
           - *archeon
           - *fluxeon
           - *voideon

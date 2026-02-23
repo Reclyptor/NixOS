@@ -10,7 +10,8 @@
 
       # Monitor configuration - Ultrawide 5120x1440@240Hz
       monitor = [
-        "DP-1,5120x1440@240,0x0,1"
+        # "DP-1,5120x1440@240,0x0,1"  # re-enable when GPU is installed
+        ",5120x1440,auto,1"
       ];
 
       # Xwayland settings
@@ -26,18 +27,13 @@
 
       # Autostart applications
       exec-once = [
+        "hyprpaper"
         "nm-applet --indicator"
         "waybar"
       ];
 
       # Environment variables (user-level)
       env = [
-        # NVIDIA + Wayland + Hyprland-specific
-        "__GLX_VENDOR_LIBRARY_NAME,nvidia"
-        "__GL_GSYNC_ALLOWED,false"
-        "__GL_VRR_ALLOWED,false"
-        "GBM_BACKEND,nvidia-drm"
-        
         # Hyprland session identifiers
         "XDG_CURRENT_DESKTOP,Hyprland"
         "XDG_SESSION_DESKTOP,Hyprland"
@@ -45,6 +41,12 @@
         
         # Hyprshot config
         "HYPRSHOT_DIR,/home/reclyptor/Screenshots"
+
+        # NVIDIA + Wayland (re-enable when GPU is installed)
+        # "__GLX_VENDOR_LIBRARY_NAME,nvidia"
+        # "__GL_GSYNC_ALLOWED,false"
+        # "__GL_VRR_ALLOWED,false"
+        # "GBM_BACKEND,nvidia-drm"
       ];
 
       # Input configuration
@@ -286,26 +288,16 @@
   # Override sops-nix service environment to include age-plugin-yubikey in PATH
   systemd.user.services.sops-nix.Service.Environment = lib.mkForce "PATH=${lib.makeBinPath [ pkgs.age-plugin-yubikey ]}:/run/current-system/sw/bin";
 
-  # Hyprpaper configuration (Home Manager module with new syntax)
-  services.hyprpaper = {
-    enable = true;
-    settings = {
-      ipc = true;
-      splash = false;
+  xdg.configFile."hypr/hyprpaper.conf".text = ''
+    ipc = true
+    splash = false
 
-      preload = [
-        "/home/reclyptor/.config/wallpapers/default.jpg"
-      ];
-
-      wallpaper = [
-        {
-          monitor = "DP-1";
-          path = "/home/reclyptor/.config/wallpapers/default.jpg";
-          fit_mode = "cover";
-        }
-      ];
-    };
-  };
+    wallpaper {
+        monitor =
+        path = /home/reclyptor/.config/wallpapers/default.jpg
+        fit_mode = cover
+    }
+  '';
 
   # Copy wallpaper from Nix configuration to home directory
   home.file.".config/wallpapers/default.jpg".source = ../wallpapers/default.jpg;
@@ -684,15 +676,6 @@
     '';
   };
 
-  # Additional home packages for Hyprland
-  home.packages = with pkgs; [
-    age-plugin-yubikey
-    brave
-    brightnessctl
-    playerctl
-    pavucontrol
-    networkmanagerapplet
-  ];
 
   # Create screenshots directory
   home.file."Screenshots/.keep".text = "";
