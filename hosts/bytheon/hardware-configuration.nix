@@ -12,17 +12,17 @@
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
-    device = "zpool/root";
+    device = "rpool/nixos/root";
     fsType = "zfs";
   };
 
   fileSystems."/nix" = {
-    device = "zpool/nix";
+    device = "rpool/nixos/nix";
     fsType = "zfs";
   };
 
   fileSystems."/home" = {
-    device = "zpool/home";
+    device = "rpool/nixos/home";
     fsType = "zfs";
   };
 
