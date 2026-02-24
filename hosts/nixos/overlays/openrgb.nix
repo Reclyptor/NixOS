@@ -1,0 +1,25 @@
+{ pkgs, ... }: {
+  nixpkgs.overlays = [
+    (final: prev: {
+      openrgb = prev.openrgb.overrideAttrs (old: {
+        version = "git";
+        src = prev.fetchFromGitLab {
+          owner = "CalcProgrammer1";
+          repo = "OpenRGB";
+          rev = "master";
+          hash = "sha256-U9bLmNCca/Dzw40pAZaix6TteMxRbDJxMacBHRQzZKU=";
+        };
+        patches = [ ];
+        postPatch = ''
+          patchShebangs scripts/build-udev-rules.sh
+        '';
+        postInstall = (old.postInstall or "") + ''
+          if [ -f "$out/lib/udev/rules.d/60-openrgb.rules" ]; then
+            substituteInPlace "$out/lib/udev/rules.d/60-openrgb.rules" \
+              --replace-fail "/usr/bin/env chmod" "${prev.coreutils}/bin/chmod"
+          fi
+        '';
+      });
+    })
+  ];
+}
