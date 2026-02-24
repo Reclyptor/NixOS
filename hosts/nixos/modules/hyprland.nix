@@ -6,7 +6,6 @@
     LIBDECOR_ENABLE = "1";
     MOZ_ENABLE_WAYLAND = "1";
     NIXOS_OZONE_WL = "1";
-    WLR_NO_HARDWARE_CURSORS = "1";
     WLR_RENDERER_ALLOW_SOFTWARE = "0";
     GTK_THEME = "adw-gtk3-dark";
     ADW_DISABLE_PORTAL = "1";
