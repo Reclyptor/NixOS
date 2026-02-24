@@ -11,8 +11,9 @@
     "sg"
   ];
   boot.kernelParams = [ "amdgpu.dc=1" "amdgpu.dpm=1" ];
-  boot.supportedFilesystems = [ "nfs" ];
+  boot.supportedFilesystems = [ "zfs" "nfs" ];
 
+  networking.hostId = "00000002";
   networking.networkmanager.enable = true;
 
   time.timeZone = "America/Chicago";

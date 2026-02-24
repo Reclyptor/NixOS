@@ -12,21 +12,28 @@
   boot.kernelModules = [ "kvm-amd" ];
   boot.extraModulePackages = [ ];
 
-  # TODO: Update filesystem UUIDs from actual hardware
-  # fileSystems."/" =
-  #   { device = "/dev/disk/by-uuid/XXXX";
-  #     fsType = "ext4";
-  #   };
+  fileSystems."/" = {
+    device = "rpool/nixos/root";
+    fsType = "zfs";
+  };
 
-  # fileSystems."/boot" =
-  #   { device = "/dev/disk/by-uuid/XXXX";
-  #     fsType = "vfat";
-  #     options = [ "fmask=0077" "dmask=0077" ];
-  #   };
+  fileSystems."/nix" = {
+    device = "rpool/nixos/nix";
+    fsType = "zfs";
+  };
 
-  # swapDevices =
-  #   [ { device = "/dev/disk/by-uuid/XXXX"; }
-  #   ];
+  fileSystems."/home" = {
+    device = "rpool/nixos/home";
+    fsType = "zfs";
+  };
+
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/XXXX-XXXX";
+    fsType = "vfat";
+    options = [ "fmask=0077" "dmask=0077" ];
+  };
+
+  swapDevices = [ ];
 
   networking.useDHCP = lib.mkDefault true;
 
