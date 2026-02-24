@@ -10,8 +10,8 @@
 
       # Monitor configuration - Ultrawide 5120x1440@240Hz
       monitor = [
-        # "DP-1,5120x1440@240,0x0,1"  # re-enable when GPU is installed
-        ",5120x1440,auto,1"
+        # Force ultrawide mode regardless of connector naming.
+        ",5120x1440@240,auto,1"
       ];
 
       # Xwayland settings
@@ -153,6 +153,7 @@
       misc = {
         force_default_wallpaper = -1;
         disable_hyprland_logo = false;
+        vrr = 2;
       };
 
       # Key bindings
