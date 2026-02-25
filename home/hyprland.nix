@@ -33,7 +33,6 @@
       exec-once = [
         "hyprpaper"
         "nm-applet --indicator"
-        "waybar"
       ];
 
       # Environment variables (user-level)
@@ -395,15 +394,15 @@
   # Waybar configuration
   programs.waybar = {
     enable = true;
-    systemd.enable = false;
+    systemd.enable = true;
     
     settings = {
       mainBar = {
         margin = "5 20 0 20";
         
-        modules-left = [ "custom/launcher" "hyprland/workspaces" "custom/spotify" ];
+        modules-left = [ "custom/launcher" "hyprland/workspaces" "mpris" "custom/media-shuffle" "custom/media-prev" "custom/media-play" "custom/media-next" "custom/media-loop" ];
         modules-center = [ "clock" ];
-        modules-right = [ "network" "pulseaudio" "tray" ];
+        modules-right = [ "bluetooth" "network" "cpu" "memory" "temperature" "disk" "pulseaudio" "tray" ];
 
         "custom/launcher" = {
           format = "  ";
@@ -414,7 +413,6 @@
 
         "hyprland/workspaces" = {
           format = "{icon}";
-          on-click = "activate";
           format-icons = {
             active = "󰮯";
             default = "󰊠";
@@ -425,11 +423,92 @@
           };
         };
 
-        "custom/spotify" = {
-          format = " 󰓇  {}";
+        mpris = {
+          format = "{player_icon} {dynamic}";
+          format-paused = "{status_icon} {dynamic}";
           interval = 1;
-          on-click = "~/.config/waybar/scripts/spotify/spotify_play_pause.sh";
-          exec = "~/.config/waybar/scripts/spotify/spotify_status.sh";
+          player-icons = {
+            default = "󰎇";
+            spotify = "󰓇";
+            mpv = "󰐹";
+            firefox = "󰈹";
+          };
+          status-icons = {
+            paused = "󰏤";
+          };
+          max-length = 60;
+        };
+
+        "custom/media-prev" = {
+          format = "󰒮";
+          on-click = "playerctl previous";
+          tooltip = false;
+        };
+
+        "custom/media-play" = {
+          format = "{}";
+          return-type = "json";
+          exec = "bash -lc 'state=$(playerctl status 2>/dev/null || echo Stopped); case \"$state\" in Playing) echo \"{\\\"text\\\":\\\"󰏤\\\"}\" ;; Paused) echo \"{\\\"text\\\":\\\"󰐊\\\"}\" ;; *) echo \"{\\\"text\\\":\\\"󰐊\\\",\\\"class\\\":\\\"off\\\"}\" ;; esac'";
+          on-click = "playerctl play-pause";
+          interval = 1;
+          tooltip = false;
+        };
+
+        "custom/media-next" = {
+          format = "󰒭";
+          on-click = "playerctl next";
+          tooltip = false;
+        };
+
+        "custom/media-shuffle" = {
+          format = "{}";
+          return-type = "json";
+          exec = "bash -lc 'state=$(playerctl shuffle 2>/dev/null || echo Off); if [ \"$state\" = \"On\" ]; then echo \"{\\\"text\\\":\\\"󰒟\\\"}\"; else echo \"{\\\"text\\\":\\\"\\\",\\\"class\\\":\\\"off\\\"}\"; fi'";
+          on-click = "playerctl shuffle toggle";
+          interval = 1;
+          tooltip = false;
+        };
+
+        "custom/media-loop" = {
+          format = "{}";
+          return-type = "json";
+          exec = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; Track) echo \"{\\\"text\\\":\\\"󰑘\\\"}\" ;; Playlist) echo \"{\\\"text\\\":\\\"󰑖\\\"}\" ;; *) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; esac'";
+          on-click = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) playerctl loop Playlist ;; Playlist) playerctl loop Track ;; Track) playerctl loop None ;; *) playerctl loop None ;; esac'";
+          interval = 1;
+          tooltip = false;
+        };
+
+        cpu = {
+          format = "  {usage}%";
+          interval = 2;
+          on-click = "kitty --class btop -e btop";
+        };
+
+        memory = {
+          format = "  {percentage}%";
+          interval = 2;
+        };
+
+        temperature = {
+          critical-threshold = 85;
+          format = "{icon} {temperatureC}°C";
+          format-icons = [ "" "" "" ];
+        };
+
+        disk = {
+          interval = 30;
+          format = "󰋊 {percentage_used}%";
+          path = "/";
+          tooltip-format = "{path}: {used}/{total} ({percentage_used}%)";
+        };
+
+        bluetooth = {
+          format = " {status}";
+          format-connected = " {device_alias}";
+          format-connected-battery = " {device_alias} {device_battery_percentage}%";
+          tooltip-format = "{controller_alias}\t{controller_address}";
+          tooltip-format-connected = "{controller_alias}\t{controller_address}\n{num_connections} connected";
+          on-click = "blueman-manager";
         };
 
         clock = {
@@ -531,10 +610,15 @@
         opacity: 0.4;
       }
 
-      #custom-spotify {
+      #mpris,
+      #custom-media-shuffle,
+      #custom-media-prev,
+      #custom-media-play,
+      #custom-media-next,
+      #custom-media-loop {
         margin-left: 8px;
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
         border-radius: 5px 20px 5px 20px;
         border: solid 2px;
         border-color: #A4C639;
@@ -544,8 +628,63 @@
         color: #A4C639;
       }
 
-      #custom-spotify:hover {
+      #custom-media-shuffle,
+      #custom-media-prev,
+      #custom-media-play,
+      #custom-media-next,
+      #custom-media-loop {
+        min-width: 28px;
+      }
+
+      #custom-media-shuffle.off {
+        color: #6b7450;
+        border-color: #6b7450;
+      }
+
+      #custom-media-play.off {
+        color: #6b7450;
+        border-color: #6b7450;
+      }
+
+      #custom-media-loop.none {
+        color: #6b7450;
+        border-color: #6b7450;
+      }
+
+      #mpris:hover,
+      #custom-media-shuffle:hover,
+      #custom-media-prev:hover,
+      #custom-media-play:hover,
+      #custom-media-next:hover,
+      #custom-media-loop:hover {
         border-radius: 20px 5px 20px 5px;
+        background: #A4C639;
+        color: #141914;
+      }
+
+      #cpu,
+      #memory,
+      #temperature,
+      #disk,
+      #bluetooth {
+        margin-right: 8px;
+        padding-left: 10px;
+        padding-right: 10px;
+        border-radius: 20px 5px 20px 5px;
+        border: solid 2px;
+        border-color: #A4C639;
+        transition: background 0.3s ease-in-out,
+        border-radius 0.3s ease-in-out;
+        background: #141914;
+        color: #A4C639;
+      }
+
+      #cpu:hover,
+      #memory:hover,
+      #temperature:hover,
+      #disk:hover,
+      #bluetooth:hover {
+        border-radius: 5px 20px 5px 20px;
         background: #A4C639;
         color: #141914;
       }
