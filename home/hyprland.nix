@@ -885,15 +885,4 @@
 
   # Create screenshots directory
   home.file."Screenshots/.keep".text = "";
-  
-  # Copy Waybar scripts
-  home.file.".config/waybar/scripts/spotify/spotify_play_pause.sh" = {
-    source = ../scripts/waybar/spotify/spotify_play_pause.sh;
-    executable = true;
-  };
-  
-  home.file.".config/waybar/scripts/spotify/spotify_status.sh" = {
-    source = ../scripts/waybar/spotify/spotify_status.sh;
-    executable = true;
-  };
 }
