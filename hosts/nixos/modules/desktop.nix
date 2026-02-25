@@ -10,6 +10,7 @@
     nautilus
     qt6.qtbase
     wl-clipboard
+    yazi
     xdg-desktop-portal-gtk
     xdg-desktop-portal-hyprland
     xdg-utils

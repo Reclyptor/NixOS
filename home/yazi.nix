@@ -1,0 +1,6 @@
+{ config, pkgs, lib, ... }: {
+  programs.yazi = {
+    enable = true;
+    enableBashIntegration = true;
+  };
+}
