@@ -12,8 +12,6 @@
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [ "kvm-intel" "sg" ];
   boot.extraModulePackages = [ ];
-  boot.blacklistedKernelModules = [ "hid_playstation" ];
-  boot.extraModprobeConfig = "install hid_playstation /bin/false";
 
   fileSystems."/" = {
     device = "rpool/nixos/root";
