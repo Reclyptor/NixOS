@@ -44,12 +44,6 @@
         
         # Hyprshot config
         "HYPRSHOT_DIR,/home/reclyptor/Screenshots"
-
-        # NVIDIA + Wayland (re-enable when GPU is installed)
-        # "__GLX_VENDOR_LIBRARY_NAME,nvidia"
-        # "__GL_GSYNC_ALLOWED,false"
-        # "__GL_VRR_ALLOWED,false"
-        # "GBM_BACKEND,nvidia-drm"
       ];
 
       # Input configuration
