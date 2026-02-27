@@ -18,6 +18,8 @@
       automatic = true;
       dates = [ "weekly" ];
     };
+    nix.daemonCPUSchedPolicy = "batch";
+    nix.daemonIOSchedClass = "idle";
     services.zfs.autoScrub.enable = true;
     services.zfs.trim.enable = true;
     zramSwap.enable = true;
