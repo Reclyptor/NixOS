@@ -293,12 +293,19 @@
         ", XF86AudioPrev, exec, playerctl previous"
       ];
 
+      # Layer rules
+      layerrule = [
+        "no_anim on, match:namespace wofi"
+      ];
+
       # Window rules
-      windowrulev2 = [
-        "suppressevent maximize, class:.*"
-        "nofocus,class:^$,title:^$,xwayland:1,floating:1,fullscreen:0,pinned:0"
-        "float, class:^(jetbrains-.*),title:^(win.*)"
-        "noinitialfocus, opacity 0.9 0.9, class:^(jetbrains-.*)"
+      windowrule = [
+        "suppress_event maximize, match:class .*"
+        "no_focus on, match:class ^$, match:title ^$, match:xwayland true, match:float true, match:fullscreen false, match:pin false"
+        "float on, match:class ^(jetbrains-.*), match:title ^(win.*)"
+        "no_initial_focus on, opacity 0.9 0.9, match:class ^(jetbrains-.*)"
+        "opaque on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
+        "no_blur on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
       ];
     };
 
@@ -803,6 +810,7 @@
       hide_scroll = true;
       show = "drun";
       width = "30%";
+      height = 460;
       lines = 8;
       line_wrap = "word";
       term = "kitty";
@@ -811,7 +819,7 @@
       show_all = true;
       print_command = true;
       layer = "overlay";
-      allow_images = true;
+      allow_images = false;
       sort_order = "alphabetical";
       gtk_dark = true;
       prompt = "";
@@ -827,7 +835,10 @@
         border: 2px solid #A4C639;
         background-color: #0C0F0C;
         border-radius: 8px;
-        opacity: 0.95;
+        opacity: 1.0;
+        height: 460px;
+        min-height: 460px;
+        max-height: 460px;
       }
 
       #input {
@@ -841,18 +852,22 @@
         margin: 8px;
         border: none;
         background-color: #0C0F0C;
+        min-height: 0;
       }
 
       #outer-box {
         margin: 8px;
         border: none;
         background-color: #0C0F0C;
+        min-height: 0;
       }
 
       #scroll {
         margin: 0px;
         border: none;
         background-color: #0C0F0C;
+        overflow: auto;
+        min-height: 0;
       }
 
       #text {
