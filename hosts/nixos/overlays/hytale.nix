@@ -29,10 +29,10 @@
           libGL
           openssl
           udev
-          xorg.libX11
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXi
+          libx11
+          libxcursor
+          libxrandr
+          libxi
         ];
 
         runScript = "${src}/hytale-launcher";
