@@ -409,7 +409,7 @@
         
         modules-left = [ "custom/launcher" "hyprland/workspaces" "mpris" "custom/media-shuffle" "custom/media-prev" "custom/media-play" "custom/media-next" "custom/media-loop" ];
         modules-center = [ "clock" ];
-        modules-right = [ "bluetooth" "network" "cpu" "memory" "temperature" "disk" "pulseaudio" "tray" ];
+        modules-right = [ "custom/gamemode" "bluetooth" "network" "cpu" "memory" "temperature" "disk" "pulseaudio" "tray" ];
 
         "custom/launcher" = {
           format = "  ";
@@ -482,6 +482,14 @@
           exec = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; Track) echo \"{\\\"text\\\":\\\"󰑘\\\"}\" ;; Playlist) echo \"{\\\"text\\\":\\\"󰑖\\\"}\" ;; *) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; esac'";
           on-click = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) playerctl loop Playlist ;; Playlist) playerctl loop Track ;; Track) playerctl loop None ;; *) playerctl loop None ;; esac'";
           interval = 1;
+          tooltip = false;
+        };
+
+        "custom/gamemode" = {
+          format = "{}";
+          return-type = "json";
+          exec = "bash -lc 'status=$(gamemoded -s 2>/dev/null || true); if [[ \"$status\" == *\"is active\"* ]]; then echo \"{\\\"text\\\":\\\"󰊴\\\"}\"; else echo \"{\\\"text\\\":\\\"󰊴\\\",\\\"class\\\":\\\"off\\\"}\"; fi'";
+          interval = 2;
           tooltip = false;
         };
 
@@ -658,6 +666,25 @@
         border-color: #6b7450;
       }
 
+      #custom-gamemode {
+        margin-right: 8px;
+        padding-left: 12px;
+        padding-right: 12px;
+        min-width: 36px;
+        border-radius: 20px 5px 20px 5px;
+        border: solid 2px;
+        border-color: #A4C639;
+        transition: background 0.3s ease-in-out,
+        border-radius 0.3s ease-in-out;
+        background: #141914;
+        color: #A4C639;
+      }
+
+      #custom-gamemode.off {
+        color: #6b7450;
+        border-color: #6b7450;
+      }
+
       #mpris:hover,
       #custom-media-shuffle:hover,
       #custom-media-prev:hover,
@@ -665,6 +692,12 @@
       #custom-media-next:hover,
       #custom-media-loop:hover {
         border-radius: 20px 5px 20px 5px;
+        background: #A4C639;
+        color: #141914;
+      }
+
+      #custom-gamemode:hover {
+        border-radius: 5px 20px 5px 20px;
         background: #A4C639;
         color: #141914;
       }
