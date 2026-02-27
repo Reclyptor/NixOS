@@ -26,9 +26,9 @@
           libglvnd
           pipewire
           libpulseaudio
-          xorg.libX11
-          xorg.libXi
-          xorg.libXcursor
+          libx11
+          libxi
+          libxcursor
         ];
 
         desktopItems = [

@@ -7,7 +7,7 @@
           owner = "CalcProgrammer1";
           repo = "OpenRGB";
           rev = "master";
-          hash = "sha256-U9bLmNCca/Dzw40pAZaix6TteMxRbDJxMacBHRQzZKU=";
+          hash = "sha256-vOYaiWw0wjCf76OjWXZ5o7lVqL7dhxpdah8bGFBrZm0=";
         };
         patches = [ ];
         postPatch = ''
