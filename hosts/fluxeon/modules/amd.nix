@@ -3,14 +3,14 @@
     enable = true;
     enable32Bit = true;
     extraPackages = with pkgs; [
-      mesa.drivers
-      vaapiVdpau
+      mesa
+      libva-vdpau-driver
       libvdpau-va-gl
       rocmPackages.clr.icd
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
-      mesa.drivers
-      vaapiVdpau
+      mesa
+      libva-vdpau-driver
       libvdpau-va-gl
     ];
   };
