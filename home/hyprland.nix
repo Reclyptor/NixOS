@@ -27,7 +27,7 @@
       "$terminal" = "kitty";
       "$fileManager" = "nautilus";
       "$browser" = "brave";
-      "$menu" = "pkill wofi || wofi --show drun";
+      "$menu" = "pkill fuzzel || fuzzel";
 
       # Autostart applications
       exec-once = [
@@ -289,7 +289,7 @@
 
       # Layer rules
       layerrule = [
-        "no_anim on, match:namespace wofi"
+        "no_anim on, match:namespace launcher"
       ];
 
       # Window rules
@@ -408,7 +408,7 @@
         "custom/launcher" = {
           format = "  ";
           interval = 7200;
-          on-click = "pkill wofi || wofi --show drun";
+          on-click = "pkill fuzzel || fuzzel";
           signal = 8;
         };
 
@@ -830,98 +830,34 @@
     };
   };
 
-  # Wofi launcher
-  programs.wofi = {
+  programs.fuzzel = {
     enable = true;
     settings = {
-      hide_scroll = true;
-      show = "drun";
-      width = "30%";
-      height = 460;
-      lines = 8;
-      line_wrap = "word";
-      term = "kitty";
-      allow_markup = true;
-      always_parse_args = false;
-      show_all = true;
-      print_command = true;
-      layer = "overlay";
-      allow_images = false;
-      sort_order = "alphabetical";
-      gtk_dark = true;
-      prompt = "";
-      image_size = 20;
-      display_generic = false;
-      location = "center";
-      key_expand = "Tab";
-      insensitive = false;
+      main = {
+        prompt = "\"  \"";
+        layer = "overlay";
+        width = 35;
+        lines = 10;
+        horizontal-pad = 12;
+        vertical-pad = 10;
+        inner-pad = 8;
+      };
+      colors = {
+        background = "0C0F0CF2";
+        text = "A4C639FF";
+        prompt = "6b7450FF";
+        input = "A4C639FF";
+        match = "A4C639FF";
+        selection = "A4C63933";
+        selection-text = "A4C639FF";
+        selection-match = "A4C639FF";
+        border = "A4C639FF";
+      };
+      border = {
+        width = 2;
+        radius = 8;
+      };
     };
-    
-    style = ''
-      window {
-        border: 2px solid #A4C639;
-        background-color: #0C0F0C;
-        border-radius: 8px;
-        opacity: 1.0;
-        height: 460px;
-        min-height: 460px;
-        max-height: 460px;
-      }
-
-      #input {
-        margin: 5px;
-        border: #A4C639;
-        color: #A4C639;
-        background-color: #0C0F0C;
-      }
-
-      #inner-box {
-        margin: 8px;
-        border: none;
-        background-color: #0C0F0C;
-        min-height: 0;
-      }
-
-      #outer-box {
-        margin: 8px;
-        border: none;
-        background-color: #0C0F0C;
-        min-height: 0;
-      }
-
-      #scroll {
-        margin: 0px;
-        border: none;
-        background-color: #0C0F0C;
-        overflow: auto;
-        min-height: 0;
-      }
-
-      #text {
-        margin: 5px;
-        border: none;
-        color: #A4C639;
-      } 
-
-      #entry.activatable #text {
-        color: #282a36;
-      }
-
-      #entry > * {
-        color: #A4C639;
-      }
-
-      #entry:selected {
-        background-color: #A4C639;
-        border-radius: 6px;
-      }
-
-      #entry:selected #text {
-        background-color: #;
-        color: #0C0F0C;
-        font-weight: bold;
-      }
-    '';
   };
 
 

@@ -25,8 +25,8 @@
     hyprsunset
     kitty
     kitty-themes
+    fuzzel
     waybar
-    wofi
     xwayland
   ];
 
