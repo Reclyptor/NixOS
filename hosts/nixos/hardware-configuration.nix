@@ -38,21 +38,6 @@
     { device = "/dev/disk/by-uuid/a728d073-021a-4b0b-8529-47acf09e7ee2"; }
   ];
 
-  fileSystems."/data/nvme" = {
-    device = "npool/data";
-    fsType = "zfs";
-  };
-
-  fileSystems."/data/nvme/steam" = {
-    device = "npool/data/steam";
-    fsType = "zfs";
-  };
-
-  fileSystems."/data/ssd" = {
-    device = "spool/data";
-    fsType = "zfs";
-  };
-
   fileSystems."/data/nfs/dxp6800" = {
     device = "192.168.1.2:/mnt/primary/videos";
     fsType = "nfs4";
