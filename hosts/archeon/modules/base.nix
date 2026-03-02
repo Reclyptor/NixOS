@@ -13,7 +13,7 @@
   boot.kernelParams = [ "amdgpu.dc=1" "amdgpu.dpm=1" ];
   boot.supportedFilesystems = [ "zfs" "nfs" ];
 
-  networking.hostId = "00000001";
+  networking.hostId = "4ea934c3";
   networking.networkmanager.enable = true;
 
   time.timeZone = "America/Chicago";
@@ -35,5 +35,7 @@
   services.xserver.xkb = { layout = "us"; variant = ""; };
 
   nixpkgs.config.allowUnfree = true;
+
+  environment.systemPackages = [ pkgs.kitty.terminfo ];
 }
 

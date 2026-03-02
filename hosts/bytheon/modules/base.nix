@@ -17,7 +17,7 @@
   boot.extraModprobeConfig = "options nvidia_drm modeset=1";
   boot.supportedFilesystems = [ "zfs" "nfs" ];
 
-  networking.hostId = "00000000";
+  networking.hostId = "3c436985";
 
   networking.networkmanager.enable = true;
 
@@ -40,4 +40,6 @@
   services.xserver.xkb = { layout = "us"; variant = ""; };
 
   nixpkgs.config.allowUnfree = true;
+
+  environment.systemPackages = [ pkgs.kitty.terminfo ];
 }
