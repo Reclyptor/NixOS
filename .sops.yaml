@@ -1,11 +1,11 @@
 keys:
   - &reclyptor age1yubikey1q2u7ajmktdc5e5ejq98qmrwha8xglt06k96zupqmh6e6qzfvh434s0wa5yy
   - &nixos age1kl5r8agkag633lhsk8mk3f7qjrrfj3dyg66vfa58pp45ukf23f6quhlh8a
-  - &archeon age1ty4q89p8lj5y9wrd4hzumzvza74mrdfzlk06r0v84cx55hg4x5eqte6awl
-  - &fluxeon age18ev8yxmrzvvlqm5x0ccsz2mzfj8j4fdus905rv5hn27j70t6hd2quqnjyd
-  - &voideon age1gyqwaunj0tg8stefsvun8zwaqr76wwk8r6da7wdl20rlz09r2f0qxa4a8u
-  # - &styxeon age1
-  # - &bytheon age1
+  - &archeon age1ywz8hk44puw3285sndhq674ydlfnv75a00fxexgqrznh6yhtcpqq9whlf9
+  - &fluxeon age12dh9mc98t4uygq7yjujamxj5j7nzf6fwe38caw98v595j63jp4zq5ha4mx
+  - &voideon age1hfjku5emy6el4fkeln9n4vlxcxtmgs8lzxqg8q8p6ue24rt6yptq00g7jn
+  - &styxeon age1k8mwnawzdn4xtghacclfuckedcwxlkjttm9syaf0rsphvdmxhf3qwk6uch
+  - &bytheon age1q2uaf9ljzez3rq3tg86ez3vpdjen03m59ulmcpcsw7qsxl4xwskqvayc5e
 creation_rules:
   - path_regex: secrets/secrets\.yaml$
     key_groups:
@@ -15,5 +15,5 @@ creation_rules:
           - *archeon
           - *fluxeon
           - *voideon
-          # - *styxeon
-          # - *bytheon
+          - *styxeon
+          - *bytheon
