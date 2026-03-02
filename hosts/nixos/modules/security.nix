@@ -26,6 +26,7 @@
     openssl
     opensc
     sops
+    ssh-to-age
   ];
 
   security.apparmor.enable = true;
