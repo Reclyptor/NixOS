@@ -14,6 +14,13 @@
   boot.supportedFilesystems = [ "zfs" "nfs" ];
 
   networking.hostId = "cc1aa076";
+  networking.hosts = {
+    "192.168.1.10" = [ "archeon" ];
+    "192.168.1.11" = [ "fluxeon" ];
+    "192.168.1.12" = [ "voideon" ];
+    "192.168.1.13" = [ "styxeon" ];
+    "192.168.1.14" = [ "bytheon" ];
+  };
   networking.networkmanager.enable = true;
 
   time.timeZone = "America/Chicago";
