@@ -63,7 +63,7 @@
   };
 
   fileSystems."/data/nfs/asustor" = {
-    device = "192.168.1.6:/volume1/data";
+    device = "192.168.1.5:/volume1/data";
     fsType = "nfs4";
     options = [ "defaults" "_netdev" "x-systemd.automount" ];
   };
