@@ -7,6 +7,8 @@
     secrets."k3s/token" = { };
   };
 
+  systemd.services.k3s.path = [ pkgs.nvidia-container-toolkit.tools ];
+
   services.k3s = {
     enable = true;
     role = "agent";
