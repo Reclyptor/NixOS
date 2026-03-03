@@ -12,7 +12,7 @@
     role = "agent";
     serverAddr = "https://192.168.1.10:6443";
     tokenFile = config.sops.secrets."k3s/token".path;
-    extraFlags = [ ];
+    extraFlags = [ "--node-ip" "192.168.1.12" ];
   };
 
   networking.firewall = {

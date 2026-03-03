@@ -12,6 +12,7 @@
     role = "server";
     clusterInit = true;
     tokenFile = config.sops.secrets."k3s/token".path;
+    extraFlags = [ "--node-ip" "192.168.1.10" ];
   };
 
   networking.firewall = {
