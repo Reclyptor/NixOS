@@ -15,6 +15,7 @@
     serverAddr = "https://192.168.1.10:6443";
     tokenFile = config.sops.secrets."k3s/token".path;
     extraFlags = [
+      "--node-ip" "192.168.1.14"
       "--node-label=nvidia.com/gpu.present=true"
       "--node-label=node.kubernetes.io/gpu=true"
     ];
