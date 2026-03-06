@@ -16,6 +16,7 @@
     mpv
     obs-studio
     obsidian
+    prismlauncher
     qbittorrent
     signal-desktop
     spotify
