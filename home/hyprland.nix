@@ -31,6 +31,7 @@
 
       # Autostart applications
       exec-once = [
+        "gnome-keyring-daemon --start --components=secrets,pkcs11"
         "hyprpaper"
         "nm-applet --indicator"
       ];
