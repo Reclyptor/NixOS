@@ -5,7 +5,7 @@
         version = "latest";
         src = prev.fetchzip {
           url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.zip";
-          hash = "sha256-ZW0JLjOjz0mUXN+wSWvAsRbgzb3DYdpMHkHHp4OGrvM=";
+          hash = "sha256-AiNtOekw3LxhIX4WLlmO3lTvC0RWkueQ1+aWhugX3Aw=";
         };
         icon = prev.fetchurl {
           url = "https://cms-a.nodecraft.com/f/133932/290x290/b0f48d6c97/icon.png";
