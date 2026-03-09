@@ -1,6 +1,7 @@
 { config, pkgs, ... }: {
   environment.sessionVariables = {
     STEAM_RUNTIME = "1";
+    LD_PRELOAD = "";
   };
 
   environment.systemPackages = with pkgs; [
