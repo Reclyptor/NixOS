@@ -185,6 +185,7 @@
         "$mainMod, F, fullscreen, 0"
         "$mainMod, M, fullscreen, 1"
         "$mainMod, T, togglefloating"
+        "$mainMod ALT, P, pin"
         "$mainMod, P, pseudo"
         "$mainMod SHIFT, T, workspaceopt, allfloat"
         "$mainMod, J, togglesplit"
