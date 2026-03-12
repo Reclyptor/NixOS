@@ -39,8 +39,16 @@
         exit 1
       }
 
+      COOKIES_FILE="''${HOME}/.config/yt-dlp/cookies.txt"
+
       download() {
-        /run/current-system/sw/bin/yt-dlp --cookies-from-browser brave \
+        if [[ ! -f "''${COOKIES_FILE}" ]]; then
+          echo "Error: cookies file not found at ''${COOKIES_FILE}"
+          echo "Export YouTube cookies from a private Brave window using the 'Get cookies.txt LOCALLY' extension."
+          exit 1
+        fi
+
+        /run/current-system/sw/bin/yt-dlp --cookies "''${COOKIES_FILE}" \
           --remote-components ejs:github \
           --extractor-args "youtube:player-client=default" \
           --ffmpeg-location "/run/current-system/sw/bin/ffmpeg" \
