@@ -187,14 +187,14 @@
         "$mainMod, T, togglefloating"
         "$mainMod ALT, P, pin"
         "$mainMod, P, pseudo"
-        "$mainMod SHIFT, T, workspaceopt, allfloat"
-        "$mainMod, J, togglesplit"
+        "$mainMod SHIFT, T, layoutmsg, allfloat"
+        "$mainMod, J, layoutmsg, togglesplit"
         "$mainMod SHIFT, l, resizeactive, 100 0"
         "$mainMod SHIFT, h, resizeactive, -100 0"
         "$mainMod SHIFT, j, resizeactive, 0 100"
         "$mainMod SHIFT, k, resizeactive, 0 -100"
         "$mainMod, G, togglegroup"
-        "$mainMod, K, swapsplit"
+        "$mainMod, K, layoutmsg, swapsplit"
         "CTRL ALT, h, swapwindow, l"
         "CTRL ALT, l, swapwindow, r"
         "CTRL ALT, k, swapwindow, u"
@@ -262,7 +262,7 @@
       # Bind with repeat (binde)
       binde = [
         "ALT,Tab,cyclenext"
-        "ALT,Tab,bringactivetotop"
+        "ALT,Tab,alterzorder, top"
       ];
 
       # Mouse bindings
