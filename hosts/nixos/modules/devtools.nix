@@ -14,6 +14,7 @@
     postgresql
     natscli
     nodejs
+    python3
     redis
   ];
   
