@@ -28,7 +28,7 @@
     # cryptography / password cracking
     hashcat      # GPU-accelerated hash cracking
     john         # CPU hash cracking (john the ripper)
-    sage         # math toolkit for crypto/number theory challenges
+    (sage.override { requireSageTests = false; }) # math toolkit for crypto/number theory challenges
 
     # web
     sqlmap       # SQL injection automation
