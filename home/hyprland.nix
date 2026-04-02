@@ -195,10 +195,10 @@
         "$mainMod SHIFT, k, resizeactive, 0 -100"
         "$mainMod, G, togglegroup"
         "$mainMod, K, layoutmsg, swapsplit"
-        "CTRL ALT, h, swapwindow, l"
-        "CTRL ALT, l, swapwindow, r"
-        "CTRL ALT, k, swapwindow, u"
-        "CTRL ALT, j, swapwindow, d"
+        "$mainMod ALT, h, swapwindow, l"
+        "$mainMod ALT, l, swapwindow, r"
+        "$mainMod ALT, k, swapwindow, u"
+        "$mainMod ALT, j, swapwindow, d"
         
         # Actions
         "$mainMod SHIFT, R, exec, hyprctl reload"
