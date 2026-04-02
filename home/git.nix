@@ -1,6 +1,7 @@
 { config, pkgs, ... }: {
   programs.git = {
     enable = true;
+    signing.format = null;
     settings = {
       user.name = "Reclyptor";
       user.email = "5952751+Reclyptor@users.noreply.github.com";
