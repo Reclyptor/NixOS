@@ -195,10 +195,10 @@
         "$mainMod SHIFT, k, resizeactive, 0 -100"
         "$mainMod, G, togglegroup"
         "$mainMod, K, layoutmsg, swapsplit"
-        "$mainMod ALT, h, swapwindow, l"
-        "$mainMod ALT, l, swapwindow, r"
-        "$mainMod ALT, k, swapwindow, u"
-        "$mainMod ALT, j, swapwindow, d"
+        "$mainMod CTRL, h, swapwindow, l"
+        "$mainMod CTRL, l, swapwindow, r"
+        "$mainMod CTRL, k, swapwindow, u"
+        "$mainMod CTRL, j, swapwindow, d"
         
         # Actions
         "$mainMod SHIFT, R, exec, hyprctl reload"
@@ -250,7 +250,7 @@
         
         "$mainMod, mouse_down, workspace, e+1"
         "$mainMod, mouse_up, workspace, e-1"
-        "$mainMod CTRL, down, workspace, empty"
+        "$mainMod, down, workspace, empty"
         
         # Move focus
         "ALT, h, movefocus, l"
