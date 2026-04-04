@@ -28,6 +28,10 @@
       export GCP_MYSQL_CLIENT_KEY=~/.config/sops/secrets/bash/gcp-mysql-client-key
     fi
 
+    if [ -f ~/.config/sops/secrets/bash/k3s-redis-password ]; then
+      export K3S_REDIS_PASSWORD=$(cat ~/.config/sops/secrets/bash/k3s-redis-password)
+    fi
+
     if [ -f ~/.config/sops/secrets/bash/atlas-mongodb-host ]; then
       export ATLAS_MONGODB_HOST=$(cat ~/.config/sops/secrets/bash/atlas-mongodb-host)
     fi

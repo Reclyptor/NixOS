@@ -32,6 +32,9 @@
       "bash/atlas-mongodb-host" = {
         path = "${config.home.homeDirectory}/.config/sops/secrets/bash/atlas-mongodb-host";
       };
+      "bash/k3s-redis-password" = {
+        path = "${config.home.homeDirectory}/.config/sops/secrets/bash/k3s-redis-password";
+      };
     };
   };
 }
