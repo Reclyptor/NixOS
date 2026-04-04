@@ -8,14 +8,14 @@
           # Define new sources with updated version
           sources = {
             x86_64-linux = prev.fetchurl {
-              url = "https://downloads.cursor.com/production/1917e900a0c4b0111dc7975777cfff60853059d3/linux/x64/Cursor-2.6.12-x86_64.AppImage";
-              hash = "sha256-R/s8CMJjo8RLRCSVeNmldCI39D+6VkWc1/Enql5W6Zo=";
+              url = "https://downloads.cursor.com/production/a80ff7dfcaa45d7750f6e30be457261379c29b06/linux/x64/Cursor-3.0.12-x86_64.AppImage";
+              hash = "sha256-SdlcESipjWnLNPGf4sBxb28cpQ36uHoRzGsPC9X72Ww=";
             };
           };
           
           source = sources.${hostPlatform.system};
           pname = "cursor";
-          version = "2.6.12";
+          version = "3.0.12";
         in {
           # Override version and src with proper AppImage extraction
           inherit version;

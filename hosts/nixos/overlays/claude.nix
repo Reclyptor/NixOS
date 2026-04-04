@@ -3,27 +3,27 @@
     (final: prev: {
       claude-code = prev.buildNpmPackage (finalAttrs: {
         pname = "claude-code";
-        version = "2.1.70";
+        version = "2.1.92";
 
         src = prev.fetchzip {
           url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${finalAttrs.version}.tgz";
-          hash = "sha256-mxZVgsaRGVd/3VNWJqVMfRyrDid0MOuzrGIcInQHIEk=";
+          hash = "sha256-CLLCtVK3TeXFZ8wBnRRHNc2MoUt7lTdMJwz8sZHpkFM=";
         };
 
-        npmDepsHash = "sha256-r+ECJpOt7SMWUKNvRxJgvnEI/AZXb+47F/633AZ9ZXE=";
+        npmDepsHash = "sha256-5nSCq/8Z/rqx/Ucz2M3jvlJleT+pSXR2EqlU5jPQFsQ=";
 
         strictDeps = true;
 
         postPatch = ''
           cp ${builtins.toFile "package-lock.json" (builtins.toJSON {
             name = "@anthropic-ai/claude-code";
-            version = "2.1.70";
+            version = "2.1.92";
             lockfileVersion = 3;
             requires = true;
             packages = {
               "" = {
                 name = "@anthropic-ai/claude-code";
-                version = "2.1.70";
+                version = "2.1.92";
                 license = "SEE LICENSE IN README.md";
                 bin.claude = "cli.js";
                 engines.node = ">=18.0.0";
