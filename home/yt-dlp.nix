@@ -49,11 +49,9 @@
         fi
 
         /run/current-system/sw/bin/yt-dlp --cookies "''${COOKIES_FILE}" \
-          --remote-components ejs:github \
           --extractor-args "youtube:player-client=default" \
           --ffmpeg-location "/run/current-system/sw/bin/ffmpeg" \
-          --compat-options youtube-dl \
-          -f "bestvideo+bestaudio" \
+          -f "bv*+ba/b" \
           --write-thumbnail -i --add-metadata --write-info-json \
           --write-subs --embed-subs \
           --output "''${BASE_PATH}/''${VIDEO_FORMAT}" \
