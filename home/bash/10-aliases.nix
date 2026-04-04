@@ -7,5 +7,6 @@
     mysql-k3s = "mysql -u$USER -p\${K3S_MYSQL_PASSWORD} -h \${K3S_HOST}";
     mongo-reclyptor = "mongosh '\${ATLAS_MONGODB_HOST}' --apiVersion 1 --username $USER";
     mongo-k3s = "mongosh --host \${K3S_HOST} --username $USER --password \${K3S_MONGODB_PASSWORD}";
+    redis-k3s = "redis-cli -h \${K3S_HOST} -a \${K3S_REDIS_PASSWORD}";
   };
 }
