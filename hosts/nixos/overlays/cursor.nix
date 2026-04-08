@@ -9,7 +9,7 @@
           sources = {
             x86_64-linux = prev.fetchurl {
               url = "https://downloads.cursor.com/production/a80ff7dfcaa45d7750f6e30be457261379c29b06/linux/x64/Cursor-3.0.12-x86_64.AppImage";
-              hash = "sha256-SdlcESipjWnLNPGf4sBxb28cpQ36uHoRzGsPC9X72Ww=";
+              hash = "sha256-dUAF18h48nzLW+pjcAGeY0c7jZVbwD/3ceczZXxKJv0=";
             };
           };
           
