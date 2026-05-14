@@ -3,20 +3,19 @@
     (final: prev: {
       codex = prev.stdenv.mkDerivation rec {
         pname = "codex";
-        version = "0.118.0";
+        version = "0.130.0";
 
         src = prev.fetchurl {
-          url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-x86_64-unknown-linux-gnu.tar.gz";
-          hash = "sha256-Ig8VyhxjnpBarjhdqWDhiXiC/udmU/X59d/6X3VPfJg=";
+          url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-x86_64-unknown-linux-musl.tar.gz";
+          hash = "sha256-Fneee3hXUIp2ijbX1OCE7sM27COUbtcKmwlIm4+GEZA=";
         };
 
         sourceRoot = ".";
 
-        nativeBuildInputs = [ prev.autoPatchelfHook ];
-        buildInputs = [ prev.glibc prev.gcc-unwrapped.lib prev.libcap prev.openssl prev.zlib ];
+        dontFixup = true;
 
         installPhase = ''
-          install -Dm755 codex-x86_64-unknown-linux-gnu $out/bin/codex
+          install -Dm755 codex-x86_64-unknown-linux-musl $out/bin/codex
         '';
 
         meta = {
