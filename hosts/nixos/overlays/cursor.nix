@@ -8,14 +8,14 @@
           # Define new sources with updated version
           sources = {
             x86_64-linux = prev.fetchurl {
-              url = "https://downloads.cursor.com/production/a80ff7dfcaa45d7750f6e30be457261379c29b06/linux/x64/Cursor-3.0.12-x86_64.AppImage";
-              hash = "sha256-dUAF18h48nzLW+pjcAGeY0c7jZVbwD/3ceczZXxKJv0=";
+              url = "https://downloads.cursor.com/production/93e603f703cd553a6bb3644711a3379bbbb3118f/linux/x64/Cursor-3.4.17-x86_64.AppImage";
+              hash = "sha256-ZMmvIZQdGkDBFiOlCszYrvaF6EgNyiqWgp/Q67MY6Ww=";
             };
           };
-          
+
           source = sources.${hostPlatform.system};
           pname = "cursor";
-          version = "3.0.12";
+          version = "3.4.17";
         in {
           # Override version and src with proper AppImage extraction
           inherit version;
@@ -32,6 +32,9 @@
             then "${pname}-${version}-extracted/usr/share/cursor"
             else "Cursor.app";
           
+          # cursor-agent-exec ships a musl-compiled node module
+          buildInputs = oldAttrs.buildInputs ++ [ prev.musl ];
+
           # Update passthru to include new sources
           passthru = oldAttrs.passthru // {
             inherit sources;
