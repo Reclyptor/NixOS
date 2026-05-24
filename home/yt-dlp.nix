@@ -14,12 +14,21 @@
         [CatA]="cat-a"
         [CatB]="cat-b"
         [CatC]="cat-c"
+        [CatD]="cat-d"
       )
 
       declare -A CATEGORY_KEYS=(
         [a]="CatA"
         [b]="CatB"
         [c]="CatC"
+        [d]="CatD"
+      )
+
+      declare -A CATEGORY_COOKIES=(
+        [CatA]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [CatB]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [CatC]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [CatD]="''${HOME}/.config/yt-dlp/d-cookies.txt"
       )
 
       usage() {
@@ -31,6 +40,7 @@
         echo "  a     - CatA (''${NFS_ROOT}/cat-a)"
         echo "  b     - CatB (''${NFS_ROOT}/cat-b)"
         echo "  c     - CatC (''${NFS_ROOT}/cat-c)"
+        echo "  d     - CatD (''${NFS_ROOT}/cat-d)"
         echo ""
         echo "Examples:"
         echo "  ytdlp                                        (interactive)"
@@ -39,12 +49,11 @@
         exit 1
       }
 
-      COOKIES_FILE="''${HOME}/.config/yt-dlp/cookies.txt"
-
       download() {
+        COOKIES_FILE="''${CATEGORY_COOKIES[''${CATEGORY}]}"
         if [[ ! -f "''${COOKIES_FILE}" ]]; then
           echo "Error: cookies file not found at ''${COOKIES_FILE}"
-          echo "Export YouTube cookies from a private Brave window using the 'Get cookies.txt LOCALLY' extension."
+          echo "Export ''${CATEGORY} cookies from a private Brave window using the 'Get cookies.txt LOCALLY' extension."
           exit 1
         fi
 
@@ -60,7 +69,7 @@
 
       # --- Interactive mode ---
       if [[ $# -eq 0 ]]; then
-        CATEGORY=$("''${GUM}" choose --header "Select category:" "CatA" "CatB" "CatC")
+        CATEGORY=$("''${GUM}" choose --header "Select category:" "CatA" "CatB" "CatC" "CatD")
         BASE_PATH="''${NFS_ROOT}/''${CATEGORY_DIRS[''${CATEGORY}]}"
 
         if "''${GUM}" confirm "Download to a subfolder?"; then
