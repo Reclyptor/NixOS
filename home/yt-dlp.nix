@@ -14,12 +14,21 @@
         [YouTube]="youtube"
         [VTuber]="vtuber"
         [ASMR]="asmr"
+        [X]="x"
       )
 
       declare -A CATEGORY_KEYS=(
         [yt]="YouTube"
         [vt]="VTuber"
         [asmr]="ASMR"
+        [x]="X"
+      )
+
+      declare -A CATEGORY_COOKIES=(
+        [YouTube]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [VTuber]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [ASMR]="''${HOME}/.config/yt-dlp/cookies.txt"
+        [X]="''${HOME}/.config/yt-dlp/x-cookies.txt"
       )
 
       usage() {
@@ -31,6 +40,7 @@
         echo "  yt    - YouTube (''${NFS_ROOT}/youtube)"
         echo "  vt    - VTuber  (''${NFS_ROOT}/vtuber)"
         echo "  asmr  - ASMR   (''${NFS_ROOT}/asmr)"
+        echo "  x     - X       (''${NFS_ROOT}/x)"
         echo ""
         echo "Examples:"
         echo "  ytdlp                                        (interactive)"
@@ -39,12 +49,11 @@
         exit 1
       }
 
-      COOKIES_FILE="''${HOME}/.config/yt-dlp/cookies.txt"
-
       download() {
+        COOKIES_FILE="''${CATEGORY_COOKIES[''${CATEGORY}]}"
         if [[ ! -f "''${COOKIES_FILE}" ]]; then
           echo "Error: cookies file not found at ''${COOKIES_FILE}"
-          echo "Export YouTube cookies from a private Brave window using the 'Get cookies.txt LOCALLY' extension."
+          echo "Export ''${CATEGORY} cookies from a private Brave window using the 'Get cookies.txt LOCALLY' extension."
           exit 1
         fi
 
@@ -60,7 +69,7 @@
 
       # --- Interactive mode ---
       if [[ $# -eq 0 ]]; then
-        CATEGORY=$("''${GUM}" choose --header "Select category:" "YouTube" "VTuber" "ASMR")
+        CATEGORY=$("''${GUM}" choose --header "Select category:" "YouTube" "VTuber" "ASMR" "X")
         BASE_PATH="''${NFS_ROOT}/''${CATEGORY_DIRS[''${CATEGORY}]}"
 
         if "''${GUM}" confirm "Download to a subfolder?"; then
