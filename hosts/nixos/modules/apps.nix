@@ -7,6 +7,7 @@
     google-chrome
     hytale
     discord
+    element-desktop
     firefox
     imv
     inkscape
