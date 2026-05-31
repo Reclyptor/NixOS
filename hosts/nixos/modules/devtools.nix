@@ -3,6 +3,7 @@
     claude-code
     cmake
     codex
+    crush
     deno
     gcc
     gh
@@ -15,6 +16,7 @@
     natscli
     nodejs
     python3
+    qwen-code
     redis
   ];
   
