@@ -9,14 +9,14 @@
 
   services.k3s = {
     enable = true;
-    role = "agent";
+    role = "server";
     serverAddr = "https://192.168.1.10:6443";
     tokenFile = config.sops.secrets."k3s/token".path;
     extraFlags = [ "--node-ip" "192.168.1.11" ];
   };
 
   networking.firewall = {
-    allowedTCPPorts = [ 10250 3260 ];
+    allowedTCPPorts = [ 6443 9345 2379 2380 10250 3260 ];
     allowedUDPPorts = [ 8472 ];
   };
 }
