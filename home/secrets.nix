@@ -35,6 +35,12 @@
       "bash/k3s-redis-password" = {
         path = "${config.home.homeDirectory}/.config/sops/secrets/bash/k3s-redis-password";
       };
+      "agentmemory/claude-token" = {
+        path = "${config.home.homeDirectory}/.config/sops/secrets/agentmemory/claude-token";
+      };
+      "agentmemory/qwen-token" = {
+        path = "${config.home.homeDirectory}/.config/sops/secrets/agentmemory/qwen-token";
+      };
     };
   };
 }
