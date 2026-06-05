@@ -15,6 +15,7 @@
     postgresql
     natscli
     nodejs
+    opencode
     python3
     qwen-code
     redis
