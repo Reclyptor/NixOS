@@ -178,6 +178,7 @@
         "$mainMod SHIFT, j, resizeactive, 0 100"
         "$mainMod SHIFT, k, resizeactive, 0 -100"
         "$mainMod, G, togglegroup"
+        "$mainMod SHIFT, G, moveoutofgroup"
         "$mainMod, K, layoutmsg, swapsplit"
         "$mainMod CTRL, h, swapwindow, l"
         "$mainMod CTRL, l, swapwindow, r"
