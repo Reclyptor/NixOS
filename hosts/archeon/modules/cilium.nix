@@ -15,8 +15,11 @@ let
     k8sServiceHost: "192.168.1.10"   # archeon apiserver (= agents' serverAddr); reachable from all nodes. 127.0.0.1 only resolves on servers. TODO: VIP/agent-LB for CNI HA
     k8sServicePort: 6443
 
-    routingMode: tunnel              # VXLAN (UDP 8472, already open in firewall)
-    tunnelProtocol: vxlan
+    routingMode: native              # all 5 nodes share one L2 (192.168.1.0/24), so
+    autoDirectNodeRoutes: true       # each installs direct routes to peer pod CIDRs —
+                                     # no encap. VXLAN was needless overhead here, and
+                                     # its double-encap broke WireGuard's MTU.
+    ipv4NativeRoutingCIDR: "10.42.0.0/16"   # pod CIDR routed natively (not masqueraded)
 
     # WIRED ONLY (validated): eno1 on archeon/fluxeon/voideon/styxeon, enp6s0 on
     # bytheon. Never wlp2s0/wlo1 (wireless = OOB SSH lifeline).
@@ -47,6 +50,13 @@ let
       # (fixed in network.nix), not masquerade. Verified live 2026-06-18 — `true`
       # keeps CoreDNS healthy AND makes remote-backend LB VIPs reachable.
       masquerade: true
+
+    # Transparent WireGuard encryption of pod-to-pod traffic between nodes. Works
+    # on native routing (single encap); the VXLAN-tunnel double-encap broke its MTU.
+    # Verified live 2026-06-18. WireGuard uses UDP 51871 (open in k3s.nix firewall).
+    encryption:
+      enabled: true
+      type: wireguard
 
     operator:
       replicas: 2                    # 3 servers available
