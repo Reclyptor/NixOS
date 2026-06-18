@@ -22,7 +22,11 @@
   };
 
   networking.firewall = {
-    allowedTCPPorts = [ 10250 3260 ];
+    allowedTCPPorts = [ 10250 3260 4240 4244 ];
     allowedUDPPorts = [ 8472 ];
   };
+
+  # Keep NetworkManager off Cilium's interfaces so it can't tear out the datapath
+  # (root cause of prior dual-NIC failures). enp6s0/wlo1 stay NM-managed.
+  networking.networkmanager.unmanaged = [ "interface-name:cilium_*" "interface-name:lxc*" ];
 }
