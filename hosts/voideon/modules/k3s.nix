@@ -25,7 +25,7 @@
 
   networking.firewall = {
     allowedTCPPorts = [ 6443 9345 2379 2380 10250 3260 4240 4244 ];
-    allowedUDPPorts = [ 8472 ];
+    allowedUDPPorts = [ 8472 51871 ];   # 8472=VXLAN, 51871=Cilium WireGuard
   };
 
   # Keep NetworkManager off Cilium's interfaces so it can't tear out the datapath
