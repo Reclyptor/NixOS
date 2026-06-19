@@ -4,6 +4,9 @@
     defaultEditor = true;
     viAlias       = true;
     vimAlias      = true;
+    # Keep ruby/python3 providers (defaults flip to false at stateVersion 26.05).
+    withRuby      = true;
+    withPython3   = true;
 
     # LSP servers and tool dependencies installed via Nix (not mason)
     extraPackages = with pkgs; [

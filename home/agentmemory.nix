@@ -1,13 +1,8 @@
 { config, pkgs, lib, ... }:
 let
-  # Host the agentmemory LoadBalancer services are reachable at on the LAN.
-  # k3s servicelb exposes each LB port on every node IP, so any node
-  # hostname/IP this workstation can reach works. Change if "voideon" does
-  # not resolve from here.
-  host = "voideon";
-
-  claudeUrl = "http://${host}:3111"; # agentmemory-claude (Claude Code, Codex)
-  qwenUrl = "http://${host}:3211"; # agentmemory-qwen (Crush, OpenCode, Qwen Code)
+  # agentmemory LoadBalancer endpoints on the LAN (shared Cilium IP, distinct ports).
+  claudeURL = "http://192.168.1.120:3111"; # agentmemory-claude (Claude Code, Codex)
+  qwenURL = "http://192.168.1.120:3211"; # agentmemory-qwen (Crush, OpenCode, Qwen Code)
 
   claudeTokenFile = config.sops.secrets."agentmemory/claude-token".path;
   qwenTokenFile = config.sops.secrets."agentmemory/qwen-token".path;
