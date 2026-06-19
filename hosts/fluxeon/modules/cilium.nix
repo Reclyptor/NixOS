@@ -76,6 +76,9 @@ let
             lbipam.cilium.io/sharing-key: "lan-shared"
             lbipam.cilium.io/sharing-cross-namespace: "*"
             lbipam.cilium.io/ips: "192.168.1.120"
+
+    localRedirectPolicies:
+      enabled: true
   '';
 
   manifest = pkgs.runCommand "cilium-1.19.5-manifest.yaml"
