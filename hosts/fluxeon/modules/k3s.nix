@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, nodeLocalDnsIP, ... }: {
   sops = {
     defaultSopsFile = ../../../secrets/secrets.yaml;
     age = {
@@ -20,6 +20,7 @@
       "--egress-selector-mode=cluster"
       "--disable=servicelb"
       "--disable=traefik"
+      "--kubelet-arg=cluster-dns=${nodeLocalDnsIP}"
     ];
   };
 
