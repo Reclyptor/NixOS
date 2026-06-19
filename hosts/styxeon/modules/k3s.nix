@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, nodeLocalDnsIP, ... }: {
   sops = {
     defaultSopsFile = ../../../secrets/secrets.yaml;
     age = {
@@ -12,7 +12,10 @@
     role = "agent";
     serverAddr = "https://192.168.1.10:6443";
     tokenFile = config.sops.secrets."k3s/token".path;
-    extraFlags = [ "--node-ip" "192.168.1.13" ];
+    extraFlags = [
+      "--node-ip" "192.168.1.13"
+      "--kubelet-arg=cluster-dns=${nodeLocalDnsIP}"
+    ];
   };
 
   networking.firewall = {

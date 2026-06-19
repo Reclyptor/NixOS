@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, nodeLocalDnsIP, ... }: {
   sops = {
     defaultSopsFile = ../../../secrets/secrets.yaml;
     age = {
@@ -18,6 +18,7 @@
       "--node-ip" "192.168.1.14"
       "--node-label=nvidia.com/gpu.present=true"
       "--node-label=node.kubernetes.io/gpu=true"
+      "--kubelet-arg=cluster-dns=${nodeLocalDnsIP}"
     ];
   };
 

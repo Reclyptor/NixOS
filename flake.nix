@@ -14,10 +14,14 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs: {
+  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
+  let
+    nodeLocalDnsIP = "169.254.20.10";
+    commonSpecialArgs = { inherit inputs nodeLocalDnsIP; };
+  in {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/nixos/configuration.nix
         ./hosts/nixos/hardware-configuration.nix
@@ -36,7 +40,7 @@
 
     nixosConfigurations.archeon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/archeon/configuration.nix
         ./hosts/archeon/hardware-configuration.nix
@@ -46,7 +50,7 @@
 
     nixosConfigurations.fluxeon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/fluxeon/configuration.nix
         ./hosts/fluxeon/hardware-configuration.nix
@@ -56,7 +60,7 @@
 
     nixosConfigurations.voideon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/voideon/configuration.nix
         ./hosts/voideon/hardware-configuration.nix
@@ -66,7 +70,7 @@
 
     nixosConfigurations.styxeon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/styxeon/configuration.nix
         ./hosts/styxeon/hardware-configuration.nix
@@ -76,7 +80,7 @@
 
     nixosConfigurations.bytheon = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
+      specialArgs = commonSpecialArgs;
       modules = [
         ./hosts/bytheon/configuration.nix
         ./hosts/bytheon/hardware-configuration.nix
