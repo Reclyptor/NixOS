@@ -1,5 +1,6 @@
 { pkgs, ... }: {
   environment.systemPackages = with pkgs; [
+    aldo
     aseprite
     audacity
     brave
@@ -14,6 +15,7 @@
     krita
     makemkv
     mkvtoolnix
+    morse-linux
     mpv
     obs-studio
     obsidian
@@ -21,6 +23,7 @@
     qbittorrent
     signal-desktop
     spotify
+    unixcw
     vlc
     vintagestory
     whipper
