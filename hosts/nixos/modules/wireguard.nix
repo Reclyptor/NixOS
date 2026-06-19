@@ -15,13 +15,16 @@ in {
     # the two conventional locations and sops-nix uses whichever one decrypts.
     # If this host's key lives somewhere else, change these two lines only.
     age = {
-      sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-      keyFile = "/var/lib/sops-nix/key.txt";
+      sshKeyPaths = [];
+      keyFile = "/home/reclyptor/.config/sops/age/keys.txt";
     };
 
     # Each secret is the full .conf, decrypted to /run/secrets/wireguard/<name>
     # as root-only (0400). Nothing lands in the world-readable Nix store.
-    secrets = lib.genAttrs (map secretName connections) (_: { });
+    secrets = lib.listToAttrs (map (name: {
+      name = secretName name;
+      value.path = "/run/secrets/wireguard/${name}.conf";
+    }) connections);
   };
 
   environment.systemPackages = [ pkgs.wireguard-tools ];
