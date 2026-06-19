@@ -141,7 +141,6 @@
 
       # Layout settings
       dwindle = {
-        pseudotile = true;
         preserve_split = true;
       };
 
@@ -154,6 +153,10 @@
         force_default_wallpaper = -1;
         disable_hyprland_logo = false;
         vrr = 2;
+      };
+
+      ecosystem = {
+        no_update_news = true;
       };
 
       # Key bindings
