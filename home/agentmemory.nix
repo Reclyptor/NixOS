@@ -15,8 +15,8 @@ let
     name = "agentmemory-wire";
     runtimeInputs = [ pkgs.jq pkgs.coreutils pkgs.gnugrep ];
     text = ''
-      claude_url="${claudeUrl}"
-      qwen_url="${qwenUrl}"
+      claude_url="${claudeURL}"
+      qwen_url="${qwenURL}"
 
       claude_tok=""
       qwen_tok=""
