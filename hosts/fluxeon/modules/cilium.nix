@@ -12,7 +12,7 @@ let
 
   values = pkgs.writeText "cilium-values.yaml" ''
     kubeProxyReplacement: true
-    k8sServiceHost: "192.168.1.10"   # archeon apiserver (= agents' serverAddr); reachable from all nodes. 127.0.0.1 only resolves on servers. TODO: VIP/agent-LB for CNI HA
+    k8sServiceHost: "127.0.0.1"      # node-local HAProxy fanout to archeon/fluxeon/voideon apiservers; available before CNI
     k8sServicePort: 6443
 
     routingMode: native              # all 5 nodes share one L2 (192.168.1.0/24), so

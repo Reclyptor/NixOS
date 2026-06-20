@@ -10,10 +10,13 @@
   services.k3s = {
     enable = true;
     role = "server";
-    serverAddr = "https://192.168.1.10:6443";
+    serverAddr = "https://127.0.0.1:6443";
     tokenFile = config.sops.secrets."k3s/token".path;
     extraFlags = [
       "--node-ip" "192.168.1.11"
+      "--bind-address=192.168.1.11"
+      "--advertise-address=192.168.1.11"
+      "--tls-san=127.0.0.1"
       "--flannel-backend=none"
       "--disable-network-policy"
       "--disable-kube-proxy"
