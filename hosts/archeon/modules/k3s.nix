@@ -14,6 +14,9 @@
     tokenFile = config.sops.secrets."k3s/token".path;
     extraFlags = [
       "--node-ip" "192.168.1.10"
+      "--bind-address=192.168.1.10"
+      "--advertise-address=192.168.1.10"
+      "--tls-san=127.0.0.1"
       "--flannel-backend=none"
       "--disable-network-policy"
       "--disable-kube-proxy"
