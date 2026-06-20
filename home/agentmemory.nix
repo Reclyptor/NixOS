@@ -2,111 +2,75 @@
 let
   # agentmemory LoadBalancer endpoints on the LAN (shared Cilium IP, distinct ports).
   claudeURL = "http://192.168.1.120:3111"; # agentmemory-claude (Claude Code, Codex)
-  qwenURL = "http://192.168.1.120:3211"; # agentmemory-qwen (Crush, OpenCode, Qwen Code)
+  qwenURL = "http://192.168.1.120:3211"; # agentmemory-qwen (Qwen Code, Crush, OpenCode)
 
   claudeTokenFile = config.sops.secrets."agentmemory/claude-token".path;
   qwenTokenFile = config.sops.secrets."agentmemory/qwen-token".path;
 
-  # Idempotent wiring of the agentmemory MCP server into each agent's config.
-  # The two instances use different bearer tokens, so the token is baked into
-  # each agent's MCP env block (a single global env var can't address both).
-  # Run once after `nixos-rebuild switch` and after the cluster is reachable.
-  agentmemory-wire = pkgs.writeShellApplication {
-    name = "agentmemory-wire";
-    runtimeInputs = [ pkgs.jq pkgs.coreutils pkgs.gnugrep ];
-    text = ''
-      claude_url="${claudeURL}"
-      qwen_url="${qwenURL}"
-
-      claude_tok=""
-      qwen_tok=""
-      if [ -r "${claudeTokenFile}" ]; then claude_tok="$(cat "${claudeTokenFile}")"; fi
-      if [ -r "${qwenTokenFile}" ]; then qwen_tok="$(cat "${qwenTokenFile}")"; fi
-      if [ -z "$claude_tok" ]; then
-        echo "warning: ${claudeTokenFile} missing/empty — add agentmemory/claude-token to your sops secrets" >&2
-      fi
-      if [ -z "$qwen_tok" ]; then
-        echo "warning: ${qwenTokenFile} missing/empty — add agentmemory/qwen-token to your sops secrets" >&2
-      fi
-
-      backup() {
-        if [ -f "$1" ]; then cp -- "$1" "$1.agentmemory-bak.$(date +%s)"; fi
-      }
-
-      # .mcpServers.agentmemory = { command, args, env }  (Claude Code, Qwen Code)
-      wire_mcpservers() {
-        local file="$1" url="$2" tok="$3" base
-        mkdir -p "$(dirname "$file")"
-        backup "$file"
-        if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-        printf '%s' "$base" | jq --arg url "$url" --arg tok "$tok" \
-          '.mcpServers.agentmemory = {command:"npx", args:["-y","@agentmemory/mcp"], env:{AGENTMEMORY_URL:$url, AGENTMEMORY_SECRET:$tok}}' \
-          > "$file.tmp"
-        mv -- "$file.tmp" "$file"
-        echo "  wired $file -> $url"
-      }
-
-      # .mcp.agentmemory = { type:"stdio", command, args, env }  (Crush)
-      wire_crush() {
-        local file="$1" url="$2" tok="$3" base
-        mkdir -p "$(dirname "$file")"
-        backup "$file"
-        if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-        printf '%s' "$base" | jq --arg url "$url" --arg tok "$tok" \
-          '.["$schema"]="https://charm.land/crush.json" | .mcp.agentmemory = {type:"stdio", command:"npx", args:["-y","@agentmemory/mcp"], env:{AGENTMEMORY_URL:$url, AGENTMEMORY_SECRET:$tok}}' \
-          > "$file.tmp"
-        mv -- "$file.tmp" "$file"
-        echo "  wired $file -> $url"
-      }
-
-      # .mcp.agentmemory = { type:"local", command:[...], environment, enabled }  (OpenCode)
-      wire_opencode() {
-        local file="$1" url="$2" tok="$3" base
-        mkdir -p "$(dirname "$file")"
-        backup "$file"
-        if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-        printf '%s' "$base" | jq --arg url "$url" --arg tok "$tok" \
-          '.["$schema"]="https://opencode.ai/config.json" | .mcp.agentmemory = {type:"local", command:["npx","-y","@agentmemory/mcp"], environment:{AGENTMEMORY_URL:$url, AGENTMEMORY_SECRET:$tok}, enabled:true}' \
-          > "$file.tmp"
-        mv -- "$file.tmp" "$file"
-        echo "  wired $file -> $url"
-      }
-
-      # ~/.codex/config.toml : [mcp_servers.agentmemory] (append if absent)  (Codex)
-      wire_codex() {
-        local file="$HOME/.codex/config.toml"
-        mkdir -p "$(dirname "$file")"
-        if [ -f "$file" ] && grep -q '^\[mcp_servers\.agentmemory\]' "$file"; then
-          echo "  codex already wired ($file) — remove the [mcp_servers.agentmemory] block to re-wire"
-          return
-        fi
-        backup "$file"
-        {
-          printf '\n[mcp_servers.agentmemory]\n'
-          printf 'command = "npx"\n'
-          printf 'args = ["-y", "@agentmemory/mcp"]\n\n'
-          printf '[mcp_servers.agentmemory.env]\n'
-          printf 'AGENTMEMORY_URL = "%s"\n' "$claude_url"
-          printf 'AGENTMEMORY_SECRET = "%s"\n' "$claude_tok"
-        } >> "$file"
-        echo "  wired $file -> $claude_url"
-      }
-
-      echo "Wiring agentmemory MCP into agents:"
-      echo "  Claude instance ($claude_url): Claude Code, Codex"
-      wire_mcpservers "$HOME/.claude.json" "$claude_url" "$claude_tok"
-      wire_codex
-      echo "  Qwen instance ($qwen_url): Qwen Code, Crush, OpenCode"
-      wire_mcpservers "$HOME/.qwen/settings.json" "$qwen_url" "$qwen_tok"
-      wire_crush "$HOME/.config/crush/crush.json" "$qwen_url" "$qwen_tok"
-      wire_opencode "$HOME/.config/opencode/opencode.json" "$qwen_url" "$qwen_tok"
-
-      echo
-      echo "Done. Restart any running agents to pick up the agentmemory MCP server."
-      echo "Optional — Claude Code auto-capture hooks:"
-      echo "  npx -y @agentmemory/agentmemory connect claude-code --with-hooks"
-    '';
-  };
+  # Per-agent jq programs that set only the agentmemory MCP entry and leave the rest
+  # of each config untouched. $url/$tok are supplied via `jq --arg`. The two instances
+  # use different bearer tokens, so the token is baked into each agent's env block.
+  mcpServersProg = ''.mcpServers.agentmemory = {command: "npx", args: ["-y", "@agentmemory/mcp"], env: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}}'';
+  crushProg = ''.["$schema"] = "https://charm.land/crush.json" | .mcp.agentmemory = {type: "stdio", command: "npx", args: ["-y", "@agentmemory/mcp"], env: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}}'';
+  opencodeProg = ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["npx", "-y", "@agentmemory/mcp"], environment: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}, enabled: true}'';
 in {
-  home.packages = [ agentmemory-wire ];
+  # Single source of truth for all agentmemory MCP wiring. The four JSON agents are
+  # jq-merged in place; Codex uses TOML and is appended onto the base config that
+  # home/codex.nix regenerates — hence the "codexConfig" ordering dependency. Runs
+  # after sops-nix so the bearer tokens are decrypted and on disk. Self-heals on
+  # every `nixos-rebuild switch`.
+  home.activation.agentmemory = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" "codexConfig" ] ''
+    am_merge() {
+      local file="$1" prog="$2" url="$3" tok="$4" base
+      if [ -z "$tok" ]; then
+        echo "agentmemory: token empty, skipping $file" >&2
+        return
+      fi
+      $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
+      if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
+      if printf '%s' "$base" | ${pkgs.jq}/bin/jq --arg url "$url" --arg tok "$tok" "$prog" > "$file.am.tmp"; then
+        $DRY_RUN_CMD mv -- "$file.am.tmp" "$file"
+      else
+        rm -f "$file.am.tmp"
+        echo "agentmemory: jq merge failed for $file (left unchanged)" >&2
+      fi
+    }
+
+    claude_tok=""
+    if [ -r "${claudeTokenFile}" ]; then claude_tok="$(cat "${claudeTokenFile}")"; fi
+    qwen_tok=""
+    if [ -r "${qwenTokenFile}" ]; then qwen_tok="$(cat "${qwenTokenFile}")"; fi
+    if [ -z "$claude_tok" ]; then echo "agentmemory: ${claudeTokenFile} missing/empty — claude-instance agents not wired" >&2; fi
+    if [ -z "$qwen_tok" ]; then echo "agentmemory: ${qwenTokenFile} missing/empty — qwen-instance agents not wired" >&2; fi
+
+    # JSON agents (jq merge, non-destructive).
+    am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg mcpServersProg} "${claudeURL}" "$claude_tok"
+    am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg mcpServersProg} "${qwenURL}"   "$qwen_tok"
+    am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg crushProg}      "${qwenURL}"   "$qwen_tok"
+    am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg opencodeProg}   "${qwenURL}"   "$qwen_tok"
+
+    # Codex (TOML): append the agentmemory block onto the base config that
+    # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
+    # preserves only [projects.*]), so this re-adds it deterministically each run.
+    codex_toml="$HOME/.codex/config.toml"
+    if [ -z "$claude_tok" ]; then
+      echo "agentmemory: token empty, skipping codex" >&2
+    elif [ ! -f "$codex_toml" ]; then
+      echo "agentmemory: $codex_toml missing (codexConfig should create it), skipping codex" >&2
+    elif ${pkgs.gnugrep}/bin/grep -q '^\[mcp_servers\.agentmemory\]' "$codex_toml"; then
+      : # an actual [mcp_servers.agentmemory] table header is already present
+    else
+      {
+        cat "$codex_toml"
+        printf '\n[mcp_servers.agentmemory]\n'
+        printf 'command = "npx"\n'
+        printf 'args = ["-y", "@agentmemory/mcp"]\n\n'
+        printf '[mcp_servers.agentmemory.env]\n'
+        printf 'AGENTMEMORY_URL = "%s"\n' "${claudeURL}"
+        printf 'AGENTMEMORY_SECRET = "%s"\n' "$claude_tok"
+      } > "$codex_toml.am.tmp"
+      $DRY_RUN_CMD mv -- "$codex_toml.am.tmp" "$codex_toml"
+      $DRY_RUN_CMD chmod 600 "$codex_toml"
+    fi
+  '';
 }
