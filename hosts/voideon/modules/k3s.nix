@@ -25,7 +25,7 @@
   };
 
   networking.firewall = {
-    allowedTCPPorts = [ 6443 9345 2379 2380 10250 3260 4240 4244 ];
+    allowedTCPPorts = [ 53 6443 9345 2379 2380 10250 3260 4240 4244 ];   # 53=node-local-dns TCP fallback
     allowedUDPPorts = [ 53 8472 51871 ];   # 53=node-local-dns, 8472=VXLAN, 51871=Cilium WireGuard
   };
 
