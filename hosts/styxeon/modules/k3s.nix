@@ -1,4 +1,4 @@
-{ config, pkgs, nodeLocalDnsIP, ... }: {
+{ config, pkgs, clusterDnsIP, ... }: {
   sops = {
     defaultSopsFile = ../../../secrets/secrets.yaml;
     age = {
@@ -14,7 +14,7 @@
     tokenFile = config.sops.secrets."k3s/token".path;
     extraFlags = [
       "--node-ip" "192.168.1.13"
-      "--kubelet-arg=cluster-dns=${nodeLocalDnsIP}"
+      "--kubelet-arg=cluster-dns=${clusterDnsIP}"
     ];
   };
 
