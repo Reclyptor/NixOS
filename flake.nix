@@ -16,6 +16,14 @@
 
   outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
   let
+    # Workaround for Cilium DNS proxy + WireGuard incompatibility:
+    # https://github.com/cilium/cilium/issues/45837
+    #
+    # Pods use node-local-dns so Cilium's L7 DNS proxy forwards upstream queries
+    # to a same-node hostNetwork resolver instead of sending proxy-originated DNS
+    # traffic across WireGuard to a remote CoreDNS pod. If Cilium fixes host-netns
+    # DNS proxy reply handling over WireGuard, this can be reverted to kube-dns
+    # (10.43.0.10) and the node-local-dns/firewall workaround can be removed.
     clusterDnsIP = "169.254.20.10";
     commonSpecialArgs = { inherit inputs clusterDnsIP; };
   in {
