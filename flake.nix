@@ -16,8 +16,8 @@
 
   outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
   let
-    nodeLocalDnsIP = "169.254.20.10";
-    commonSpecialArgs = { inherit inputs nodeLocalDnsIP; };
+    clusterDnsIP = "10.43.0.10";
+    commonSpecialArgs = { inherit inputs clusterDnsIP; };
   in {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
