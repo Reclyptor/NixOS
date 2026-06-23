@@ -83,9 +83,18 @@ let
     { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
     ''
       export HOME="$TMPDIR"
+      # hubble-peer is the ONLY Service the chart renders with
+      # internalTrafficPolicy: Local (hardcoded in templates/hubble/peer-service.yaml;
+      # not a Helm value). Cilium 1.19.5's per-backend health-checker wrongly marks the
+      # *local* :4244 backend Unhealthy on archeon/fluxeon (backend is reachable, remote
+      # checks pass, survives agent restarts) — with ITP:Local that strands hubble-relay
+      # whenever it schedules onto those nodes. Cluster lets relay bootstrap from any
+      # healthy peer (discovery returns the same peer list from any agent). On a chart
+      # bump, re-confirm hubble-peer is the only ITP:Local Service.
       helm template cilium ${chart} \
         --namespace kube-system \
         --values ${values} \
+        | sed 's/internalTrafficPolicy: Local/internalTrafficPolicy: Cluster/' \
         > "$out"
     '';
 in
