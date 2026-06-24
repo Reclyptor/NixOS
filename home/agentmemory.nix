@@ -7,12 +7,39 @@ let
   claudeTokenFile = config.sops.secrets."agentmemory/claude-token".path;
   qwenTokenFile = config.sops.secrets."agentmemory/qwen-token".path;
 
-  # Per-agent jq programs that set only the agentmemory MCP entry and leave the rest
-  # of each config untouched. $url/$tok are supplied via `jq --arg`. The two instances
-  # use different bearer tokens, so the token is baked into each agent's env block.
-  mcpServersProg = ''.mcpServers.agentmemory = {command: "npx", args: ["-y", "@agentmemory/mcp"], env: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}}'';
-  crushProg = ''.["$schema"] = "https://charm.land/crush.json" | .mcp.agentmemory = {type: "stdio", command: "npx", args: ["-y", "@agentmemory/mcp"], env: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}}'';
-  opencodeProg = ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["npx", "-y", "@agentmemory/mcp"], environment: {AGENTMEMORY_URL: $url, AGENTMEMORY_SECRET: $tok}, enabled: true}'';
+  # --- MCP bridge launchers ---------------------------------------------------
+  # `@agentmemory/mcp` is a local stdio bridge each client spawns (via npx); it
+  # reads AGENTMEMORY_URL + AGENTMEMORY_SECRET from its env and forwards to the
+  # remote engine on the cluster. Instead of baking the bearer token into every
+  # client config, each client launches one of these wrappers, which reads the
+  # token from the sops file at spawn time — so the secret never lands in any
+  # client config file. One wrapper per instance (distinct URL + bearer token):
+  # the claude instance (Claude Code, Codex) and the qwen instance (Qwen, Crush,
+  # OpenCode).
+  mkMcpWrapper = name: url: tokenFile: pkgs.writeShellScriptBin name ''
+    set -eu
+    export PATH="${pkgs.nodejs}/bin:''${PATH:-/usr/bin:/bin}"
+    export AGENTMEMORY_URL="${url}"
+    if [ -r "${tokenFile}" ]; then
+      AGENTMEMORY_SECRET="$(cat "${tokenFile}")"
+      export AGENTMEMORY_SECRET
+    else
+      echo "${name}: ${tokenFile} not readable; agentmemory MCP starting unauthenticated" >&2
+    fi
+    exec ${pkgs.nodejs}/bin/npx -y @agentmemory/mcp "$@"
+  '';
+  mcpClaude = mkMcpWrapper "agentmemory-mcp-claude" claudeURL claudeTokenFile;
+  mcpQwen = mkMcpWrapper "agentmemory-mcp-qwen" qwenURL qwenTokenFile;
+  claudeMcpBin = "${mcpClaude}/bin/agentmemory-mcp-claude";
+  qwenMcpBin = "${mcpQwen}/bin/agentmemory-mcp-qwen";
+
+  # Per-agent jq programs that set only the agentmemory MCP entry — command is
+  # the launcher above, no embedded secret. Assigning the whole object replaces
+  # any previously-embedded `env`/token. `bin` is baked in by Nix, so the merge
+  # needs no jq --arg.
+  mcpServersProg = bin: ''.mcpServers.agentmemory = {command: "${bin}", args: []}'';
+  crushProg = bin: ''.["$schema"] = "https://charm.land/crush.json" | .mcp.agentmemory = {type: "stdio", command: "${bin}", args: []}'';
+  opencodeProg = bin: ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["${bin}"], enabled: true}'';
 
   # --- Lifecycle hooks + skills (Claude Code & Codex) -----------------------
 
@@ -127,18 +154,16 @@ in {
   # hooks, and skills, for every connected agent. JSON agents are jq-merged in
   # place; Codex's MCP block is appended onto the base config that
   # home/codex.nix regenerates (hence the "codexConfig" ordering dependency).
-  # Runs after sops-nix so the bearer tokens are decrypted and on disk.
-  # Self-heals on every `nixos-rebuild switch`.
+  # No bearer token is written into any client config: each client launches a
+  # wrapper that reads the token from the sops file at spawn time, so this
+  # activation never touches the secret at all. Self-heals on every
+  # `nixos-rebuild switch`.
   home.activation.agentmemory = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" "codexConfig" ] ''
     am_merge() {
-      local file="$1" prog="$2" url="$3" tok="$4" base
-      if [ -z "$tok" ]; then
-        echo "agentmemory: token empty, skipping $file" >&2
-        return
-      fi
+      local file="$1" prog="$2" base
       $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
       if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-      if printf '%s' "$base" | ${pkgs.jq}/bin/jq --arg url "$url" --arg tok "$tok" "$prog" > "$file.am.tmp"; then
+      if printf '%s' "$base" | ${pkgs.jq}/bin/jq "$prog" > "$file.am.tmp"; then
         $DRY_RUN_CMD mv -- "$file.am.tmp" "$file"
       else
         rm -f "$file.am.tmp"
@@ -158,38 +183,29 @@ in {
       fi
     }
 
-    claude_tok=""
-    if [ -r "${claudeTokenFile}" ]; then claude_tok="$(cat "${claudeTokenFile}")"; fi
-    qwen_tok=""
-    if [ -r "${qwenTokenFile}" ]; then qwen_tok="$(cat "${qwenTokenFile}")"; fi
-    if [ -z "$claude_tok" ]; then echo "agentmemory: ${claudeTokenFile} missing/empty — claude-instance agents not wired" >&2; fi
-    if [ -z "$qwen_tok" ]; then echo "agentmemory: ${qwenTokenFile} missing/empty — qwen-instance agents not wired" >&2; fi
-
-    # JSON agents (jq merge, non-destructive).
-    am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg mcpServersProg} "${claudeURL}" "$claude_tok"
-    am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg mcpServersProg} "${qwenURL}"   "$qwen_tok"
-    am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg crushProg}      "${qwenURL}"   "$qwen_tok"
-    am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg opencodeProg}   "${qwenURL}"   "$qwen_tok"
+    # MCP servers (jq merge, non-destructive). The launcher reads the token from
+    # sops at spawn time, so no secret is written here. Assigning the whole
+    # agentmemory object also strips any token embedded by a previous version.
+    am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg (mcpServersProg claudeMcpBin)}
+    am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg qwenMcpBin)}
+    am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg qwenMcpBin)}
+    am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg qwenMcpBin)}
 
     # Codex (TOML): append the agentmemory block onto the base config that
     # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
-    # preserves only [projects.*]), so this re-adds it deterministically each run.
+    # preserves only [projects.*]), so this re-adds it deterministically each run
+    # — which is also how the previously-embedded [.env] secret table gets
+    # dropped on the next switch. command is the launcher; no [.env], no secret.
     codex_toml="$HOME/.codex/config.toml"
-    if [ -z "$claude_tok" ]; then
-      echo "agentmemory: token empty, skipping codex" >&2
-    elif [ ! -f "$codex_toml" ]; then
+    if [ ! -f "$codex_toml" ]; then
       echo "agentmemory: $codex_toml missing (codexConfig should create it), skipping codex" >&2
     elif ${pkgs.gnugrep}/bin/grep -q '^\[mcp_servers\.agentmemory\]' "$codex_toml"; then
-      : # an actual [mcp_servers.agentmemory] table header is already present
+      : # block already present (codexConfig normally strips it first, so this is the no-op guard)
     else
       {
         cat "$codex_toml"
         printf '\n[mcp_servers.agentmemory]\n'
-        printf 'command = "npx"\n'
-        printf 'args = ["-y", "@agentmemory/mcp"]\n\n'
-        printf '[mcp_servers.agentmemory.env]\n'
-        printf 'AGENTMEMORY_URL = "%s"\n' "${claudeURL}"
-        printf 'AGENTMEMORY_SECRET = "%s"\n' "$claude_tok"
+        printf 'command = "%s"\n' "${claudeMcpBin}"
       } > "$codex_toml.am.tmp"
       $DRY_RUN_CMD mv -- "$codex_toml.am.tmp" "$codex_toml"
       $DRY_RUN_CMD chmod 600 "$codex_toml"
