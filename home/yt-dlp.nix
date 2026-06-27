@@ -57,12 +57,22 @@
           exit 1
         fi
 
+        # Pick the single best audio track per language (Japanese, English,
+        # Spanish) for whichever subset the video has, falling back to the best
+        # audio. ba[...] takes one best track per filter; mergeall would instead
+        # embed every quality variant of every language.
+        local JA="ba[language^=ja]" EN="ba[language^=en]" ES="ba[language^=es]"
+        local FORMAT="bv*+''${JA}+''${EN}+''${ES}/bv*+''${JA}+''${EN}/bv*+''${JA}+''${ES}/bv*+''${EN}+''${ES}/bv*+''${JA}/bv*+''${EN}/bv*+''${ES}/bv*+ba/b"
+
         /run/current-system/sw/bin/yt-dlp --cookies "''${COOKIES_FILE}" \
           --extractor-args "youtube:player-client=default" \
           --ffmpeg-location "/run/current-system/sw/bin/ffmpeg" \
-          -f "bv*+ba/b" \
-          --write-thumbnail -i --add-metadata --write-info-json \
-          --write-subs --embed-subs \
+          -f "''${FORMAT}" \
+          --audio-multistreams \
+          --embed-thumbnail --convert-thumbnails jpg \
+          -i --add-metadata --write-info-json \
+          --write-subs --write-auto-subs --embed-subs \
+          --sub-langs "en,es,ja" --compat-options no-keep-subs \
           --output "''${BASE_PATH}/''${VIDEO_FORMAT}" \
           --merge-output-format mkv "''${URL}"
       }
