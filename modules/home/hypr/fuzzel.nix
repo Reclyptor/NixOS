@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { ... }: {
+  flake.modules.homeManager.base = { config, ... }: let palette = config.palette; in {
     programs.fuzzel = {
       enable = true;
       settings = {
@@ -13,15 +13,15 @@
           inner-pad = 8;
         };
         colors = {
-          background = "0C0F0CF2";
-          text = "A4C639FF";
-          prompt = "6b7450FF";
-          input = "A4C639FF";
-          match = "A4C639FF";
-          selection = "A4C63933";
-          selection-text = "A4C639FF";
-          selection-match = "A4C639FF";
-          border = "A4C639FF";
+          background = "${palette.backgroundDark}F2";
+          text = "${palette.accent}FF";
+          prompt = "${palette.muted}FF";
+          input = "${palette.accent}FF";
+          match = "${palette.accent}FF";
+          selection = "${palette.accent}33";
+          selection-text = "${palette.accent}FF";
+          selection-match = "${palette.accent}FF";
+          border = "${palette.accent}FF";
         };
         border = {
           width = 2;
