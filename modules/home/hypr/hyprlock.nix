@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { ... }: {
+  flake.modules.homeManager.base = { config, ... }: let palette = config.palette; in {
     # Hyprlock configuration
     programs.hyprlock = {
       enable = true;
@@ -26,9 +26,9 @@
             monitor = "";
             dots_center = true;
             fade_on_empty = false;
-            font_color = "rgb(164, 198, 57)";
-            inner_color = "rgb(20, 25, 20)";
-            outer_color = "rgb(12, 15, 12)";
+            font_color = "rgb(${palette.accentRgb})";
+            inner_color = "rgb(${palette.backgroundRgb})";
+            outer_color = "rgb(${palette.backgroundDarkRgb})";
             outline_thickness = 5;
             placeholder_text = "Password...";
             shadow_passes = 2;

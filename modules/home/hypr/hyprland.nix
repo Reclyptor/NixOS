@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { config, ... }: {
+  flake.modules.homeManager.base = { config, ... }: let palette = config.palette; in {
     wayland.windowManager.hyprland = {
       enable = true;
       xwayland.enable = true;
@@ -76,8 +76,8 @@
           gaps_in = 5;
           gaps_out = 20;
           border_size = 2;
-          "col.active_border" = "rgba(A4C639FF)";
-          "col.inactive_border" = "rgba(A4C6394D)";
+          "col.active_border" = "rgba(${palette.accent}FF)";
+          "col.inactive_border" = "rgba(${palette.accent}4D)";
           resize_on_border = false;
           allow_tearing = false;
           layout = "dwindle";
@@ -93,7 +93,7 @@
             enabled = true;
             range = 20;
             render_power = 4;
-            color = "rgba(A4C63933)";
+            color = "rgba(${palette.accent}33)";
           };
           
           blur = {

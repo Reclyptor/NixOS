@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { ... }: {
+  flake.modules.homeManager.base = { config, ... }: let palette = config.palette; in {
     # Waybar configuration
     programs.waybar = {
       enable = true;
@@ -184,17 +184,17 @@
           padding-right: 10px;
           border-radius: 5px 20px 5px 20px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease,
           border-radius 0.3s ease;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #custom-launcher:hover {
           border-radius: 20px 5px 20px 5px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #workspaces {
@@ -204,22 +204,22 @@
         #workspaces button {
           padding: 0 8px;
           border-radius: 5px 20px 5px 20px;
-          border: solid 2px #A4C639;
-          background: #141914;
-          color: #A4C639;
+          border: solid 2px #${palette.accent};
+          background: #${palette.background};
+          color: #${palette.accent};
           transition: all 0.3s ease;
           margin-right: 4px;
         }
 
         #workspaces button:hover {
           border-radius: 20px 5px 20px 5px;
-          background: rgba(164, 198, 57, 0.2);
+          background: rgba(${palette.accentRgb}, 0.2);
         }
 
         #workspaces button.active {
           border-radius: 20px 5px 20px 5px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
           font-weight: bold;
         }
 
@@ -238,11 +238,11 @@
           padding-right: 12px;
           border-radius: 5px 20px 5px 20px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease-in-out,
           border-radius 0.3s ease-in-out;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #custom-media-shuffle,
@@ -254,18 +254,18 @@
         }
 
         #custom-media-shuffle.off {
-          color: #6b7450;
-          border-color: #6b7450;
+          color: #${palette.muted};
+          border-color: #${palette.muted};
         }
 
         #custom-media-play.off {
-          color: #6b7450;
-          border-color: #6b7450;
+          color: #${palette.muted};
+          border-color: #${palette.muted};
         }
 
         #custom-media-loop.none {
-          color: #6b7450;
-          border-color: #6b7450;
+          color: #${palette.muted};
+          border-color: #${palette.muted};
         }
 
         #custom-gamemode {
@@ -275,16 +275,16 @@
           min-width: 36px;
           border-radius: 20px 5px 20px 5px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease-in-out,
           border-radius 0.3s ease-in-out;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #custom-gamemode.off {
-          color: #6b7450;
-          border-color: #6b7450;
+          color: #${palette.muted};
+          border-color: #${palette.muted};
         }
 
         #mpris:hover,
@@ -294,14 +294,14 @@
         #custom-media-next:hover,
         #custom-media-loop:hover {
           border-radius: 20px 5px 20px 5px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #custom-gamemode:hover {
           border-radius: 5px 20px 5px 20px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #cpu,
@@ -314,11 +314,11 @@
           padding-right: 10px;
           border-radius: 20px 5px 20px 5px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease-in-out,
           border-radius 0.3s ease-in-out;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #cpu:hover,
@@ -327,8 +327,8 @@
         #disk:hover,
         #bluetooth:hover {
           border-radius: 5px 20px 5px 20px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #clock {
@@ -336,17 +336,17 @@
           padding-right: 16px;
           border-radius: 5px 5px 20px 20px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease,
           border-radius 0.3s ease;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #clock:hover {
           border-radius: 20px 20px 5px 5px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #network {
@@ -355,17 +355,17 @@
           padding-left: 15px;
           border-radius: 20px 5px 20px 5px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease,
           border-radius 0.3s ease;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #network:hover {
           border-radius: 5px 20px 5px 20px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #pulseaudio {
@@ -374,22 +374,22 @@
           padding-left: 0px;
           padding-right: 0px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease,
           border-radius 0.3s ease;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #pulseaudio:hover {
           border-radius: 5px 20px 5px 20px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         #tooltip {
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #tray {
@@ -397,17 +397,17 @@
           padding-right: 16px;
           border-radius: 20px 5px 20px 5px;
           border: solid 2px;
-          border-color: #A4C639;
+          border-color: #${palette.accent};
           transition: background 0.3s ease,
           border-radius 0.3s ease;
-          background: #141914;
-          color: #A4C639;
+          background: #${palette.background};
+          color: #${palette.accent};
         }
 
         #tray:hover {
           border-radius: 5px 20px 5px 20px;
-          background: #A4C639;
-          color: #141914;
+          background: #${palette.accent};
+          color: #${palette.background};
         }
 
         @keyframes blink {

@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { config, pkgs, ... }: {
+  flake.modules.homeManager.base = { config, pkgs, ... }: let palette = config.palette; in {
     programs.oh-my-posh = {
       enable = true;
       enableBashIntegration = true;
@@ -19,13 +19,13 @@
           source = "cdn";
         };
         transient_prompt = {
-          foreground = "#A4C639";
+          foreground = "#${palette.accent}";
           background = "transparent";
           newline = true;
           template = " ❯❯ {{ .AbsolutePWD }}\n ❯ ";
         };
         secondary_prompt = {
-          foreground = "#A4C639";
+          foreground = "#${palette.accent}";
           background = "transparent";
           template = " ❯ ";
         };
@@ -37,38 +37,38 @@
               {
                 type = "text";
                 style = "plain";
-                foreground = "#A4C639";
+                foreground = "#${palette.accent}";
                 template = "╭─";
               }
               {
                 type = "session";
                 style = "diamond";
-                foreground = "#A4C639";
-                background = "#141914";
+                foreground = "#${palette.accent}";
+                background = "#${palette.background}";
                 leading_diamond = "";
                 template = "{{ .UserName }}";
               }
               {
                 type = "root";
                 style = "powerline";
-                foreground = "#e5fb79";
-                background = "#141914";
+                foreground = "#${palette.accentBright}";
+                background = "#${palette.background}";
                 powerline_symbol = "";
                 template = "󱔋";
               }
               {
                 type = "os";
                 style = "powerline";
-                foreground = "#A4C639";
-                background = "#141914";
+                foreground = "#${palette.accent}";
+                background = "#${palette.background}";
                 powerline_symbol = "";
                 template = "{{ .Icon }} ";
               }
               {
                 type = "path";
                 style = "diamond";
-                foreground = "#0C0F0C";
-                background = "#A4C639";
+                foreground = "#${palette.backgroundDark}";
+                background = "#${palette.accent}";
                 trailing_diamond = "";
                 template = " 󰉖 {{ path .Path .Location }}";
                 options = {
@@ -86,7 +86,7 @@
               {
                 type = "text";
                 style = "diamond";
-                foreground = "#A4C639";
+                foreground = "#${palette.accent}";
                 template = "╰─ ❯❯";
                 options.always_enabled = true;
               }
