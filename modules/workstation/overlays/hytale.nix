@@ -3,10 +3,15 @@
     nixpkgs.overlays = [
       (final: prev: {
         hytale = let
-          version = "latest";
+          # Upstream only publishes a mutable -latest.zip (no versioned URLs or
+          # manifest as of 2026-07-03), so this pins a snapshot by date + hash.
+          # When upstream pushes a new build the fetch fails loudly on hash
+          # mismatch; re-pin with:
+          #   nix-prefetch-url --unpack <url> && bump version date + hash
+          version = "0-unstable-2026-07-03";
           src = prev.fetchzip {
             url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.zip";
-            hash = "sha256-AiNtOekw3LxhIX4WLlmO3lTvC0RWkueQ1+aWhugX3Aw=";
+            hash = "sha256-7UVo52Jm2T9nWsfwgka36lPgG0mFMUKMbbE1drraR3k=";
           };
           icon = prev.fetchurl {
             url = "https://cms-a.nodecraft.com/f/133932/290x290/b0f48d6c97/icon.png";
