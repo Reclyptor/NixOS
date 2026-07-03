@@ -28,6 +28,7 @@
       else [ "nvidia-drm.modeset=1" ];
     boot.extraModprobeConfig = lib.mkIf (config.host.gpu == "nvidia") "options nvidia_drm modeset=1";
     boot.supportedFilesystems = [ "zfs" "nfs" ];
+    boot.zfs.forceImportRoot = false;
 
     networking.hostId = config.host.hostId;
     networking.hosts = {

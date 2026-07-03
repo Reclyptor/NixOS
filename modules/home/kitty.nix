@@ -41,8 +41,8 @@
         # Basic colors - Android Green Theme
         foreground = "#${palette.accent}";
         background = "#${palette.backgroundDark}";
-        selection_foreground = "#A1B5A1";
-        selection_background = "#353B35";
+        selection_foreground = "#${palette.textDim}";
+        selection_background = "#${palette.surfaceLight}";
         
         # Cursor colors
         cursor = "#656b47";
@@ -107,7 +107,7 @@
         color14 = "#b1c44f";
         
         # White
-        color7 = "#a1b5a1";
+        color7 = "#${palette.textDim}";
         color15 = "#f0fff0";
       };
     };
