@@ -6,7 +6,7 @@
       fi
     else
       echo
-      if [ -f /bin/hyprctl ]; then
+      if command -v hyprctl &>/dev/null; then
         echo "Start Hyprland with command Hyprland"
       fi
     fi

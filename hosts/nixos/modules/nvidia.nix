@@ -1,6 +1,5 @@
 { config, ... }: {
   nixpkgs.config.nvidia.acceptLicense = true;
-  nixpkgs.config.allowUnfree = true;
 
   services.xserver.videoDrivers = [ "nvidia" ];
 

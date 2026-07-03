@@ -4,16 +4,6 @@
     plugins = [ pkgs.ccid ];
   };
 
-  services.openssh = {
-    enable = false;
-    openFirewall = false;
-    settings = {
-      X11Forwarding = true;
-      PermitRootLogin = "no";
-      PasswordAuthentication = false;
-    };
-  };
-
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;

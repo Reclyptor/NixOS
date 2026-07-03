@@ -10,7 +10,6 @@
       commit.gpgsign = false;
       gpg.program = "gpg";
       core.editor = "nvim";
-      safe.directory = "/etc/nixos";
     };
   };
 }

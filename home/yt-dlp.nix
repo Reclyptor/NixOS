@@ -64,9 +64,9 @@
         local JA="ba[language^=ja]" EN="ba[language^=en]" ES="ba[language^=es]"
         local FORMAT="bv*+''${JA}+''${EN}+''${ES}/bv*+''${JA}+''${EN}/bv*+''${JA}+''${ES}/bv*+''${EN}+''${ES}/bv*+''${JA}/bv*+''${EN}/bv*+''${ES}/bv*+ba/b"
 
-        /run/current-system/sw/bin/yt-dlp --cookies "''${COOKIES_FILE}" \
+        ${pkgs.yt-dlp}/bin/yt-dlp --cookies "''${COOKIES_FILE}" \
           --extractor-args "youtube:player-client=default" \
-          --ffmpeg-location "/run/current-system/sw/bin/ffmpeg" \
+          --ffmpeg-location "${pkgs.ffmpeg-full}/bin/ffmpeg" \
           -f "''${FORMAT}" \
           --audio-multistreams \
           --embed-thumbnail --convert-thumbnails jpg \

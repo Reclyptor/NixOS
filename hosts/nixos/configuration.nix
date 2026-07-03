@@ -1,13 +1,12 @@
 { config, pkgs, lib, ... }: (
   let
-    moduleDirectory = ./modules; 
+    moduleDirectory = ./modules;
     overlayDirectory = ./overlays;
   in {
     system.stateVersion = "25.11";
     nix.package = pkgs.nixVersions.nix_2_34;
     nix.settings = {
       experimental-features = [ "nix-command" "flakes" ];
-      auto-optimise-store = true;
       warn-dirty = false;
     };
     nix.gc = {

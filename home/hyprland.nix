@@ -42,7 +42,7 @@
         "XDG_SESSION_TYPE,wayland"
         
         # Hyprshot config
-        "HYPRSHOT_DIR,/home/reclyptor/Screenshots"
+        "HYPRSHOT_DIR,${config.home.homeDirectory}/Screenshots"
       ];
 
       # Input configuration
@@ -291,11 +291,6 @@
         "no_blur on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
       ];
     };
-
-    # Extra config for things not yet supported in settings
-    extraConfig = ''
-      # Additional custom configuration can go here
-    '';
   };
 
   # Override sops-nix service environment to include age-plugin-yubikey in PATH
@@ -307,7 +302,7 @@
 
     wallpaper {
         monitor =
-        path = /home/reclyptor/.config/wallpapers/default.jpg
+        path = ${config.home.homeDirectory}/.config/wallpapers/default.jpg
         fit_mode = cover
     }
   '';
