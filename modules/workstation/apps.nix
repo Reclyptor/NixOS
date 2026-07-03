@@ -1,0 +1,36 @@
+{ ... }: {
+  flake.modules.nixos.workstation = { pkgs, ... }: {
+    environment.systemPackages = with pkgs; [
+      aldo
+      aseprite
+      audacity
+      brave
+      code-cursor
+      google-chrome
+      hytale
+      discord
+      element-desktop
+      firefox
+      imv
+      inkscape
+      krita
+      makemkv
+      mkvtoolnix
+      morse-linux
+      mpv
+      obs-studio
+      obsidian
+      prismlauncher
+      qbittorrent
+      signal-desktop
+      spotify
+      unixcw
+      vlc
+      vintagestory
+      whipper
+      yubikey-manager
+      yubico-piv-tool
+      zed-editor
+    ];
+  };
+}
