@@ -1,7 +1,7 @@
 { ... }: {
   flake.modules.nixos.workstation = { pkgs, lib, ... }:
   let
-    # ipdeny ISO country codes to drop, inbound and outbound.
+    # ipdeny ISO country codes to drop, inbound only.
     countries = [
       "cn" "in" "ru"
       "dz" "ao" "bj" "bw" "bf" "bi" "cv" "cm" "cf" "td" "km" "cg" "cd" "ci"
@@ -34,11 +34,6 @@
       (lib.concatMapStringsSep "\n" (cc: "ip saddr @${cc}4 counter drop") v4Countries)
       + "\n"
       + (lib.concatMapStringsSep "\n" (cc: "ip6 saddr @${cc}6 counter drop") v6Countries);
-
-    daddrRules =
-      (lib.concatMapStringsSep "\n" (cc: "ip daddr @${cc}4 counter drop") v4Countries)
-      + "\n"
-      + (lib.concatMapStringsSep "\n" (cc: "ip6 daddr @${cc}6 counter drop") v6Countries);
 
     refresh = pkgs.writeShellApplication {
       name = "geoblock-refresh";
@@ -82,11 +77,6 @@
         chain input {
           type filter hook input priority -10; policy accept;
           ${saddrRules}
-        }
-
-        chain output {
-          type filter hook output priority -10; policy accept;
-          ${daddrRules}
         }
       '';
     };
