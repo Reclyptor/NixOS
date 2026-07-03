@@ -68,6 +68,12 @@
         description = "Muted olive for secondary text and inactive elements.";
       };
 
+      textDim = lib.mkOption {
+        type = lib.types.str;
+        default = "a1b5a1";
+        description = "Dim gray-green text (terminal white slot, selections).";
+      };
+
       textSoft = lib.mkOption {
         type = lib.types.str;
         default = "c8e4c8";
