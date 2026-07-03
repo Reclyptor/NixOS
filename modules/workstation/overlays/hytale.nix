@@ -3,16 +3,25 @@
     nixpkgs.overlays = [
       (final: prev: {
         hytale = let
-          # Upstream only publishes a mutable -latest.zip (no versioned URLs or
-          # manifest as of 2026-07-03), so this pins a snapshot by date + hash.
-          # When upstream pushes a new build the fetch fails loudly on hash
-          # mismatch; re-pin with:
-          #   nix-prefetch-url --unpack <url> && bump version date + hash
-          version = "0-unstable-2026-07-03";
-          src = prev.fetchzip {
-            url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-latest.zip";
-            hash = "sha256-7UVo52Jm2T9nWsfwgka36lPgG0mFMUKMbbE1drraR3k=";
+          # Upstream publishes a version manifest at
+          # https://launcher.hytale.com/version/release/launcher.json —
+          # .version plus .download_url.linux.amd64.{url,sha256}. To bump, take
+          # version and sha256 (base16 -> SRI via `nix hash convert`) straight
+          # from the manifest; no prefetching needed. The zip is fetched flat
+          # against the vendor's own hash because the CDN intermittently serves
+          # divergent content (even on versioned URLs — never trust
+          # -latest.zip), and unpacked in a separate deterministic step.
+          version = "2026.07.02-40e9e2d";
+          zip = prev.fetchurl {
+            url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-${version}.zip";
+            hash = "sha256-aHQHRomm6TuD2l1yUdh3UW2Lo4Comi40qMsOOkM8Q9U=";
           };
+          src = prev.runCommand "hytale-launcher-${version}" {
+            nativeBuildInputs = [ prev.unzip ];
+          } ''
+            mkdir -p $out
+            unzip -q ${zip} -d $out
+          '';
           icon = prev.fetchurl {
             url = "https://cms-a.nodecraft.com/f/133932/290x290/b0f48d6c97/icon.png";
             hash = "sha256-G1ffaG8a9CtMW3WKumrS0RDT3qfx+QXGjNkHUkWaMYM=";
