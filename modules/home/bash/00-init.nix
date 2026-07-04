@@ -11,6 +11,7 @@
         K3S_MONGODB_PASSWORD = "k3s-mongodb-password";
         K3S_REDIS_PASSWORD = "k3s-redis-password";
         ATLAS_MONGODB_HOST = "atlas-mongodb-host";
+        STEAM_WEB_API_KEY = "steam-web-api-key";
       };
 
       # Secrets whose PATH becomes the variable value (certs read on use).

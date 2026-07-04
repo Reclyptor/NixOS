@@ -22,6 +22,7 @@
         "bash/k3s-mongodb-password"
         "bash/atlas-mongodb-host"
         "bash/k3s-redis-password"
+        "bash/steam-web-api-key"
         "agentmemory/claude-token"
         "agentmemory/qwen-token"
       ] (name: {
