@@ -32,9 +32,10 @@
               prev.bubblewrap
               prev.socat
             ]}:\$PATH
-            exec -a "\$0" ${prev.glibc}/lib64/ld-linux-x86-64.so.2 \\
-              --library-path ${prev.glibc}/lib \\
-              "$out/libexec/claude/claude" "\$@"
+            # Exec directly (interpreter resolved via nix-ld). Going through
+            # ld-linux makes execPath the loader, which breaks Claude Code's
+            # bundled grep/find/rg shims (the "-G: ... shared libraries" error).
+            exec -a "\$0" "$out/libexec/claude/claude" "\$@"
             EOF
 
             chmod +x $out/bin/claude
