@@ -9,6 +9,7 @@
     home-manager = {
       useGlobalPkgs = true;
       useUserPackages = true;
+      backupFileExtension = "hm-backup";
       users.reclyptor.imports = [ config.flake.modules.homeManager.base ];
       sharedModules = [ inputs.sops-nix.homeManagerModules.sops ];
     };
