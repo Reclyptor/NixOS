@@ -16,6 +16,13 @@
             url = "https://github.com/zen-browser/desktop/releases/download/${version}/zen.linux-x86_64.tar.xz";
             hash = "sha256-2N28S8cpB9isXM8+DQpypwclS1oGG6DLRFP3spxtOjA=";
           };
+          # Enterprise policy shipped with the app. We already make Zen the system
+          # default declaratively (modules/home/xdg.nix), so switch off its startup
+          # default-browser check: the check never matches our desktop-file name
+          # under Nix, and its "Set as default" button can't persist anyway because
+          # mimeapps.list is a read-only store symlink.
+          policiesJson = prev.writeText "zen-policies.json"
+            (builtins.toJSON { policies.DontCheckDefaultBrowser = true; });
         in prev.stdenv.mkDerivation {
           pname = "zen-browser";
           inherit version src;
@@ -54,6 +61,10 @@
             # append it here. Without it, video plays silently on our PipeWire
             # (pulse.enable) system, the socket cubeb routes audio through.
             "${prev.libpulseaudio}/lib"
+            # Same story for WebAuthn/U2F: libxul dlopens libudev.so.1 to enumerate
+            # the FIDO HID device, so without it on the RUNPATH a YubiKey can't be
+            # used for security-key logins. systemdLibs is the minimal libudev.
+            "${prev.systemdLibs}/lib"
           ];
 
           patchelfFlags = [ "--no-clobber-old-sections" ];
@@ -111,6 +122,8 @@
                 $src/browser/chrome/icons/default/default''${size}.png \
                 $out/share/icons/hicolor/''${size}x''${size}/apps/zen-beta.png
             done
+
+            install -Dm644 ${policiesJson} $out/lib/zen/distribution/policies.json
 
             runHook postInstall
           '';
