@@ -122,6 +122,15 @@
               --prefix LD_LIBRARY_PATH : "${prev.lib.makeLibraryPath [ prev.ffmpeg_7 ]}"
               --add-flags "--name=zen-beta"
               --add-flags "--class=zen-beta"
+              # Pin the profile across Nix rebuilds. Firefox/Zen tie their "dedicated
+              # profile per install" to a hash of the binary's path — which changes
+              # on every store-path change — so each rebuild would otherwise spawn a
+              # fresh, empty profile and orphan your bookmarks/workspaces in the old
+              # one. MOZ_LEGACY_PROFILES makes Zen honor the profiles.ini default
+              # regardless of install path; MOZ_ALLOW_DOWNGRADE stops the version
+              # guard from blocking when the path moves.
+              --set MOZ_LEGACY_PROFILES 1
+              --set MOZ_ALLOW_DOWNGRADE 1
             )
           '';
 
