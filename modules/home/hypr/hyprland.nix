@@ -25,7 +25,7 @@
         # Programs
         "$terminal" = "kitty";
         "$fileManager" = "nautilus";
-        "$browser" = "brave";
+        "$browser" = "zen-beta";
         "$menu" = "pkill fuzzel || fuzzel";
 
         # Autostart applications

@@ -31,6 +31,7 @@
       yubikey-manager
       yubico-piv-tool
       zed-editor
+      zen-browser
     ];
   };
 }
