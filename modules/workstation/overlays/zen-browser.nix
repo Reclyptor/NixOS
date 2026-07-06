@@ -23,6 +23,26 @@
           # mimeapps.list is a read-only store symlink.
           policiesJson = prev.writeText "zen-policies.json"
             (builtins.toJSON { policies.DontCheckDefaultBrowser = true; });
+
+          # Ship a default pref via Firefox's autoconfig (.cfg) mechanism — the one
+          # reliable way to set an arbitrary pref from a hand-rolled build. Crunchyroll
+          # (and other Widevine sites) throw KAT-6005 when you scrub the timeline: a
+          # MOZ_LOG capture showed the seek flushes the decoder and the post-seek frame
+          # burst exhausts Gecko's CDM video shmem pool, so the CDM returns rv=1 and the
+          # MediaKeySession is torn down. Value matters in BOTH directions: 6 (default)
+          # is too few and fails on seek; 24 regressed to dying within seconds
+          # (reproduced via A/B/A: 12 works, 24 breaks, 12 works — the exact mechanism
+          # was NOT captured, so don't trust any "why" beyond that). 12 is the
+          # empirically confirmed sweet spot — don't raise it.
+          autoconfigCfg = prev.writeText "zen.cfg" ''
+            // Managed by Nix (modules/workstation/overlays/zen-browser.nix). First line
+            // is intentionally a comment — Firefox skips it.
+            defaultPref("media.eme.chromium-api.video-shmems", 12);
+          '';
+          autoconfigLoader = prev.writeText "local-settings.js" ''
+            pref("general.config.filename", "zen.cfg");
+            pref("general.config.obscure_value", 0);
+          '';
         in prev.stdenv.mkDerivation {
           pname = "zen-browser";
           inherit version src;
@@ -113,6 +133,9 @@
 
             mkdir -p $out/lib/zen
             cp -r $src/* $out/lib/zen
+            # Store-copied dirs are read-only; make the tree writable so we can drop
+            # our autoconfig files into Zen's own defaults/pref/.
+            chmod -R u+w $out/lib/zen
 
             mkdir -p $out/bin
             ln -s $out/lib/zen/zen $out/bin/zen-beta
@@ -124,6 +147,9 @@
             done
 
             install -Dm644 ${policiesJson} $out/lib/zen/distribution/policies.json
+
+            install -Dm644 ${autoconfigCfg} $out/lib/zen/zen.cfg
+            install -Dm644 ${autoconfigLoader} $out/lib/zen/defaults/pref/local-settings.js
 
             runHook postInstall
           '';
