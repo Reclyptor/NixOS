@@ -7,6 +7,7 @@
       eza
       fastfetch
       ffmpeg-full
+      file
       fluxcd
       git
       htop
