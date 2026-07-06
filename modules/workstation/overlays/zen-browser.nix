@@ -158,7 +158,24 @@
           # it matches the desktop entry's StartupWMClass (and Hyprland rules).
           preFixup = ''
             gappsWrapperArgs+=(
-              --prefix LD_LIBRARY_PATH : "${prev.lib.makeLibraryPath [ prev.ffmpeg_7 ]}"
+              # libxul — in the content, GPU, RDD and CDM plugin-container child
+              # processes — dlopens the graphics stack by soname for its zero-copy
+              # video path: libgbm.so.1 + libdrm.so.2 (BlitYCbCrImageToDMABuf),
+              # libva.so.2 / libva-drm.so.2 (VA-API) and libvulkan.so.1 (WebRender).
+              # None are DT_NEEDED. LD_LIBRARY_PATH is inherited by every child and
+              # resolves the stack's chained dlopens (libva->driver, libgbm->backend),
+              # which is why upstream wrapFirefox delivers them this way rather than via
+              # per-ELF RUNPATH. Without them the GPU image allocation fails on every
+              # decoded frame and the software fallback collapses on seek/resume of DRM
+              # video (Crunchyroll KAT-6005). libGL is glvnd (libGL/libEGL).
+              --prefix LD_LIBRARY_PATH : "${prev.lib.makeLibraryPath [
+                prev.ffmpeg_7
+                prev.libgbm
+                prev.libva.out
+                prev.libdrm
+                prev.vulkan-loader
+                prev.libGL
+              ]}"
               --add-flags "--name=zen-beta"
               --add-flags "--class=zen-beta"
               # Pin the profile across Nix rebuilds. Firefox/Zen tie their "dedicated
