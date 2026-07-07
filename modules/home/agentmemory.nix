@@ -99,9 +99,33 @@
     hookCmd = script: "${agentmemoryHook}/bin/agentmemory-hook ${script}";
     mkHook = script: [ { hooks = [ { type = "command"; command = hookCmd script; } ]; } ];
 
+    # SessionStart injection sourced FROM agentmemory (the single source of truth),
+    # for BOTH agents. The three standing directives — §0 north star, §10 commits,
+    # §11 memory usage — are tagged with the `inject:session-start` facet, so this
+    # hook fetches ONLY those three: one facet-query for their ids, then a by-id GET
+    # each (it never scans the whole store). Their content is written to stdout,
+    # which Claude Code and Codex fold into session context (same mechanism the
+    # plugin uses). Fail-open: any error → exit 0, session start is never blocked.
+    directiveInject = pkgs.writeShellScript "agentmemory-inject-directives" ''
+      set -eu
+      export PATH="${pkgs.curl}/bin:${pkgs.jq}/bin:''${PATH:-/usr/bin:/bin}"
+      [ -r "${claudeTokenFile}" ] || exit 0
+      tok="$(cat "${claudeTokenFile}")"; [ -n "$tok" ] || exit 0
+      u="${claudeURL}/agentmemory"
+      ids="$(curl -s --max-time 2 -X POST -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' \
+        -d '{"matchAll":["inject:session-start"],"targetType":"memory"}' "$u/facets/query" \
+        | jq -r '.results[]?.targetId' 2>/dev/null)" || exit 0
+      [ -n "$ids" ] || exit 0
+      ctx="$(for id in $ids; do curl -s --max-time 2 -H "Authorization: Bearer $tok" "$u/memories/$id"; done \
+        | jq -rs 'sort_by(.memory.title) | map(.memory.content) | join("\n\n")' 2>/dev/null)" || exit 0
+      [ -n "$ctx" ] && printf '# Standing directives (recalled from agentmemory)\n\n%s\n' "$ctx"
+      exit 0
+    '';
+    injectEntry = [ { hooks = [ { type = "command"; command = "${directiveInject}"; } ]; } ];
+
     # Claude Code: every host lifecycle event except PreToolUse (see above).
     claudeHooks = {
-      SessionStart = mkHook "session-start";
+      SessionStart = mkHook "session-start" ++ injectEntry;
       UserPromptSubmit = mkHook "prompt-submit";
       PostToolUse = mkHook "post-tool-use";
       PostToolUseFailure = mkHook "post-tool-failure";
@@ -116,14 +140,13 @@
 
     # Codex dispatches a smaller lifecycle set; PreToolUse omitted as above.
     codexHooks = {
-      SessionStart = mkHook "session-start";
+      SessionStart = mkHook "session-start" ++ injectEntry;
       UserPromptSubmit = mkHook "prompt-submit";
       PostToolUse = mkHook "post-tool-use";
       PreCompact = mkHook "pre-compact";
       Stop = mkHook "stop";
     };
 
-    claudeHooksJson = builtins.toJSON claudeHooks;
     codexHooksJson = builtins.toJSON codexHooks;
 
     # Idempotent, non-destructive merge into a host's hooks map: for each event we
@@ -151,6 +174,14 @@
       value.source = "${agentmemoryPlugin}/skills/${s}";
     }) agentmemorySkills);
   in {
+    # Claude Code lifecycle hooks, contributed declaratively to the list-merging
+    # programs.claudeCode.hooks option that home/claude/claude.nix folds into
+    # ~/.claude/settings.json (per-event lists concatenate across modules, so
+    # home/claude/session-directives.nix can also append a SessionStart hook).
+    # (Codex, whose config is TOML, still gets its hooks via the activation merge
+    # below.)
+    programs.claudeCode.hooks = claudeHooks;
+
     # Single source of truth for all agentmemory wiring — MCP servers, lifecycle
     # hooks, and skills, for every connected agent. JSON agents are jq-merged in
     # place; Codex's MCP block is appended onto the base config that
@@ -212,9 +243,11 @@
         $DRY_RUN_CMD chmod 600 "$codex_toml"
       fi
 
-      # Lifecycle hooks. The wrapper reads the bearer token at run time, so these
-      # are wired regardless of token state and carry no secret in the file.
-      am_merge_hooks "$HOME/.claude/settings.json" ${lib.escapeShellArg claudeHooksJson}
+      # Codex lifecycle hooks (TOML client, no declarative home-manager surface, so
+      # still a runtime jq-merge). Claude Code's hooks are now declarative — see the
+      # programs.claudeCode.hooks contribution above. The wrapper reads the
+      # bearer token at run time, so these are wired regardless of token state and
+      # carry no secret in the file.
       am_merge_hooks "$HOME/.codex/hooks.json"     ${lib.escapeShellArg codexHooksJson}
     '';
 

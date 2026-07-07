@@ -1,5 +1,9 @@
 { ... }: {
   flake.modules.homeManager.base = { config, lib, pkgs, ... }: {
+    # Global Codex directives, installed read-only as ~/.codex/AGENTS.md so they load
+    # as the user-level config for every session. Edit ./AGENTS.md next to this module.
+    home.file.".codex/AGENTS.md".source = ./AGENTS.md;
+
     home.activation.codexConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       CODEX_CFG="$HOME/.codex/config.toml"
 
@@ -16,7 +20,7 @@
 
       {
         cat <<'BASE_EOF'
-  # Managed declaratively by home/codex.nix.
+  # Managed declaratively by home/codex/codex.nix.
   # Edits to top-level keys and [features] will be overwritten on the next
   # home-manager activation. [projects.*] sections (trust levels) are preserved
   # from codex's own writes across rebuilds. The agentmemory MCP server block is
@@ -27,7 +31,8 @@
 
   [features]
   goals = true
-  memories = true
+  # agentmemory (MCP) is the exclusive memory path — native memories off.
+  memories = false
   BASE_EOF
         if [ -n "$PRESERVED" ]; then
           printf '\n%s\n' "$PRESERVED"
