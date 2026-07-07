@@ -67,14 +67,9 @@
           ui:
             enabled: true
             service:
-              # Expose the Hubble UI on the LAN via the same LB-IPAM path as the apps.
-              # Packs onto the shared .120 VIP at :80 (free since Traefik was dropped).
-              # NOTE: Hubble UI has no built-in auth — open to anyone on the LAN.
-              type: LoadBalancer
-              annotations:
-                lbipam.cilium.io/sharing-key: "lan-shared"
-                lbipam.cilium.io/sharing-cross-namespace: "*"
-                lbipam.cilium.io/ips: "192.168.1.120"
+              # Hubble UI has no built-in auth, so keep it off the LAN.
+              # Reach it with `cilium hubble ui` or a kubectl port-forward.
+              type: ClusterIP
 
       '';
 
