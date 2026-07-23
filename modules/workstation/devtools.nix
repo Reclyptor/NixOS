@@ -20,6 +20,7 @@
       python3
       qwen-code
       redis
+      tmux
     ];
     
     programs.direnv = {
