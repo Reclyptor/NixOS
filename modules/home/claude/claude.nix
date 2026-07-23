@@ -62,6 +62,15 @@
       # they load as the user-level config for every session. Edit ./CLAUDE.md next
       # to this module, not the symlink.
       home.file.".claude/CLAUDE.md".source = ./CLAUDE.md;
+
+      # User-scoped teammate/subagent definitions, installed read-only to
+      # ~/.claude/agents/. Recursive so each file is symlinked individually — this
+      # keeps the agents dir writable, letting runtime-created agents coexist with
+      # these managed ones. Edit the .md files next to this module, not the symlinks.
+      home.file.".claude/agents" = {
+        source = ./agents;
+        recursive = true;
+      };
     };
   };
 }
