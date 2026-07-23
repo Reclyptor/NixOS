@@ -37,6 +37,16 @@
         # ~/.claude/projects/*/memory/, biasing the agent toward files over the
         # agentmemory MCP tools.
         autoMemoryEnabled = false;
+        # Environment injected into every Claude Code session. Agent Teams is an
+        # experimental, off-by-default feature gated behind this flag; without it no
+        # team spawning happens and no team directories are written.
+        env = {
+          CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
+        };
+        # Run teammates in split panes when the terminal supports it (tmux session
+        # or iTerm2) instead of the default in-process runtime, falling back to
+        # in-process otherwise. tmux on PATH is provided by workstation/devtools.nix.
+        teammateMode = "auto";
       };
 
       # Serialize the merged attrset (this module + agentmemory + any future feature)
