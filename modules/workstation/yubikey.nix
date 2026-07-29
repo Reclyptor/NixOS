@@ -87,10 +87,39 @@
   # policy, generated-vs-imported origin, public key):
   #   opensc-tool -s "00:A4:04:00:05:A0:00:00:03:08" -s "00:F7:00:82:00"
 
-  flake.modules.nixos.workstation = { pkgs, ... }: {
+  flake.modules.nixos.workstation = { pkgs, lib, config, ... }:
+  let
+    # Mirror the pcscd module's own package selection (a private let-binding
+    # there, so it can't be read back off config): polkit build when polkit is
+    # enabled, plain otherwise.
+    pcscdPackage =
+      if config.security.polkit.enable then pkgs.pcscliteWithPolkit else pkgs.pcsclite;
+  in {
     services.pcscd = {
       enable = true;
       plugins = [ pkgs.ccid ];
+    };
+
+    # THE COLD-CARD FIX (2026-07-29). NixOS runs pcscd socket-activated with
+    # --auto-exit (-x), so it quits after 60s of inactivity. Every ssh here is
+    # authenticated by the YubiKey (the key lives on the card, fronted by
+    # gpg-agent -> scdaemon -> pcscd in shared mode). When pcscd has exited, the
+    # next connection must cold-start the entire card stack — systemd respawns
+    # pcscd, it re-enumerates USB readers and powers up the card, then scdaemon
+    # re-selects the applet before it can sign. That cold path costs ~4s at best
+    # and 20-60s (sometimes failing outright) at worst, and since connections to
+    # the fleet are spaced minutes apart it fired on nearly every call — the
+    # "workstation hangs for a few seconds on ssh" symptom. Dropping --auto-exit
+    # keeps pcscd resident so the card stays warm and signing stays sub-second.
+    # /etc/reader.conf is the merged CCID config the pcscd module generates
+    # (environment.etc."reader.conf"); keeping -c avoids the empty-config
+    # network-reader probe the module documents.
+    systemd.services.pcscd = {
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig.ExecStart = lib.mkForce [
+        ""
+        "${pcscdPackage}/bin/pcscd -f -c /etc/reader.conf"
+      ];
     };
 
     programs.gnupg.agent = {
