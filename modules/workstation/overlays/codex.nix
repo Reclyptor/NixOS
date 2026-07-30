@@ -4,11 +4,11 @@
       (final: prev: {
         codex = prev.stdenv.mkDerivation rec {
           pname = "codex";
-          version = "0.142.5";
+          version = "0.146.0";
 
           src = prev.fetchurl {
             url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-x86_64-unknown-linux-musl.tar.gz";
-            hash = "sha256-y5M+w8thv0tfyI7s9eYUmCn6phclNbbvCvsBVL60qrg=";
+            hash = "sha256-W6O5QFVDlTCB9mHQhU0mb3biq75R1BNJNVo23nZzd2o=";
           };
 
           sourceRoot = ".";
