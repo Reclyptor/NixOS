@@ -45,7 +45,7 @@
         };
         # Run teammates in split panes when the terminal supports it (tmux session
         # or iTerm2) instead of the default in-process runtime, falling back to
-        # in-process otherwise. tmux on PATH is provided by workstation/devtools.nix.
+        # in-process otherwise. tmux on PATH is provided by home/tmux.nix.
         teammateMode = "auto";
       };
 
