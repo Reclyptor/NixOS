@@ -19,6 +19,7 @@
       opencode
       python3
       qwen-code
+      rcon-cli
       redis
     ];
     
