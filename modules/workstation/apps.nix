@@ -9,6 +9,7 @@
       google-chrome
       hytale
       discord
+      discordx
       element-desktop
       firefox
       imv
