@@ -31,9 +31,11 @@
     environment.systemPackages = [ pkgs.wireguard-tools ];
 
     # NetworkManager imports each decrypted .conf on boot if it isn't already a
-    # known connection. After import the profile lives in NM's root-only store
-    # and toggles from the applet or `nmcli connection up <name>`. To refresh a
-    # changed config: `nmcli connection delete <name>` then rebuild.
+    # known connection. These tunnels are strictly manual: autoconnect is forced
+    # off on every run, including for profiles that already exist, so a tunnel
+    # only ever comes up when you bring it up from the applet or with
+    # `nmcli connection up <name>`. To refresh a changed config:
+    # `nmcli connection delete <name>` then rebuild.
     systemd.services.wireguard-nm-import = {
       description = "Import sops-provided WireGuard configs into NetworkManager";
       after = [ "NetworkManager.service" "sops-nix.service" ];
@@ -46,11 +48,15 @@
       };
       script = lib.concatMapStringsSep "\n" (name: ''
         if nmcli -t -f NAME connection show | grep -qx "${name}"; then
-          echo "wireguard: connection '${name}' already present, skipping"
+          echo "wireguard: connection '${name}' already present, skipping import"
         else
           echo "wireguard: importing connection '${name}'"
           nmcli connection import type wireguard file ${config.sops.secrets.${secretName name}.path}
         fi
+        nmcli connection modify "${name}" connection.autoconnect no connection.autoconnect-priority 0
+        # `nmcli connection import` activates the tunnel as a side effect, so tear
+        # it back down; this is a no-op when the tunnel was already inactive.
+        nmcli connection down "${name}" >/dev/null 2>&1 || true
       '') connections;
     };
   };
