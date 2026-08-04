@@ -1,5 +1,5 @@
 { ... }: {
-  flake.modules.homeManager.base = { ... }: {
+  flake.modules.homeManager.base = { lib, ... }: {
     # home-manager owns ~/.config/mimeapps.list outright and regenerates the whole
     # file from this attrset — so EVERY association has to live here or it's dropped
     # on the next rebuild. Set new "open with" defaults below rather than from a file
@@ -12,7 +12,58 @@
         zen = "zen-beta.desktop";
         signal = "signal.desktop";
         imv = "imv.desktop";
-      in {
+        mpvx = "mpvx.desktop";
+
+        # Video opens in mpvx so anything playing is already shareable on Discord
+        # without reopening it — mpvx renders through XWayland, which is the only
+        # path Discord's capturer can see (see workstation/overlays/mpv.nix). Its
+        # .desktop declares no MimeType, so this explicit default is the only thing
+        # that makes it the handler; plain `mpv` stays the handler for everything
+        # else. Audio is deliberately left off — there is no window to share.
+        video = [
+          "application/x-extension-mp4"
+          "application/x-matroska"
+          "video/3gp"
+          "video/3gpp"
+          "video/3gpp2"
+          "video/avi"
+          "video/divx"
+          "video/dv"
+          "video/fli"
+          "video/flv"
+          "video/mkv"
+          "video/mp2t"
+          "video/mp4"
+          "video/mp4v-es"
+          "video/mpeg"
+          "video/msvideo"
+          "video/ogg"
+          "video/quicktime"
+          "video/vnd.avi"
+          "video/vnd.divx"
+          "video/vnd.mpegurl"
+          "video/vnd.rn-realvideo"
+          "video/webm"
+          "video/x-avi"
+          "video/x-flc"
+          "video/x-flic"
+          "video/x-flv"
+          "video/x-m4v"
+          "video/x-matroska"
+          "video/x-mpeg2"
+          "video/x-mpeg3"
+          "video/x-ms-afs"
+          "video/x-ms-asf"
+          "video/x-ms-wmv"
+          "video/x-ms-wmx"
+          "video/x-ms-wvxvideo"
+          "video/x-msvideo"
+          "video/x-ogm"
+          "video/x-ogm+ogg"
+          "video/x-theora"
+          "video/x-theora+ogg"
+        ];
+      in lib.genAttrs video (_: mpvx) // {
         # Web browser
         "text/html" = zen;
         "application/xhtml+xml" = zen;
