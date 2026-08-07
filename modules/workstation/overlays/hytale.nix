@@ -11,10 +11,10 @@
           # against the vendor's own hash because the CDN intermittently serves
           # divergent content (even on versioned URLs — never trust
           # -latest.zip), and unpacked in a separate deterministic step.
-          version = "2026.07.02-40e9e2d";
+          version = "2026.07.29-8228f98";
           zip = prev.fetchurl {
             url = "https://launcher.hytale.com/builds/release/linux/amd64/hytale-launcher-${version}.zip";
-            hash = "sha256-aHQHRomm6TuD2l1yUdh3UW2Lo4Comi40qMsOOkM8Q9U=";
+            hash = "sha256-k2IKxmkFyGAf05YnLW5T0f1dKK/5PcrX7nbN0etzoaA=";
           };
           src = prev.runCommand "hytale-launcher-${version}" {
             nativeBuildInputs = [ prev.unzip ];
