@@ -16,6 +16,13 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Overlay sources tracked as inputs so `nix flake update` bumps them
+    # instead of us hand-pasting a version and hash on every release.
+    yt-dlp = {
+      url = "github:yt-dlp/yt-dlp";
+      flake = false;
+    };
   };
 
   # Dendritic pattern (https://github.com/mightyiam/dendritic): every file under

@@ -1,16 +1,13 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+{ inputs, ... }: {
+  flake.modules.nixos.workstation = { ... }: {
     nixpkgs.overlays = [
       (final: prev: {
-        yt-dlp = prev.yt-dlp.overrideAttrs (oldAttrs: rec {
-          version = "2026.07.04";
-          src = prev.fetchFromGitHub {
-            owner = "yt-dlp";
-            repo = "yt-dlp";
-            tag = version;
-            hash = "sha256-+oHcVylLXFJTRR6jXF6IXvgntXJz0tRdtnwTruRPkoc=";
-          };
-        });
+        # Tracks yt-dlp master via the flake input; extractors break often
+        # enough that the tagged releases in nixpkgs lag real-world fixes.
+        yt-dlp = prev.yt-dlp.overrideAttrs {
+          version = "0-unstable-${inputs.yt-dlp.shortRev}";
+          src = inputs.yt-dlp;
+        };
       })
     ];
   };
