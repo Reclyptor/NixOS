@@ -15,7 +15,6 @@
       imv
       inkscape
       krita
-      makemkv
       mkvtoolnix
       morse-linux
       mpv
