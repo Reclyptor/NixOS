@@ -22,7 +22,8 @@ let
 
     services.xserver.xkb.layout = "us";
   };
-in {
+in
+{
   flake.modules.nixos.server = locale;
   flake.modules.nixos.workstation = locale;
 }

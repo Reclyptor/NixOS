@@ -31,7 +31,10 @@
       };
 
       k3s.role = lib.mkOption {
-        type = lib.types.enum [ "server" "agent" ];
+        type = lib.types.enum [
+          "server"
+          "agent"
+        ];
         description = "k3s role: control-plane server or worker agent.";
       };
 
@@ -42,7 +45,10 @@
       };
 
       gpu = lib.mkOption {
-        type = lib.types.enum [ "amd" "nvidia" ];
+        type = lib.types.enum [
+          "amd"
+          "nvidia"
+        ];
         default = "amd";
         description = "GPU vendor; selects kernel modules, drivers, and tooling.";
       };

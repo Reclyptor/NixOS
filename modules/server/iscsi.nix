@@ -8,7 +8,8 @@
       "L+ /usr/sbin/iscsiadm - - - - /run/current-system/sw/bin/iscsiadm"
       "d /sbin 0755 root root -"
       "L+ /sbin/iscsiadm - - - - /run/current-system/sw/bin/iscsiadm"
-    ] ++ lib.optionals (config.host.gpu == "amd") [
+    ]
+    ++ lib.optionals (config.host.gpu == "amd") [
       # Plex hardware transcode on the AMD nodes (VAAPI via /dev/dri).
       "d /dev/dri 0755 root video -"
       "d /var/lib/plex-transcode 0755 root root -"

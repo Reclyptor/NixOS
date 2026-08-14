@@ -11,7 +11,7 @@
           echo "Start Hyprland with command Hyprland"
         fi
       fi
-      
+
       for f in ~/.config/bashrc/*; do 
         if [ ! -d $f ]; then
           c=$(echo $f | sed -e "s=.config/bashrc=.config/bashrc/custom=")

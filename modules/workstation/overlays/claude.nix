@@ -27,11 +27,13 @@
             export CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=1
             export ENABLE_TOOL_SEARCH=1
             unset DEV
-            export PATH=${prev.lib.makeBinPath [
-              prev.procps
-              prev.bubblewrap
-              prev.socat
-            ]}:\$PATH
+            export PATH=${
+              prev.lib.makeBinPath [
+                prev.procps
+                prev.bubblewrap
+                prev.socat
+              ]
+            }:\$PATH
             # Exec directly (interpreter resolved via nix-ld). Going through
             # ld-linux makes execPath the loader, which breaks Claude Code's
             # bundled grep/find/rg shims (the "-G: ... shared libraries" error).

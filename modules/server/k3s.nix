@@ -1,5 +1,11 @@
 { ... }: {
-  flake.modules.nixos.server = { config, lib, pkgs, ... }:
+  flake.modules.nixos.server =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       # Workaround for Cilium DNS proxy + WireGuard incompatibility:
       # https://github.com/cilium/cilium/issues/45837
@@ -12,7 +18,8 @@
       clusterDnsIP = "169.254.20.10";
       isServer = config.host.k3s.role == "server";
       nodeIp = config.host.wiredIp;
-    in {
+    in
+    {
       sops = {
         defaultSopsFile = ../../secrets/secrets.yaml;
         age = {
@@ -36,38 +43,71 @@
         serverAddr = lib.mkIf (!config.host.k3s.bootstrap) "https://127.0.0.1:6443";
         tokenFile = config.sops.secrets."k3s/token".path;
         extraFlags =
-          if isServer then [
-            "--node-ip" nodeIp
-            "--bind-address=${nodeIp}"
-            "--advertise-address=${nodeIp}"
-            "--tls-san=127.0.0.1"
-            "--flannel-backend=none"
-            "--disable-network-policy"
-            "--disable-kube-proxy"
-            "--egress-selector-mode=cluster"
-            "--disable=servicelb"
-            "--disable=traefik"
-            "--kubelet-arg=cluster-dns=${clusterDnsIP}"
-          ] else ([
-            "--node-ip" nodeIp
-          ] ++ lib.optionals (config.host.gpu == "nvidia") [
-            "--node-label=nvidia.com/gpu.present=true"
-            "--node-label=node.kubernetes.io/gpu=true"
-          ] ++ [
-            "--kubelet-arg=cluster-dns=${clusterDnsIP}"
-          ]);
+          if isServer then
+            [
+              "--node-ip"
+              nodeIp
+              "--bind-address=${nodeIp}"
+              "--advertise-address=${nodeIp}"
+              "--tls-san=127.0.0.1"
+              "--flannel-backend=none"
+              "--disable-network-policy"
+              "--disable-kube-proxy"
+              "--egress-selector-mode=cluster"
+              "--disable=servicelb"
+              "--disable=traefik"
+              "--kubelet-arg=cluster-dns=${clusterDnsIP}"
+            ]
+          else
+            (
+              [
+                "--node-ip"
+                nodeIp
+              ]
+              ++ lib.optionals (config.host.gpu == "nvidia") [
+                "--node-label=nvidia.com/gpu.present=true"
+                "--node-label=node.kubernetes.io/gpu=true"
+              ]
+              ++ [
+                "--kubelet-arg=cluster-dns=${clusterDnsIP}"
+              ]
+            );
       };
 
       networking.firewall = {
         allowedTCPPorts =
-          if isServer
-          then [ 53 6443 9345 2379 2380 10250 3260 4240 4244 ]   # 53=node-local-dns TCP fallback
-          else [ 53 10250 3260 4240 4244 ];                      # agents expose no apiserver/etcd
-        allowedUDPPorts = [ 53 8472 51871 ];   # 53=node-local-dns, 8472=VXLAN, 51871=Cilium WireGuard
+          if isServer then
+            [
+              53
+              6443
+              9345
+              2379
+              2380
+              10250
+              3260
+              4240
+              4244
+            ] # 53=node-local-dns TCP fallback
+          else
+            [
+              53
+              10250
+              3260
+              4240
+              4244
+            ]; # agents expose no apiserver/etcd
+        allowedUDPPorts = [
+          53
+          8472
+          51871
+        ]; # 53=node-local-dns, 8472=VXLAN, 51871=Cilium WireGuard
       };
 
       # Keep NetworkManager off Cilium's interfaces so it can't tear out the datapath
       # (root cause of prior dual-NIC failures). The wired/wireless NICs stay NM-managed.
-      networking.networkmanager.unmanaged = [ "interface-name:cilium_*" "interface-name:lxc*" ];
+      networking.networkmanager.unmanaged = [
+        "interface-name:cilium_*"
+        "interface-name:lxc*"
+      ];
     };
 }

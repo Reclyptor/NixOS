@@ -46,7 +46,8 @@ let
       };
     };
   };
-in {
+in
+{
   flake.modules.nixos.server = haproxy;
   flake.modules.nixos.workstation = haproxy;
 }

@@ -5,7 +5,10 @@ let
   common = { ... }: {
     nixpkgs.config.allowUnfree = true;
 
-    nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
 
     # Without this, `nix shell nixpkgs#foo` and `<nixpkgs>` resolve against
     # whatever the channel/registry last fetched — a completely different
@@ -15,7 +18,8 @@ let
     nix.registry.nixpkgs.flake = inputs.nixpkgs;
     nix.nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
   };
-in {
+in
+{
   flake.modules.nixos.server = common;
   flake.modules.nixos.workstation = common;
 }

@@ -1,9 +1,16 @@
 { ... }: {
-  flake.modules.nixos.server = { config, lib, pkgs, ... }:
+  flake.modules.nixos.server =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       driver = config.boot.kernelPackages.nvidiaPackages.stable;
       nctk = config.hardware.nvidia-container-toolkit.package;
-    in lib.mkIf (config.host.gpu == "nvidia") {
+    in
+    lib.mkIf (config.host.gpu == "nvidia") {
       nixpkgs.config.nvidia.acceptLicense = true;
 
       services.xserver.videoDrivers = [ "nvidia" ];
