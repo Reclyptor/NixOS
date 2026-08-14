@@ -18,6 +18,20 @@ _: {
       clusterDnsIP = "169.254.20.10";
       isServer = config.host.k3s.role == "server";
       nodeIp = config.host.wiredIp;
+
+      # Control-plane peers, the only hosts that ever speak to etcd (2379 client,
+      # 2380 peer). Agents never do. These same three addresses are also spelled
+      # out in base.nix's networking.hosts and kube-api-lb.nix's HAProxy backends;
+      # collapsing all of them into one fleet definition is deferred (see SPEC.md).
+      controlPlaneIps = [
+        "192.168.1.10" # archeon
+        "192.168.1.11" # fluxeon
+        "192.168.1.12" # voideon
+      ];
+      etcdPorts = "2379:2380";
+
+      etcdRule =
+        op: ip: "iptables -${op} nixos-fw -p tcp -s ${ip} --dport ${etcdPorts} -j nixos-fw-accept";
     in
     {
       sops = {
@@ -74,6 +88,11 @@ _: {
             );
       };
 
+      # 53 and 10250 stay open to everything on purpose. 53 is node-local-dns,
+      # which pods reach at 169.254.20.10 — traffic that never arrives on the
+      # wired NIC — and 10250 is kubelet, scraped from in-cluster Prometheus over
+      # the pod network via cilium_host. Narrowing either to the LAN interface
+      # would silently drop legitimate traffic.
       networking.firewall = {
         allowedTCPPorts =
           if isServer then
@@ -81,13 +100,11 @@ _: {
               53
               6443
               9345
-              2379
-              2380
               10250
               3260
               4240
               4244
-            ] # 53=node-local-dns TCP fallback
+            ] # 53=node-local-dns TCP fallback; etcd handled below
           else
             [
               53
@@ -101,6 +118,26 @@ _: {
           8472
           51871
         ]; # 53=node-local-dns, 8472=VXLAN, 51871=Cilium WireGuard
+
+        # etcd (2379/2380) is deliberately absent from allowedTCPPorts above: a
+        # reachable etcd is total cluster compromise — the join token, every
+        # Secret, and arbitrary writes to any object. It was open to the whole
+        # 192.168.1.0/24. Only the other control-plane nodes need it.
+        #
+        # -I inserts at the head of nixos-fw so these accepts precede the chain's
+        # closing refuse; every other source falls through to that refuse exactly
+        # as it would for any unopened port. iptables, not nftables: switching
+        # the firewall backend under Cilium's BPF kube-proxy replacement is the
+        # class of change that has broken this cluster's datapath before.
+        extraCommands = lib.optionalString isServer (
+          lib.concatMapStringsSep "\n" (etcdRule "I") controlPlaneIps
+        );
+
+        # Mandatory counterpart — without it the manual rules survive a
+        # firewall.service restart and accumulate a duplicate set each time.
+        extraStopCommands = lib.optionalString isServer (
+          lib.concatMapStringsSep "\n" (ip: "${etcdRule "D" ip} 2>/dev/null || true") controlPlaneIps
+        );
       };
 
       # Keep NetworkManager off Cilium's interfaces so it can't tear out the datapath
