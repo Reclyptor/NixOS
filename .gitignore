@@ -6,6 +6,10 @@ keys.txt
 # SOPS age keys should never be committed
 .config/sops/age/
 
+# Specs are working documents, not configuration. This is a configuration-only
+# repo, so SPEC.md stays local and is never checked in.
+SPEC.md
+
 # Build outputs
 result
 result-*
