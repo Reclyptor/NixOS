@@ -404,3 +404,53 @@ it as the RIGHT type (lesson vs memory) with the RIGHT scope. Consolidate and
 deduplicate; never blind-append; prune what's stale. Lifecycle hooks
 auto-capture sessions, but proactively recall and persist the high-signal facts
 yourself.
+
+---
+
+## 12. Git Topology: Master Repos, Worktree Sessions
+
+This is a hard rule and applies to every git project on this machine —
+everything under `~/Projects` and anything else under version control.
+
+### The Repo Checkout Stays on `master`
+`~/Projects/<repo>` is the canonical, always-current view of that project
+and must sit on `master` at all times: no feature branches, no detached
+HEAD, no half-finished rebase left in place. Agents doing parallel,
+orthogonal work read that checkout to answer "what does this project look
+like right now?" — for building, planning, or cross-repo reference. The
+moment it drifts onto a branch, every concurrent session is reading a lie.
+
+### Sessions Work in Worktrees, Never in the Repo
+Every Claude or Codex session that will modify a repo creates a git
+worktree first and does all of its work there. The source checkout is read
+from, not written to.
+
+### Worktree Location and Naming
+All worktrees live in `~/Worktrees`, named:
+
+```
+~/Worktrees/<repo>-<agent>-<session-id>
+```
+
+where `<agent>` is `claude` or `codex` and `<session-id>` is the session's
+own id. Deterministic naming is the point: later, either the user or
+another agent can map any session to its worktree — and any worktree back
+to the session that owns it — without guessing.
+
+### Integrate by Rebase
+When the work is done, rebase the worktree branch onto `master` and land it
+in `~/Projects/<repo>`, which stays on `master`. Rebase, not merge commits
+— history stays linear and the canonical checkout stays readable. Resolve
+conflicts in the worktree, never by rewriting the source checkout's state.
+
+### Pushing Upstream Is a Separate Decision
+Landing on the local `master` does not imply pushing. Whether the work goes
+upstream depends on the merge policy or explicit directive for that task,
+and §10 still governs: no `git push` without an explicit request.
+
+### Clean Up the Worktree
+Once the work is merged back into the source checkout — or abandoned —
+remove the worktree with `git worktree remove` and delete its branch. Then
+confirm with `git worktree list` that no stale record remains. `~/Worktrees`
+holds active sessions only; a stale worktree is a ghost that will mislead
+the next agent that goes looking.
