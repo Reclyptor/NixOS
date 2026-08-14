@@ -1,5 +1,6 @@
 { ... }: {
-  flake.modules.homeManager.base = { lib, ... }:
+  flake.modules.homeManager.base =
+    { lib, ... }:
     let
       # $HOME, not ~: the paths below are quoted, and tilde expansion does not
       # happen inside double quotes (it would leave a literal "~/..." that no
@@ -27,14 +28,18 @@
       # The value is quoted: an unquoted $(cat …) undergoes word splitting and
       # globbing, so a secret containing whitespace or a glob character would be
       # silently mangled at shell startup.
-      mkExports = toValue: lib.mapAttrsToList (name: file:
-        ''if [ -f "${secretsDir}/${file}" ]; then export ${name}="${toValue "${secretsDir}/${file}"}"; fi''
-      );
+      mkExports =
+        toValue:
+        lib.mapAttrsToList (
+          name: file:
+          ''if [ -f "${secretsDir}/${file}" ]; then export ${name}="${toValue "${secretsDir}/${file}"}"; fi''
+        );
 
-      exports = lib.concatStringsSep "\n"
-        (mkExports (path: ''$(cat "${path}")'') valueExports
-          ++ mkExports (path: path) pathExports);
-    in {
+      exports = lib.concatStringsSep "\n" (
+        mkExports (path: ''$(cat "${path}")'') valueExports ++ mkExports (path: path) pathExports
+      );
+    in
+    {
       programs.bash.initExtra = ''
         # PATH additions
         export PATH=$PATH:~/.local/bin/:~/.local/share/JetBrains/Toolbox/scripts

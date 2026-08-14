@@ -9,6 +9,9 @@
     boot.tmp.cleanOnBoot = true;
     boot.supportedFilesystems.zfs = true;
     boot.zfs.forceImportRoot = false;
-    boot.zfs.extraPools = [ "npool" "spool" ];
+    boot.zfs.extraPools = [
+      "npool"
+      "spool"
+    ];
   };
 }

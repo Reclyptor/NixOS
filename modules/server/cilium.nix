@@ -1,5 +1,11 @@
 { ... }: {
-  flake.modules.nixos.server = { config, lib, pkgs, ... }:
+  flake.modules.nixos.server =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       # Pinned to Cilium 1.19.5 (supports k8s 1.32–1.35; cluster is k3s v1.35.2).
       # The pin is intentional — the CNI must not silently auto-update. Bump the
@@ -73,16 +79,17 @@
 
       '';
 
-      manifest = pkgs.runCommand "cilium-1.19.5-manifest.yaml"
-        { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
-        ''
-          export HOME="$TMPDIR"
-          helm template cilium ${chart} \
-            --namespace kube-system \
-            --values ${values} \
-            > "$out"
-        '';
-    in lib.mkIf (config.host.k3s.role == "server") {
+      manifest =
+        pkgs.runCommand "cilium-1.19.5-manifest.yaml" { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
+          ''
+            export HOME="$TMPDIR"
+            helm template cilium ${chart} \
+              --namespace kube-system \
+              --values ${values} \
+              > "$out"
+          '';
+    in
+    lib.mkIf (config.host.k3s.role == "server") {
       # Cilium CNI is bootstrapped via k3s auto-deploy (server nodes only) so the
       # cluster network is up before Flux — avoids the GitOps deadlock. The manifest
       # is rendered at build time from the pinned chart + values above (no vendored

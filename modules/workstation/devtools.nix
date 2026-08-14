@@ -22,7 +22,7 @@
       rcon-cli
       redis
     ];
-    
+
     programs.direnv = {
       enable = true;
       nix-direnv.enable = true;

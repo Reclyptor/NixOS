@@ -17,7 +17,8 @@
   #     interface (asymmetric) and that IP goes dark. A per-NIC table + a
   #     `from <ip>` rule sends each address's replies back out its own NIC, so
   #     both the wired and wireless addresses are reachable at the same time.
-  flake.modules.nixos.server = { config, pkgs, ... }:
+  flake.modules.nixos.server =
+    { config, pkgs, ... }:
     let
       wiredIf = config.host.wiredInterface;
       wirelessIf = config.host.wirelessInterface;
@@ -46,7 +47,8 @@
         setup ${wiredIf} ${wiredIp} 100 1000
         setup ${wirelessIf} ${wirelessIp} 101 1001
       '';
-    in {
+    in
+    {
       networking.networkmanager.connectionConfig."ipv4.dad-timeout" = 0;
 
       boot.kernel.sysctl = {
@@ -71,12 +73,14 @@
       # Re-run the routing when either NIC comes up (wifi associates late; links can
       # flap). This is a one-liner that ONLY restarts the unit above — it contains no
       # routing logic, unlike the earlier dispatcher that broke styxeon.
-      networking.networkmanager.dispatcherScripts = [{
-        source = pkgs.writeShellScript "dual-nic-pbr-trigger" ''
-          if [ "$2" = "up" ] && { [ "$1" = "${wiredIf}" ] || [ "$1" = "${wirelessIf}" ]; }; then
-            ${pkgs.systemd}/bin/systemctl restart dual-nic-pbr.service || true
-          fi
-        '';
-      }];
+      networking.networkmanager.dispatcherScripts = [
+        {
+          source = pkgs.writeShellScript "dual-nic-pbr-trigger" ''
+            if [ "$2" = "up" ] && { [ "$1" = "${wiredIf}" ] || [ "$1" = "${wirelessIf}" ]; }; then
+              ${pkgs.systemd}/bin/systemctl restart dual-nic-pbr.service || true
+            fi
+          '';
+        }
+      ];
     };
 }

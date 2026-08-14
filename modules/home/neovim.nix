@@ -1,20 +1,20 @@
 { ... }: {
   flake.modules.homeManager.base = { config, pkgs, ... }: {
     programs.neovim = {
-      enable        = true;
+      enable = true;
       defaultEditor = true;
-      viAlias       = true;
-      vimAlias      = true;
+      viAlias = true;
+      vimAlias = true;
       # Keep ruby/python3 providers (defaults flip to false at stateVersion 26.05).
-      withRuby      = true;
-      withPython3   = true;
+      withRuby = true;
+      withPython3 = true;
 
       # LSP servers and tool dependencies installed via Nix (not mason)
       extraPackages = with pkgs; [
         # LSP servers — add more as needed (rust-analyzer, gopls, pyright, etc.)
-        lua-language-server   # Lua  (Neovim config itself)
-        nil                   # Nix
-        bash-language-server  # Bash / shell scripts
+        lua-language-server # Lua  (Neovim config itself)
+        nil # Nix
+        bash-language-server # Bash / shell scripts
 
         # Required by Telescope
         ripgrep
@@ -29,7 +29,7 @@
 
         # --- LSP ---
         nvim-lspconfig
-        fidget-nvim            # LSP progress spinner
+        fidget-nvim # LSP progress spinner
 
         # --- Completion ---
         nvim-cmp
@@ -61,17 +61,17 @@
         bufferline-nvim
 
         # --- Editing helpers ---
-        nvim-surround          # ys/cs/ds surround operations
-        nvim-autopairs         # auto-close brackets/quotes
-        comment-nvim           # gcc/gc comment toggle
-        vim-visual-multi       # multi-cursor (Ctrl-N)
+        nvim-surround # ys/cs/ds surround operations
+        nvim-autopairs # auto-close brackets/quotes
+        comment-nvim # gcc/gc comment toggle
+        vim-visual-multi # multi-cursor (Ctrl-N)
 
         # --- Navigation ---
-        flash-nvim             # jump to any position (gs)
+        flash-nvim # jump to any position (gs)
 
         # --- UI ---
-        indent-blankline-nvim  # indent guides with scope highlight
-        trouble-nvim           # diagnostics / references panel
+        indent-blankline-nvim # indent guides with scope highlight
+        trouble-nvim # diagnostics / references panel
       ];
 
       initLua = ''

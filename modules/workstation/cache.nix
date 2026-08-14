@@ -3,21 +3,24 @@
     # Configure binary caches to avoid building packages locally
     nix.settings = {
       # Trusted users who can add substituters
-      trusted-users = [ "root" "@wheel" ];
-      
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
+
       # Binary cache substituters (ordered by priority)
       substituters = [
-        "https://cache.nixos.org"           # Default NixOS cache
-        "https://hyprland.cachix.org"       # Hyprland and related packages
+        "https://cache.nixos.org" # Default NixOS cache
+        "https://hyprland.cachix.org" # Hyprland and related packages
         "https://cuda-maintainers.cachix.org" # CUDA packages
-        "https://nix-community.cachix.org"  # Nix community packages
-        "https://numtide.cachix.org"        # direnv, devenv, and dev tools
+        "https://nix-community.cachix.org" # Nix community packages
+        "https://numtide.cachix.org" # direnv, devenv, and dev tools
         "https://nixpkgs-wayland.cachix.org" # Wayland-related packages
         "https://nixpkgs-unfree.cachix.org" # NixOS unstable and frequently updated packages
-        "https://crane.cachix.org"          # Rust projects and toolchains
-        "https://ai.cachix.org"             # Machine learning and scientific computing
+        "https://crane.cachix.org" # Rust projects and toolchains
+        "https://ai.cachix.org" # Machine learning and scientific computing
       ];
-      
+
       # Public keys for the substituters
       trusted-public-keys = [
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -30,16 +33,16 @@
         "crane.cachix.org-1:8Sw/sLJFIXWWlcSU8VKaYiC6M8kl2ZrBn6pA5J6M6yg="
         "ai.cachix.org-1:N9dzRK+alWwoKXQlnn0H6aUx0lU/mspIoz8hMvGvbbc="
       ];
-      
+
       # Fallback to building if cache is unavailable
       fallback = true;
-      
+
       # Enable parallel building
       max-jobs = "auto";
-      cores = 0;  # Use all available cores
+      cores = 0; # Use all available cores
 
       # Increase download buffer to avoid throttling on fast connections
-      download-buffer-size = 1073741824;  # 1 GiB
+      download-buffer-size = 1073741824; # 1 GiB
     };
   };
 
