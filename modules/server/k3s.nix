@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  controlPlane = config.fleet.controlPlane;
+in
+{
   flake.modules.nixos.server =
     {
       config,
@@ -20,14 +24,10 @@ _: {
       nodeIp = config.host.wiredIp;
 
       # Control-plane peers, the only hosts that ever speak to etcd (2379 client,
-      # 2380 peer). Agents never do. These same three addresses are also spelled
-      # out in base.nix's networking.hosts and kube-api-lb.nix's HAProxy backends;
-      # collapsing all of them into one fleet definition is deferred (see SPEC.md).
-      controlPlaneIps = [
-        "192.168.1.10" # archeon
-        "192.168.1.11" # fluxeon
-        "192.168.1.12" # voideon
-      ];
+      # 2380 peer). Agents never do. Derived from the fleet inventory's
+      # control-plane set — the same source kube-api-lb.nix builds its HAProxy
+      # backends from, so the two can no longer disagree.
+      controlPlaneIps = lib.mapAttrsToList (_: node: node.wiredIp) controlPlane;
       etcdPorts = "2379:2380";
 
       etcdRule =

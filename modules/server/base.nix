@@ -1,4 +1,8 @@
-_: {
+{ config, ... }:
+let
+  fleet = config.fleet.nodes;
+in
+{
   flake.modules.nixos.server =
     {
       config,
@@ -55,13 +59,9 @@ _: {
       boot.zfs.forceImportRoot = false;
 
       networking.hostId = config.host.hostId;
-      networking.hosts = {
-        "192.168.1.10" = [ "archeon" ];
-        "192.168.1.11" = [ "fluxeon" ];
-        "192.168.1.12" = [ "voideon" ];
-        "192.168.1.13" = [ "styxeon" ];
-        "192.168.1.14" = [ "bytheon" ];
-      };
+      # Derived from the fleet inventory, so a new or re-addressed node needs no
+      # edit here.
+      networking.hosts = lib.mapAttrs' (name: node: lib.nameValuePair node.wiredIp [ name ]) fleet;
       networking.networkmanager.enable = true;
 
       # Timezone/locale/xkb live in common/locale.nix; allowUnfree and the nix
