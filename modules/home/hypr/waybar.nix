@@ -1,5 +1,60 @@
 { ... }: {
-  flake.modules.homeManager.base = { config, ... }: let palette = config.palette; in {
+  flake.modules.homeManager.base = { config, pkgs, ... }:
+  let
+    palette = config.palette;
+    playerctl = "${pkgs.playerctl}/bin/playerctl";
+    gamemoded = "${pkgs.gamemode}/bin/gamemoded";
+
+    # These modules used to shell out through `bash -lc`, which sources the full
+    # login profile on every tick — four modules at interval 1 plus gamemode at
+    # 2 meant roughly three login shells per second, forever, each one re-running
+    # the secret exports in bash/00-init.nix. Plain scripts with absolute binary
+    # paths: no profile, no PATH search, no shell startup. It also gets the JSON
+    # out of triple-escaped one-liners and into something readable.
+    mediaPlay = pkgs.writeShellScript "waybar-media-play" ''
+      state=$(${playerctl} status 2>/dev/null || echo Stopped)
+      case "$state" in
+        Playing) printf '{"text":"󰏤"}\n' ;;
+        Paused)  printf '{"text":"󰐊"}\n' ;;
+        *)       printf '{"text":"󰐊","class":"off"}\n' ;;
+      esac
+    '';
+
+    mediaShuffle = pkgs.writeShellScript "waybar-media-shuffle" ''
+      state=$(${playerctl} shuffle 2>/dev/null || echo Off)
+      if [ "$state" = "On" ]; then
+        printf '{"text":"󰒟"}\n'
+      else
+        printf '{"text":"","class":"off"}\n'
+      fi
+    '';
+
+    mediaLoop = pkgs.writeShellScript "waybar-media-loop" ''
+      state=$(${playerctl} loop 2>/dev/null || echo None)
+      case "$state" in
+        Track)    printf '{"text":"󰑘"}\n' ;;
+        Playlist) printf '{"text":"󰑖"}\n' ;;
+        *)        printf '{"text":"󰑖","class":"none"}\n' ;;
+      esac
+    '';
+
+    mediaLoopToggle = pkgs.writeShellScript "waybar-media-loop-toggle" ''
+      state=$(${playerctl} loop 2>/dev/null || echo None)
+      case "$state" in
+        None)     ${playerctl} loop Playlist ;;
+        Playlist) ${playerctl} loop Track ;;
+        *)        ${playerctl} loop None ;;
+      esac
+    '';
+
+    gamemodeStatus = pkgs.writeShellScript "waybar-gamemode" ''
+      status=$(${gamemoded} -s 2>/dev/null || true)
+      case "$status" in
+        *"is active"*) printf '{"text":"󰊴"}\n' ;;
+        *)             printf '{"text":"󰊴","class":"off"}\n' ;;
+      esac
+    '';
+  in {
     # Waybar configuration
     programs.waybar = {
       enable = true;
@@ -50,30 +105,30 @@
 
           "custom/media-prev" = {
             format = "󰒮";
-            on-click = "playerctl previous";
+            on-click = "${playerctl} previous";
             tooltip = false;
           };
 
           "custom/media-play" = {
             format = "{}";
             return-type = "json";
-            exec = "bash -lc 'state=$(playerctl status 2>/dev/null || echo Stopped); case \"$state\" in Playing) echo \"{\\\"text\\\":\\\"󰏤\\\"}\" ;; Paused) echo \"{\\\"text\\\":\\\"󰐊\\\"}\" ;; *) echo \"{\\\"text\\\":\\\"󰐊\\\",\\\"class\\\":\\\"off\\\"}\" ;; esac'";
-            on-click = "playerctl play-pause";
+            exec = "${mediaPlay}";
+            on-click = "${playerctl} play-pause";
             interval = 1;
             tooltip = false;
           };
 
           "custom/media-next" = {
             format = "󰒭";
-            on-click = "playerctl next";
+            on-click = "${playerctl} next";
             tooltip = false;
           };
 
           "custom/media-shuffle" = {
             format = "{}";
             return-type = "json";
-            exec = "bash -lc 'state=$(playerctl shuffle 2>/dev/null || echo Off); if [ \"$state\" = \"On\" ]; then echo \"{\\\"text\\\":\\\"󰒟\\\"}\"; else echo \"{\\\"text\\\":\\\"\\\",\\\"class\\\":\\\"off\\\"}\"; fi'";
-            on-click = "playerctl shuffle toggle";
+            exec = "${mediaShuffle}";
+            on-click = "${playerctl} shuffle toggle";
             interval = 1;
             tooltip = false;
           };
@@ -81,8 +136,8 @@
           "custom/media-loop" = {
             format = "{}";
             return-type = "json";
-            exec = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; Track) echo \"{\\\"text\\\":\\\"󰑘\\\"}\" ;; Playlist) echo \"{\\\"text\\\":\\\"󰑖\\\"}\" ;; *) echo \"{\\\"text\\\":\\\"󰑖\\\",\\\"class\\\":\\\"none\\\"}\" ;; esac'";
-            on-click = "bash -lc 'state=$(playerctl loop 2>/dev/null || echo None); case \"$state\" in None) playerctl loop Playlist ;; Playlist) playerctl loop Track ;; Track) playerctl loop None ;; *) playerctl loop None ;; esac'";
+            exec = "${mediaLoop}";
+            on-click = "${mediaLoopToggle}";
             interval = 1;
             tooltip = false;
           };
@@ -90,7 +145,7 @@
           "custom/gamemode" = {
             format = "{}";
             return-type = "json";
-            exec = "bash -lc 'status=$(gamemoded -s 2>/dev/null || true); if [[ \"$status\" == *\"is active\"* ]]; then echo \"{\\\"text\\\":\\\"󰊴\\\"}\"; else echo \"{\\\"text\\\":\\\"󰊴\\\",\\\"class\\\":\\\"off\\\"}\"; fi'";
+            exec = "${gamemodeStatus}";
             interval = 2;
             tooltip = false;
           };
