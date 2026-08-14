@@ -1,7 +1,10 @@
 { ... }: {
   flake.modules.homeManager.base = { lib, ... }:
     let
-      secretsDir = "~/.config/sops/secrets/bash";
+      # $HOME, not ~: the paths below are quoted, and tilde expansion does not
+      # happen inside double quotes (it would leave a literal "~/..." that no
+      # client can open). $HOME expands in both quoted and unquoted contexts.
+      secretsDir = "$HOME/.config/sops/secrets/bash";
 
       # Secrets whose decrypted CONTENT becomes the variable value.
       valueExports = {
@@ -21,12 +24,15 @@
         GCP_MYSQL_CLIENT_KEY = "gcp-mysql-client-key";
       };
 
+      # The value is quoted: an unquoted $(cat …) undergoes word splitting and
+      # globbing, so a secret containing whitespace or a glob character would be
+      # silently mangled at shell startup.
       mkExports = toValue: lib.mapAttrsToList (name: file:
-        ''if [ -f ${secretsDir}/${file} ]; then export ${name}=${toValue "${secretsDir}/${file}"}; fi''
+        ''if [ -f "${secretsDir}/${file}" ]; then export ${name}="${toValue "${secretsDir}/${file}"}"; fi''
       );
 
       exports = lib.concatStringsSep "\n"
-        (mkExports (path: "$(cat ${path})") valueExports
+        (mkExports (path: ''$(cat "${path}")'') valueExports
           ++ mkExports (path: path) pathExports);
     in {
       programs.bash.initExtra = ''
