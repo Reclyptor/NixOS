@@ -1,13 +1,11 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base =
     {
       config,
-      pkgs,
-      lib,
       ...
     }:
     let
-      palette = config.palette;
+      inherit (config) palette;
     in
     {
       programs.kitty = {

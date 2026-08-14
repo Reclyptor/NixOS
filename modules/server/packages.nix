@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.server = { config, pkgs, ... }: {
     environment.systemPackages =
       with pkgs;

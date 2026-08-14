@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Everything that actually differs between the five cluster nodes lives in
   # these options; the rest of modules/server/ is shared verbatim.
   flake.modules.nixos.server = { lib, ... }: {

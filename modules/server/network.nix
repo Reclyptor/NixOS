@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Every node has two NICs on the same 192.168.1.0/24 and BOTH must stay
   # reachable simultaneously: the wired NIC (node IP / k3s path) and the
   # wireless NIC (OOB lifeline). Three things are needed for that to hold

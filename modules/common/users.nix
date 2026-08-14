@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 # The login account, defined once for every machine. workstation/users.nix and
 # server/users.nix were byte-identical apart from the class they attached to —

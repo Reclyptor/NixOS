@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # SSH policy for the cluster. This lived as a bare `services.openssh.enable`
   # line inside iscsi.nix — a module about iSCSI — which is why it went years
   # without anyone hardening it: nobody reviewing SSH policy would look there.
@@ -12,7 +12,7 @@
   # root has no authorizedKeys entry, so root SSH is already effectively closed,
   # and tightening it to "no" gains nothing real while removing a recovery
   # avenue on a change whose failure mode is lockout.
-  flake.modules.nixos.server = { ... }: {
+  flake.modules.nixos.server = _: {
     services.openssh = {
       enable = true;
       settings = {

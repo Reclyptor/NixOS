@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = { pkgs, ... }: {
     services.gnome.gnome-keyring.enable = true;
 
     security.pam.services.greetd.enableGnomeKeyring = true;

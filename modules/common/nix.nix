@@ -2,7 +2,7 @@
 
 # Nix daemon settings shared by every machine.
 let
-  common = { ... }: {
+  common = _: {
     nixpkgs.config.allowUnfree = true;
 
     nix.settings.experimental-features = [

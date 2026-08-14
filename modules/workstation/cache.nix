@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     # Configure binary caches to avoid building packages locally
     nix.settings = {
       # Trusted users who can add substituters

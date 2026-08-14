@@ -1,8 +1,8 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base =
     { config, pkgs, ... }:
     let
-      palette = config.palette;
+      inherit (config) palette;
     in
     {
       programs.oh-my-posh = {

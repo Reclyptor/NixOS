@@ -1,10 +1,10 @@
-{ ... }:
+_:
 
 # Timezone, locale, and keyboard layout, defined once. This block was
 # duplicated verbatim between server/base.nix and workstation/locale.nix —
 # same timezone, same defaultLocale, all nine extraLocaleSettings identical.
 let
-  locale = { ... }: {
+  locale = _: {
     time.timeZone = "America/Chicago";
 
     i18n.defaultLocale = "en_US.UTF-8";

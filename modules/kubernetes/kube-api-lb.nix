@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 # Local pre-CNI Kubernetes API endpoint, shared by every machine:
 #  - cluster nodes reach the apiservers through it before the CNI is up

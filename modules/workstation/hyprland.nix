@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
     environment.sessionVariables = {
       QT_QPA_PLATFORM = "wayland";

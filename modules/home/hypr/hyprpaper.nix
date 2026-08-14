@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base = { config, ... }: {
     xdg.configFile."hypr/hyprpaper.conf".text = ''
       ipc = true

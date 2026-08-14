@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Housekeeping the workstation has always had and the cluster never did.
   # Three independent slow failures were queued up without it: unbounded
   # generations on ZFS roots that nothing collects, and five pools that had
@@ -11,7 +11,7 @@
   #     worth more here than reclaimed disk.
   #   - weekly, not daily: keeps GC I/O off etcd's fsync path most nights.
   #   - monthly scrub: the conventional cadence, and these are NVMe pools.
-  flake.modules.nixos.server = { ... }: {
+  flake.modules.nixos.server = _: {
     nix.gc = {
       automatic = true;
       dates = "weekly";

@@ -5,7 +5,7 @@
   # instead of being noticed months later.
   imports = [ inputs.treefmt-nix.flakeModule ];
 
-  perSystem = { ... }: {
+  perSystem = _: {
     treefmt = {
       projectRootFile = "flake.nix";
 

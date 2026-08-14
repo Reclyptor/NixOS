@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.homeManager.base = { config, pkgs, ... }: {
+_: {
+  flake.modules.homeManager.base = _: {
     programs.bash.initExtra = ''
       if [[ $(tty) == *"pts"* ]]; then
         if command -v fastfetch &>/dev/null; then

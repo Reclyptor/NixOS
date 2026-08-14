@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.homeManager.base = { config, pkgs, ... }: {
+_: {
+  flake.modules.homeManager.base = _: {
     programs.bash.shellAliases = {
       ls = "eza -a --icons=always";
       tree = "eza -a --tree --icons=always";

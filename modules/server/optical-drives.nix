@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.server = { config, lib, ... }: {
     # Fleet-standard rules; styxeon overrides host.opticalDriveRules with its
     # own inventory (more drives, bluray-<serial> naming, sg symlinks).

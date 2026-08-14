@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     services.udev.extraRules = ''
       # Stable symlinks for optical drives based on serial numbers
       # These won't change even if USB enumeration order changes

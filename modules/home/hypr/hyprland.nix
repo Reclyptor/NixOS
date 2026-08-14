@@ -1,8 +1,8 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base =
     { config, ... }:
     let
-      palette = config.palette;
+      inherit (config) palette;
     in
     {
       wayland.windowManager.hyprland = {

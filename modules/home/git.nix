@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.homeManager.base = { config, pkgs, ... }: {
+_: {
+  flake.modules.homeManager.base = _: {
     programs.git = {
       enable = true;
       signing.format = null;

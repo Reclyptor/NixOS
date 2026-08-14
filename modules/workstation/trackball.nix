@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     # Kensington SlimBlade Pro (047d:80d7): the top-right button is BTN_SIDE
     # ("back"), HID scancode 0x90004, on the trackball's mouse interface.
     #

@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # System-level sops root of trust. This used to live inside wireguard.nix,
   # which meant a feature module silently owned a host-wide security setting —
   # nobody auditing secret handling would think to look there.
@@ -19,7 +19,7 @@
   #
   # Without it sops-nix.service fails at boot and /run/secrets stays empty.
   # Nothing else breaks — boot and login are unaffected.
-  flake.modules.nixos.workstation = { ... }: {
+  flake.modules.nixos.workstation = _: {
     sops = {
       defaultSopsFile = ../../secrets/secrets.yaml;
 
