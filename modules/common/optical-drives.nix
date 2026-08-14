@@ -5,10 +5,16 @@
 #
 # The old arrangement kept three separate hand-maintained rule blocks — a
 # workstation copy, a "fleet standard" default applied to four cluster nodes, and
-# styxeon's override. All three listed overlapping serials, so four nodes carried
-# rules for drives that were physically plugged into a different machine. The
-# real inventory is 8 drives on styxeon and 1 on the workstation; every other
-# node has none, verified against /dev/sr* on each host.
+# styxeon's override. All three listed overlapping serials, so five machines
+# carried rules for drives physically attached to a different one. Verified
+# against /dev/sr* on every host: 8 drives on styxeon, none anywhere else.
+#
+# The option is declared for both machine classes and defaults to an empty list,
+# so a machine with no drives needs no module of its own — it simply declares
+# nothing and no rules are emitted. Giving the workstation drives later is one
+# line (`opticalDrives = [ { serial = "..."; } ];`) in any workstation module,
+# with no boilerplate to repeat; cluster nodes get theirs from the fleet
+# inventory via server/optical-drives.nix.
 let
   # Captured out here because `config` is shadowed by the NixOS one inside `mod`.
   # Same submodule type the fleet inventory uses, so a drive is described the
