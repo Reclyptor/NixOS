@@ -9,24 +9,13 @@
 
     secretName = name: "wireguard/${name}";
   in {
-    sops = {
-      defaultSopsFile = ../../secrets/secrets.yaml;
-
-      # Private key backing the &nixos recipient already in .sops.yaml. These are
-      # the two conventional locations and sops-nix uses whichever one decrypts.
-      # If this host's key lives somewhere else, change these two lines only.
-      age = {
-        sshKeyPaths = [];
-        keyFile = "/home/reclyptor/.config/sops/age/keys.txt";
-      };
-
-      # Each secret is the full .conf, decrypted to /run/secrets/wireguard/<name>
-      # as root-only (0400). Nothing lands in the world-readable Nix store.
-      secrets = lib.listToAttrs (map (name: {
-        name = secretName name;
-        value.path = "/run/secrets/wireguard/${name}.conf";
-      }) connections);
-    };
+    # The sops key source and defaultSopsFile live in workstation/sops.nix.
+    # Each secret is the full .conf, decrypted to /run/secrets/wireguard/<name>
+    # as root-only (0400). Nothing lands in the world-readable Nix store.
+    sops.secrets = lib.listToAttrs (map (name: {
+      name = secretName name;
+      value.path = "/run/secrets/wireguard/${name}.conf";
+    }) connections);
 
     environment.systemPackages = [ pkgs.wireguard-tools ];
 
