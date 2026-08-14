@@ -13,6 +13,30 @@
 # one data set. Server modules keep reading `config.host.*` exactly as before —
 # each host file just points `host` at its entry below.
 let
+  # One optical drive. `name` defaults to bluray-<serial> so a node usually only
+  # has to list serials; override it for positional names like "bluray0".
+  opticalDriveType = lib.types.submodule (
+    { config, ... }:
+    {
+      options = {
+        serial = lib.mkOption {
+          type = lib.types.str;
+          description = "USB serial (udev ID_SERIAL_SHORT / ATTRS{serial}).";
+        };
+        name = lib.mkOption {
+          type = lib.types.str;
+          default = "bluray-${config.serial}";
+          description = "Symlink created under /dev.";
+        };
+        sg = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Also symlink the SCSI-generic node as <name>-sg.";
+        };
+      };
+    }
+  );
+
   nodeType = lib.types.submodule {
     options = {
       hostId = lib.mkOption {
@@ -65,19 +89,10 @@ let
         description = "GPU vendor; selects kernel modules, drivers, and tooling.";
       };
 
-      opticalDriveRules = lib.mkOption {
-        type = lib.types.lines;
-        description = "udev rules mapping this node's optical drives to stable /dev symlinks (per-host hardware inventory).";
-        # Fleet standard. styxeon overrides it below — it runs the rippers.
-        default = ''
-          # Stable symlinks for optical drives based on serial numbers
-          # These won't change even if USB enumeration order changes
-
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52D24A16083824", SYMLINK+="bluray0"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52524422173906", SYMLINK+="bluray1"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25510161815", SYMLINK+="bluray2"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25512093803", SYMLINK+="bluray3"
-        '';
+      opticalDrives = lib.mkOption {
+        type = lib.types.listOf opticalDriveType;
+        default = [ ];
+        description = "Optical drives physically attached to this node. Empty for nodes with none.";
       };
     };
   };
@@ -88,6 +103,12 @@ in
       type = lib.types.raw;
       internal = true;
       description = "Submodule type for one cluster node; also types the NixOS `host` option.";
+    };
+
+    opticalDriveType = lib.mkOption {
+      type = lib.types.raw;
+      internal = true;
+      description = "Submodule type for one optical drive; also types the NixOS `opticalDrives` option.";
     };
 
     nodes = lib.mkOption {
@@ -104,7 +125,7 @@ in
   };
 
   config.fleet = {
-    inherit nodeType;
+    inherit nodeType opticalDriveType;
 
     controlPlane = lib.filterAttrs (_: node: node.k3s.role == "server") config.fleet.nodes;
 
@@ -139,31 +160,25 @@ in
         wirelessIp = "192.168.1.23";
         k3s.role = "agent";
 
-        # This node runs the rippers: more drives than the fleet default, and the
-        # newer bluray-<serial> naming plus SCSI-generic (sg) symlinks.
-        opticalDriveRules = ''
-          # Stable symlinks for optical drives by USB serial.
-          # Block device (sr) -> /dev/bluray-<serial>
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52225B18130019", SYMLINK+="bluray-BP52225B18130019"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52225B18133253", SYMLINK+="bluray-BP52225B18133253"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52225C07131304", SYMLINK+="bluray-BP52225C07131304"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52425B18130826", SYMLINK+="bluray-BP52425B18130826"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52524422173906", SYMLINK+="bluray-BP52524422173906"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52D24A16083824", SYMLINK+="bluray-BP52D24A16083824"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25510161815", SYMLINK+="bluray-BP52E25510161815"
-          SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25512093803", SYMLINK+="bluray-BP52E25512093803"
-
-          # SCSI-generic (sg) -> /dev/bluray-<serial>-sg
-          # ATTRS{} walks ancestors; the USB device holds the serial attribute.
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52225B18130019", SYMLINK+="bluray-BP52225B18130019-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52225B18133253", SYMLINK+="bluray-BP52225B18133253-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52225C07131304", SYMLINK+="bluray-BP52225C07131304-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52425B18130826", SYMLINK+="bluray-BP52425B18130826-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52524422173906", SYMLINK+="bluray-BP52524422173906-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52D24A16083824", SYMLINK+="bluray-BP52D24A16083824-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52E25510161815", SYMLINK+="bluray-BP52E25510161815-sg"
-          SUBSYSTEM=="scsi_generic", ATTRS{serial}=="BP52E25512093803", SYMLINK+="bluray-BP52E25512093803-sg"
-        '';
+        # This node runs the rippers. Serials verified against /dev/sr* on the
+        # host; sg symlinks are needed because MakeMKV talks to the drives
+        # through the SCSI-generic interface.
+        opticalDrives =
+          map
+            (serial: {
+              inherit serial;
+              sg = true;
+            })
+            [
+              "BP52225B18130019"
+              "BP52225B18133253"
+              "BP52225C07131304"
+              "BP52425B18130826"
+              "BP52524422173906"
+              "BP52D24A16083824"
+              "BP52E25510161815"
+              "BP52E25512093803"
+            ];
       };
 
       bytheon = {
