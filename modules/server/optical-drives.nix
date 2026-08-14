@@ -1,17 +1,10 @@
 _: {
-  flake.modules.nixos.server = { config, lib, ... }: {
-    # Fleet-standard rules; styxeon overrides host.opticalDriveRules with its
-    # own inventory (more drives, bluray-<serial> naming, sg symlinks).
-    host.opticalDriveRules = lib.mkDefault ''
-      # Stable symlinks for optical drives based on serial numbers
-      # These won't change even if USB enumeration order changes
-
-      SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52D24A16083824", SYMLINK+="bluray0"
-      SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52524422173906", SYMLINK+="bluray1"
-      SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25510161815", SYMLINK+="bluray2"
-      SUBSYSTEM=="block", ENV{ID_SERIAL_SHORT}=="BP52E25512093803", SYMLINK+="bluray3"
-    '';
-
-    services.udev.extraRules = config.host.opticalDriveRules;
-  };
+  # The rules themselves are per-node hardware inventory, so they live with the
+  # rest of the node's data in modules/flake/fleet.nix — the fleet-standard set
+  # is that option's default and styxeon (the ripper node) overrides it there.
+  flake.modules.nixos.server =
+    { config, ... }:
+    {
+      services.udev.extraRules = config.host.opticalDriveRules;
+    };
 }
