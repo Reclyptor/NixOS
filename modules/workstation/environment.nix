@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     environment.sessionVariables = {
       EDITOR = "nvim";
       BROWSER = "zen-beta";

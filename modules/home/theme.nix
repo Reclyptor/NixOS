@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base = { pkgs, ... }: {
     # Home-manager handles themes and icons
     gtk = {

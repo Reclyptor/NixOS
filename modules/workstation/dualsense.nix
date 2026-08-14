@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     # Ignore Sony touchpad input nodes (USB/Bluetooth) so the DualSense touchpad
     # no longer acts like a mouse/scroll wheel.
     services.udev.extraRules = ''

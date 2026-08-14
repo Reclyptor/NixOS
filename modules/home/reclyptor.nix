@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base = {
     home.username = "reclyptor";
     home.homeDirectory = "/home/reclyptor";

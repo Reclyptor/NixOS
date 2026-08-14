@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (final: _prev: {
         # "Share Stream Audio" records the shared window's own PulseAudio sink-input,
         # so Discord needs that window's PID. It only gets one from WebRTC's X11
         # capturer; under Wayland it captures through the ScreenCast portal, which

@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         crush = prev.stdenv.mkDerivation rec {
           pname = "crush";
           version = "0.74.1";

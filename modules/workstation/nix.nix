@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
     system.stateVersion = "25.11";
     nix.package = pkgs.nixVersions.nix_2_34;

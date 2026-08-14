@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = { pkgs, ... }: {
     networking.hostName = "nixos";
     networking.hostId = "bca3551f";
     networking.networkmanager.enable = true;

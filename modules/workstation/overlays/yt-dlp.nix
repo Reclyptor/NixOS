@@ -1,7 +1,7 @@
 { inputs, ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         # Tracks yt-dlp master via the flake input; extractors break often
         # enough that the tagged releases in nixpkgs lag real-world fixes.
         yt-dlp = prev.yt-dlp.overrideAttrs {

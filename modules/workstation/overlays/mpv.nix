@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (final: _prev: {
         # Discord captures through WebRTC's X11 capturer (see overlays/discord.nix),
         # which only enumerates X11 windows, so a natively-Wayland mpv never shows up
         # in the share picker. Dropping WAYLAND_DISPLAY makes mpv fall back to

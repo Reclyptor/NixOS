@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         element-desktop = prev.element-desktop.overrideAttrs (oldAttrs: {
           postFixup = (oldAttrs.postFixup or "") + ''
             wrapProgram $out/bin/element-desktop \

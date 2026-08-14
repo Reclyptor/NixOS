@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Single source of truth for the "Android Green" scheme used across kitty,
   # hyprland, hyprlock, waybar, mako, fuzzel, and oh-my-posh.
   #

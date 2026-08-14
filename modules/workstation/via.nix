@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
     # Non-root HID access for configuring the Vortex Core Plus keyboard with VIA
     # (usevia.app, over WebHID in the browser).

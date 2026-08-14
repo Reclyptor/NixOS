@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.homeManager.base = { config, pkgs, ... }: {
+_: {
+  flake.modules.homeManager.base = { pkgs, ... }: {
     home.file.".local/bin/ytdlp" = {
       executable = true;
       text = ''

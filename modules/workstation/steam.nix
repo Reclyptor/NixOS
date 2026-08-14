@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = { pkgs, ... }: {
     environment.sessionVariables = {
       STEAM_RUNTIME = "1";
       LD_PRELOAD = "";

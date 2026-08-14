@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         claude-code = prev.stdenvNoCC.mkDerivation rec {
           pname = "claude-code";
           version = "2.1.220";

@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
     programs.dconf.enable = true;
 

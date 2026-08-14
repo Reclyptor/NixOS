@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Zen isn't in nixpkgs, so we package the official upstream binary ourselves
   # rather than depend on a third-party flake. Same trust model nixpkgs uses for
   # google-chrome/discord/etc: fetch the vendor's release tarball pinned by hash,
@@ -7,9 +7,9 @@
   # To bump: set `version` to the new tag from
   # https://github.com/zen-browser/desktop/releases, set `hash` to
   # lib.fakeHash, rebuild, and paste the hash Nix reports back.
-  flake.modules.nixos.workstation = { ... }: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         zen-browser =
           let
             version = "1.21.5b";

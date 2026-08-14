@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.server = { config, lib, ... }: {
     services.openiscsi.enable = true;
     services.openiscsi.name = "iqn.2005-10.org.freenas.ctl";

@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.nixos.workstation = { config, ... }: {
     nixpkgs.config.nvidia.acceptLicense = true;
 

@@ -1,7 +1,7 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     nixpkgs.overlays = [
-      (final: prev: {
+      (_final: prev: {
         code-cursor = prev.code-cursor.overrideAttrs (
           oldAttrs:
           let

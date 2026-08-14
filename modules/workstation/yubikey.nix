@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   # Everything YubiKey: the smartcard daemon stack, PIV tooling, and the gpg
   # agent that fronts SSH with the on-key credentials.
   #
@@ -142,7 +142,7 @@
       ];
     };
 
-  flake.modules.homeManager.base = { ... }: {
+  flake.modules.homeManager.base = _: {
     # THE SCDAEMON FIX (2026-07-09). By default gpg's scdaemon talks to the
     # YubiKey through its OWN built-in CCID driver, claiming the USB interface
     # exclusively via libusb. pcscd then can't register the reader at all

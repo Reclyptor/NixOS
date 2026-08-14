@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { ... }: {
+_: {
+  flake.modules.nixos.workstation = _: {
     fileSystems."/data/nfs/dxp6800" = {
       device = "192.168.1.2:/mnt/primary/videos";
       fsType = "nfs4";

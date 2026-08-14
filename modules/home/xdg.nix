@@ -1,4 +1,4 @@
-{ ... }: {
+_: {
   flake.modules.homeManager.base = { lib, ... }: {
     # home-manager owns ~/.config/mimeapps.list outright and regenerates the whole
     # file from this attrset — so EVERY association has to live here or it's dropped

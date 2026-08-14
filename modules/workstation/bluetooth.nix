@@ -1,5 +1,5 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+_: {
+  flake.modules.nixos.workstation = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [ blueman ];
     services.blueman.enable = true;
     hardware.bluetooth = {
