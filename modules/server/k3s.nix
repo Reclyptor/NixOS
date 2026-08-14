@@ -34,13 +34,8 @@ _: {
         op: ip: "iptables -${op} nixos-fw -p tcp -s ${ip} --dport ${etcdPorts} -j nixos-fw-accept";
     in
     {
-      sops = {
-        defaultSopsFile = ../../secrets/secrets.yaml;
-        age = {
-          sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-        };
-        secrets."k3s/token" = { };
-      };
+      # The sops key source and defaultSopsFile live in server/sops.nix.
+      sops.secrets."k3s/token" = { };
 
       # k3s must not start before the local API load balancer (kube-api-lb.nix)
       # owns 127.0.0.1:6443 — both servers joining via it and agents need it up.
