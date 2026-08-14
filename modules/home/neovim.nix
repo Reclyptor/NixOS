@@ -174,7 +174,7 @@
           underline        = true,
           update_in_insert = false,
           severity_sort    = true,
-          float            = { border = "rounded", source = "always" },
+          float            = { border = "rounded", source = true },
         })
 
         -- Apply cmp capabilities to every server
@@ -221,9 +221,10 @@
               vim.lsp.buf.format({ async = true })
             end, "LSP: Format Buffer")
             map("<leader>cd", vim.diagnostic.open_float,    "LSP: Show Diagnostic")
-            -- Diagnostic navigation
-            map("[d",         vim.diagnostic.goto_prev,     "LSP: Prev Diagnostic")
-            map("]d",         vim.diagnostic.goto_next,     "LSP: Next Diagnostic")
+            -- Diagnostic navigation. goto_prev/goto_next are deprecated (they
+            -- warn on 0.11+ and are slated for removal); jump() is the successor.
+            map("[d", function() vim.diagnostic.jump({ count = -1, float = true }) end, "LSP: Prev Diagnostic")
+            map("]d", function() vim.diagnostic.jump({ count = 1,  float = true }) end, "LSP: Next Diagnostic")
           end,
         })
 

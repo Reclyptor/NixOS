@@ -22,8 +22,10 @@
       };
     };
 
-    # Modern cursor management
+    # Modern cursor management. `enable` must be explicit — relying on the mere
+    # presence of this block to switch cursor generation on is deprecated.
     home.pointerCursor = {
+      enable = true;
       name = "Bibata-Modern-Ice";
       package = pkgs.bibata-cursors;
       size = 24;
@@ -45,7 +47,9 @@
 
     qt = {
       enable = true;
-      platformTheme.name = "gtk";
+      # "gtk" is deprecated and ambiguous: it meant the legacy qtstyleplugins
+      # build. "gtk3" selects the modern native Qt GTK3 platform theme.
+      platformTheme.name = "gtk3";
     };
   };
 }
