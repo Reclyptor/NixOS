@@ -2,10 +2,8 @@
   flake.modules.nixos.workstation = { pkgs, ... }: {
     system.stateVersion = "25.11";
     nix.package = pkgs.nixVersions.nix_2_34;
-    nix.settings = {
-      experimental-features = [ "nix-command" "flakes" ];
-      warn-dirty = false;
-    };
+    # experimental-features is set in common/nix.nix.
+    nix.settings.warn-dirty = false;
     nix.gc = {
       automatic = true;
       dates = "daily";

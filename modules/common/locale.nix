@@ -1,6 +1,12 @@
-{ ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+{ ... }:
+
+# Timezone, locale, and keyboard layout, defined once. This block was
+# duplicated verbatim between server/base.nix and workstation/locale.nix —
+# same timezone, same defaultLocale, all nine extraLocaleSettings identical.
+let
+  locale = { ... }: {
     time.timeZone = "America/Chicago";
+
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = {
       LC_ADDRESS = "en_US.UTF-8";
@@ -16,4 +22,7 @@
 
     services.xserver.xkb.layout = "us";
   };
+in {
+  flake.modules.nixos.server = locale;
+  flake.modules.nixos.workstation = locale;
 }
