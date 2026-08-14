@@ -10,6 +10,13 @@ keys.txt
 # repo, so SPEC.md stays local and is never checked in.
 SPEC.md
 
+# Agent working directories — per-session local state, not configuration.
+# Only the dotted paths; modules/home/{claude,codex}/ are real config and stay
+# tracked.
+.claude/
+.crush/
+.codex/
+
 # Build outputs
 result
 result-*
