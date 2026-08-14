@@ -38,32 +38,55 @@
     refresh = pkgs.writeShellApplication {
       name = "geoblock-refresh";
       runtimeInputs = with pkgs; [ curl nftables coreutils gnugrep ];
+      # One country failing used to abort the whole run (writeShellApplication
+      # adds `set -e`, and the empty-list check exit 1'd outright), so a single
+      # ipdeny hiccup left every set after it in the loop unpopulated — silently
+      # unblocked until the next daily timer. Now each country is independent:
+      # a failure keeps that set's PREVIOUS contents and the run continues.
+      # Exit non-zero only if nothing at all loaded, which is the one state worth
+      # retrying (see Restart=on-failure on the unit).
       text = ''
-        for cc in ${lib.concatStringsSep " " v4Countries}; do
+        loaded=0
+        failed=0
+
+        load_set() {
+          local cc="$1" fam="$2" url="$3" setname="$4" f elems
           f="$(mktemp)"
-          curl -fsS --retry 3 "https://www.ipdeny.com/ipblocks/data/aggregated/$cc-aggregated.zone" -o "$f"
-          [ -s "$f" ] || { echo "$cc IPv4 list came back empty" >&2; exit 1; }
+          if ! curl -fsS --retry 3 --max-time 60 "$url" -o "$f"; then
+            echo "geoblock: $cc $fam download failed; keeping previous contents" >&2
+            rm -f "$f"; return 1
+          fi
+          if [ ! -s "$f" ]; then
+            echo "geoblock: $cc $fam list came back empty; keeping previous contents" >&2
+            rm -f "$f"; return 1
+          fi
           elems="$(grep -vE '^[[:space:]]*$' "$f" | paste -sd,)"
-          {
-            echo "flush set inet geoblock ''${cc}4"
-            echo "add element inet geoblock ''${cc}4 { $elems }"
-          } | nft -f -
+          if ! printf 'flush set inet geoblock %s\nadd element inet geoblock %s { %s }\n' \
+                 "$setname" "$setname" "$elems" | nft -f -; then
+            echo "geoblock: $cc $fam failed to load into nftables" >&2
+            rm -f "$f"; return 1
+          fi
           rm -f "$f"
+        }
+
+        for cc in ${lib.concatStringsSep " " v4Countries}; do
+          if load_set "$cc" IPv4 \
+               "https://www.ipdeny.com/ipblocks/data/aggregated/$cc-aggregated.zone" "''${cc}4"
+          then loaded=$((loaded + 1)); else failed=$((failed + 1)); fi
         done
 
         for cc in ${lib.concatStringsSep " " v6Countries}; do
-          f="$(mktemp)"
-          curl -fsS --retry 3 "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/$cc-aggregated.zone" -o "$f"
-          [ -s "$f" ] || { echo "$cc IPv6 list came back empty" >&2; exit 1; }
-          elems="$(grep -vE '^[[:space:]]*$' "$f" | paste -sd,)"
-          {
-            echo "flush set inet geoblock ''${cc}6"
-            echo "add element inet geoblock ''${cc}6 { $elems }"
-          } | nft -f -
-          rm -f "$f"
+          if load_set "$cc" IPv6 \
+               "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/$cc-aggregated.zone" "''${cc}6"
+          then loaded=$((loaded + 1)); else failed=$((failed + 1)); fi
         done
 
-        echo "geoblock loaded: ${toString (lib.length v4Countries)} IPv4 + ${toString (lib.length v6Countries)} IPv6 country sets"
+        echo "geoblock: $loaded of ${toString (lib.length v4Countries + lib.length v6Countries)} country sets loaded, $failed failed"
+
+        if [ "$loaded" -eq 0 ]; then
+          echo "geoblock: NO sets loaded — nothing is being blocked" >&2
+          exit 1
+        fi
       '';
     };
   in {
@@ -92,6 +115,11 @@
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = lib.getExe refresh;
+        # Only fires when the run loaded nothing at all (e.g. booted before the
+        # network was really up). Without this the sets would sit empty until
+        # the next daily timer.
+        Restart = "on-failure";
+        RestartSec = "60s";
       };
     };
 
