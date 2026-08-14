@@ -1,4 +1,19 @@
-_: {
+{ config, lib, ... }:
+let
+  # Distinct wired NICs across the whole fleet, in lexicographic node order —
+  # which reproduces the previously hand-written "eno1 enp6s0" exactly.
+  #
+  # The union spans ALL nodes, not just the servers that render this manifest:
+  # k3s auto-deploy applies it cluster-wide, so the agents' NICs must appear here
+  # too. Kept as a Nix comment rather than a YAML one on purpose — the values
+  # file feeds `helm template`, whose output embeds freshly generated Hubble TLS
+  # certificates, so ANY edit to that string (comments included) re-renders the
+  # manifest and rolls those certs on the cluster.
+  wiredDevices = lib.concatStringsSep " " (
+    lib.unique (lib.mapAttrsToList (_: node: node.wiredInterface) config.fleet.nodes)
+  );
+in
+{
   flake.modules.nixos.server =
     {
       config,
@@ -28,7 +43,7 @@ _: {
 
         # WIRED ONLY (validated): eno1 on archeon/fluxeon/voideon/styxeon, enp6s0 on
         # bytheon. Never wlp2s0/wlo1 (wireless = OOB SSH lifeline).
-        devices: "eno1 enp6s0"
+        devices: "${wiredDevices}"
 
         ipam:
           mode: cluster-pool

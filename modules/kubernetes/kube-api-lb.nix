@@ -1,4 +1,4 @@
-_:
+{ config, lib, ... }:
 
 # Local pre-CNI Kubernetes API endpoint, shared by every machine:
 #  - cluster nodes reach the apiservers through it before the CNI is up
@@ -7,6 +7,19 @@ _:
 # Server nodes bind their real apiserver to the LAN IP so HAProxy can own
 # 127.0.0.1:6443 without colliding with kube-apiserver on port 6443.
 let
+  # Backends come from the fleet inventory's control-plane set, so promoting a
+  # node to server role updates this automatically. Attribute order is
+  # lexicographic, which is what the hand-written list already was.
+  #
+  # Two leading spaces, not the source indentation below: Nix strips the block's
+  # common indent (8) from literal lines only, so interpolated text arrives at
+  # column 0 and has to carry the final indentation itself.
+  backends = lib.concatStringsSep "\n" (
+    lib.mapAttrsToList (
+      name: node: "  server ${name} ${node.wiredIp}:6443 check"
+    ) config.fleet.controlPlane
+  );
+
   haproxy = {
     services.haproxy = {
       enable = true;
@@ -31,9 +44,7 @@ let
           balance roundrobin
           option tcp-check
           default-server inter 2s fall 3 rise 2
-          server archeon 192.168.1.10:6443 check
-          server fluxeon 192.168.1.11:6443 check
-          server voideon 192.168.1.12:6443 check
+        ${backends}
       '';
     };
 
