@@ -4,6 +4,10 @@
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
     boot.loader.systemd-boot.enable = true;
+    # Bounds boot ENTRIES; nix.gc (maintenance.nix) bounds store GENERATIONS.
+    # Both are needed — without this the vfat ESP fills with kernels until a
+    # nixos-rebuild switch fails partway through.
+    boot.loader.systemd-boot.configurationLimit = 10;
     boot.loader.efi.canTouchEfiVariables = true;
 
     boot.kernelModules = [
