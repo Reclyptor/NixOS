@@ -1,9 +1,13 @@
 { ... }: {
-  flake.modules.nixos.workstation = { config, pkgs, ... }: {
+  flake.modules.nixos.workstation = { ... }: {
     environment.sessionVariables = {
       EDITOR = "nvim";
       BROWSER = "zen-beta";
-      DEFAULT_BROWSER = "${pkgs.zen-browser}/bin/zen-beta";
+      # A command name, not a store path. Interpolating the package pinned a
+      # specific store path into every session's environment, so the value
+      # churned on each rebuild and live sessions kept pointing at a superseded
+      # (and eventually garbage-collected) path.
+      DEFAULT_BROWSER = "zen-beta";
     };
   };
 }
