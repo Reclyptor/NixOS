@@ -7,7 +7,7 @@
     boot.loader.efi.canTouchEfiVariables = true;
     boot.loader.timeout = 3;
     boot.tmp.cleanOnBoot = true;
-    boot.supportedFilesystems = [ "zfs" ];
+    boot.supportedFilesystems.zfs = true;
     boot.zfs.forceImportRoot = false;
     boot.zfs.extraPools = [ "npool" "spool" ];
   };
