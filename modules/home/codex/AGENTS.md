@@ -454,3 +454,61 @@ remove the worktree with `git worktree remove` and delete its branch. Then
 confirm with `git worktree list` that no stale record remains. `~/Worktrees`
 holds active sessions only; a stale worktree is a ghost that will mislead
 the next agent that goes looking.
+
+---
+
+## 13. GitHub Authentication: Always Use `GITHUB_TOKEN`
+
+This is a hard rule and applies to every git project on this machine.
+
+Remotes are SSH (`git@github.com:…`) and the SSH keys live on a YubiKey, so
+any SSH-authenticated operation can demand a physical touch. That stalls an
+autonomous session on hardware nobody is standing next to — and because an
+unlocked key stays cached in the agent for a while, it fails
+*intermittently*, which is worse than failing every time. `GITHUB_TOKEN` is
+provisioned specifically so agents never hit that wall. Use it for every
+operation that talks to GitHub.
+
+### What the Token Covers, and What It Does Not
+Every remote operation — `fetch`, `pull`, `push`, `clone`, `ls-remote` —
+goes over HTTPS authenticated by the token, never over `git@github.com:`.
+Purely local commands (`add`, `commit`, `rebase`, `log`, `diff`,
+`worktree`) touch no remote and need nothing special.
+
+Commit signing is off (`commit.gpgsign=false`), so `git commit` does not
+prompt for the YubiKey. The token would not help if it did: it authenticates
+to the remote, it does not sign. If signing is ever turned on, say so and
+stop rather than reaching for `--no-gpg-sign` to defeat a deliberate setting.
+
+### Where the Token Comes From
+`modules/home/bash/00-init.nix` exports `$GITHUB_TOKEN` into every
+interactive shell from the sops secret at
+`~/.config/sops/secrets/bash/github-token`. Non-interactive and login shells
+do not source `.bashrc`, so when the variable is empty, read the file:
+
+```bash
+export GITHUB_TOKEN="$(cat ~/.config/sops/secrets/bash/github-token)"
+```
+
+### `gh` Needs No Flags
+The `gh` CLI picks `GITHUB_TOKEN` up on its own and prefers it over the
+credentials in `~/.config/gh/hosts.yml`. Run `gh` normally, and prefer it
+for anything API-shaped — pull requests, issues, releases, repo metadata —
+because it is already authenticated and needs no URL rewriting.
+
+### `git` Needs a URL Rewrite and a Credential Helper
+This form keeps `origin` working — no owner/repo to spell out — and feeds
+the token to git over stdin rather than the command line:
+
+```bash
+git -c url."https://github.com/".insteadOf="git@github.com:" \
+    -c credential.helper='!f(){ echo username=x-access-token; echo "password=$GITHUB_TOKEN"; };f' \
+    push origin master
+```
+
+### Never Put the Token in argv or on Disk
+`/proc/<pid>/cmdline` is world-readable, so a token baked into a URL
+(`https://$GITHUB_TOKEN@github.com/…`) leaks it to every process on the box,
+and it lands in shell history besides. Keep it in the environment, pass it
+by credential helper, and never write it into a tracked file, a git remote,
+or any config the repo carries.
