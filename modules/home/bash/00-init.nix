@@ -16,6 +16,12 @@ _: {
         K3S_REDIS_PASSWORD = "k3s-redis-password";
         ATLAS_MONGODB_HOST = "atlas-mongodb-host";
         STEAM_WEB_API_KEY = "steam-web-api-key";
+        # gh reads GH_TOKEN first and falls back to GITHUB_TOKEN, so this one name
+        # covers the gh CLI (which is how Claude Code and Codex reach GitHub) as
+        # well as the tooling that only knows GITHUB_TOKEN. It overrides the token
+        # stored in ~/.config/gh/hosts.yml — deliberate, and not a downgrade: this
+        # PAT is scoped wider than the gh OAuth token it shadows.
+        GITHUB_TOKEN = "github-token";
       };
 
       # Secrets whose PATH becomes the variable value (certs read on use).
