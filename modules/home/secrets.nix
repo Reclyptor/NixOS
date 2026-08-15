@@ -47,6 +47,7 @@ _: {
               "bash/atlas-mongodb-host"
               "bash/k3s-redis-password"
               "bash/steam-web-api-key"
+              "bash/github-token"
               "agentmemory/claude-token"
               "agentmemory/qwen-token"
             ]
