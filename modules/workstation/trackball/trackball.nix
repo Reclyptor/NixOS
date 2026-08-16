@@ -40,13 +40,19 @@ _: {
       # [0,4] [0,0] [0,5] respectively. Positions, viewed from above:
       #
       #     TLL      TL       TR       TRR      <- four small buttons, top arc
-      #   Middle  DPI cycle  Scroll   Super        (TLL/TRR are the tall outer pair)
+      #   Middle  DPI cycle  Super    Scroll       (TLL/TRR are the tall outer pair)
       #
       #     [ BL = Left ]  (ball)  [ BR = Right ]  <- the two large buttons
       #
       # Stock puts right-click on TRR and middle-click on BR, so the two large
       # buttons are left/middle. This mirrors the SlimBlade instead: large buttons
-      # are left/right, middle moves to the tall left, Super to the tall right.
+      # are left/right, and middle moves to the tall left.
+      #
+      # Super sits on the inner TR and drag-scroll on the tall outer TRR, chosen by
+      # feel after trying it the other way round. Note both are held during
+      # `$mainMod, mouse_down/up, workspace` (Super + scroll switches workspaces in
+      # hyprland.nix), so they are deliberately adjacent -- whichever way round they
+      # go, that chord wants them next to each other rather than split across the arc.
       #
       # DPI LADDER: { 400, 800, 1200, 1600 }, default 800
       #
@@ -120,7 +126,11 @@ _: {
       # Verify the result without flashing, since a build can succeed while the
       # keymap silently fails to apply -- search the .uf2 for the expected bytes:
       #   dpi_array          90012003 b0044006          (400, 800, 1200, 1600 LE)
-      #   keymaps (matrix)   d100d300 007e017e e300d200 (BTN1 BTN3 DPI DRAG GUI BTN2)
+      #   keymaps (matrix)   d100d300 007ee300 017ed200 (BTN1 BTN3 DPI GUI DRAG BTN2)
+      #
+      # keymaps is stored in MATRIX order -- [0,0] [0,1] ... [0,5], i.e. BL TLL TL
+      # TR TRR BR -- not in the LAYOUT argument order above, which is why Super
+      # (00e3) and drag-scroll (7e01) appear in slots 4 and 5 rather than 3 and 4.
       #
       # FLASHING: hold the LARGE LEFT button while plugging in. QMK's bootmagic
       # is enabled and defaults to matrix [0,0], which is that button, so the
