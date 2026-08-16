@@ -22,6 +22,9 @@ _: {
         # stored in ~/.config/gh/hosts.yml — deliberate, and not a downgrade: this
         # PAT is scoped wider than the gh OAuth token it shadows.
         GITHUB_TOKEN = "github-token";
+        # Scoped token for the Makotogotchi zones (Tunnel/DNS/Cache/WAF Edit);
+        # consumed by Makotogotchi's scripts/cloudflare-setup.sh.
+        CLOUDFLARE_API_TOKEN = "cloudflare-token";
       };
 
       # Secrets whose PATH becomes the variable value (certs read on use).
