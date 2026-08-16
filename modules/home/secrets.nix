@@ -48,6 +48,7 @@ _: {
               "bash/k3s-redis-password"
               "bash/steam-web-api-key"
               "bash/github-token"
+              "bash/cloudflare-token"
               "agentmemory/claude-token"
               "agentmemory/qwen-token"
             ]
