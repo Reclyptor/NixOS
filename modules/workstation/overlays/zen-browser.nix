@@ -26,20 +26,31 @@ _: {
               builtins.toJSON { policies.DontCheckDefaultBrowser = true; }
             );
 
-            # Ship a default pref via Firefox's autoconfig (.cfg) mechanism — the one
-            # reliable way to set an arbitrary pref from a hand-rolled build. Crunchyroll
-            # (and other Widevine sites) throw KAT-6005 when you scrub the timeline: a
-            # MOZ_LOG capture showed the seek flushes the decoder and the post-seek frame
-            # burst exhausts Gecko's CDM video shmem pool, so the CDM returns rv=1 and the
-            # MediaKeySession is torn down. Value matters in BOTH directions: 6 (default)
-            # is too few and fails on seek; 24 regressed to dying within seconds
-            # (reproduced via A/B/A: 12 works, 24 breaks, 12 works — the exact mechanism
-            # was NOT captured, so don't trust any "why" beyond that). 12 is the
-            # empirically confirmed sweet spot — don't raise it.
+            # Ship default prefs via Firefox's autoconfig (.cfg) mechanism — the one
+            # reliable way to set an arbitrary pref from a hand-rolled build.
+            #
+            # video-shmems: Crunchyroll (and other Widevine sites) throw KAT-6005 when you
+            # scrub the timeline: a MOZ_LOG capture showed the seek flushes the decoder and
+            # the post-seek frame burst exhausts Gecko's CDM video shmem pool, so the CDM
+            # returns rv=1 and the MediaKeySession is torn down. Value matters in BOTH
+            # directions: 6 (default) is too few and fails on seek; 24 regressed to dying
+            # within seconds (reproduced via A/B/A: 12 works, 24 breaks, 12 works — the
+            # exact mechanism was NOT captured, so don't trust any "why" beyond that). 12
+            # is the empirically confirmed sweet spot — don't raise it.
+            #
+            # file-picker: Ctrl+V in the download/save dialog pasted stale text under
+            # Wayland. The clipboard itself was fine (verified: every MIME type the chooser
+            # asks for returned the live selection). The default of 2 means "portal only
+            # when sandboxed", and this is a native build, so Zen fell back to the GTK3
+            # chooser it hosts in-process — which keeps its own wl_data_device on the same
+            # wl_seat as Gecko's clipboard. GTK pastes the snapshot it cached when it last
+            # held focus, hence the old text. 1 forces the xdg-desktop-portal chooser,
+            # which runs out-of-process (xdg-desktop-portal-gtk) and pastes correctly.
             autoconfigCfg = prev.writeText "zen.cfg" ''
               // Managed by Nix (modules/workstation/overlays/zen-browser.nix). First line
               // is intentionally a comment — Firefox skips it.
               defaultPref("media.eme.chromium-api.video-shmems", 12);
+              defaultPref("widget.use-xdg-desktop-portal.file-picker", 1);
             '';
             autoconfigLoader = prev.writeText "local-settings.js" ''
               pref("general.config.filename", "zen.cfg");
