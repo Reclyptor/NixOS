@@ -76,9 +76,24 @@ _: {
       #
       # Check: 800/113 = 7.1 clicks/inch against the SlimBlade's 48/6.803 = 7.06.
       #
-      # CAVEAT: the divisor is fixed but scroll rate is CPI/DIVISOR, so cycling DPI
-      # also changes scroll speed. The match is exact at 800 CPI only; at 1600 the
-      # scroll is twice as fast. Inherent to how Ploopy implements drag-scroll.
+      # A FIXED divisor would make scroll rate depend on DPI, since the rate is
+      # CPI/DIVISOR -- cycling to 1600 would scroll twice as fast, and the SlimBlade
+      # match would hold at 800 CPI only. Avoided by making the divisor track DPI.
+      # ploopyco.c uses the macro in expression position:
+      #
+      #   scroll_accumulated_v += (float)mouse_report.y / PLOOPY_DRAGSCROLL_DIVISOR_V;
+      #
+      # so it need not expand to a constant. ./config.h points it at a function in
+      # ./keymap.c that scales with the live DPI (ploopyco.h exports both
+      # keyboard_config and dpi_array), holding 7.08 clicks/inch at every step:
+      #
+      #   400 CPI -> divisor  56.5      1200 CPI -> divisor 169.5
+      #   800 CPI -> divisor 113.0      1600 CPI -> divisor 226.0
+      #
+      # So the DPI button changes pointer speed only, as it does on the SlimBlade.
+      # Cost is one array index, an int-to-float convert and a multiply per polled
+      # report -- soft-float on the M0+, but negligible at ~1kHz. The prototype has
+      # to be declared in config.h because ploopyco.c is what expands the macro.
       #
       # MOMENTARY drag-scroll is set explicitly rather than inherited. The unit
       # shipped behaving as momentary, but PLOOPY_DRAGSCROLL_MOMENTARY appears in
