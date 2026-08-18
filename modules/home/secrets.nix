@@ -49,6 +49,9 @@ _: {
               "bash/steam-web-api-key"
               "bash/github-token"
               "bash/cloudflare-token"
+              "bash/cf-access-client-id"
+              "bash/cf-access-client-secret"
+              "bash/vllm-base-url"
               "agentmemory/claude-token"
               "agentmemory/qwen-token"
             ]
