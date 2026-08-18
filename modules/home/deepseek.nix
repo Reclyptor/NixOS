@@ -46,40 +46,189 @@ _: {
         .["agent-default-model"].provider = "vllm" |
         .["agent-default-model"].model = "${model}"
       '';
+
+      profiles = config.deepseek.profiles;
+
+      jsonFormat = pkgs.formats.json { };
+      yamlFormat = pkgs.formats.yaml { };
+
+      # A dsh profile is a directory of four files, three of which are static
+      # and are therefore owned here. Upstream's initProfile() writes each of
+      # them only when it is absent and documents that "existing files are never
+      # touched", so pre-placing them makes the harness's own scaffolding a
+      # no-op rather than a competitor.
+      #
+      # Two things in that directory are deliberately NOT managed:
+      #
+      #   cordis.yml     the Cordis loader rewrites it on every boot (its
+      #                  content is an invariant empty entry list, but the write
+      #                  still happens), so it cannot be a read-only store
+      #                  symlink. Upstream's own header says to edit
+      #                  cordis.patch.yml instead, which is what `patch` below
+      #                  generates.
+      #
+      #   node_modules/  healProfilesModuleFallback() maintains
+      #                  profiles/node_modules as one symlink per package in the
+      #                  installation's dependency closure, re-pointing them
+      #                  when the store path moves — so a dsh version bump
+      #                  relinks itself. It throws outright if it finds a real
+      #                  directory there, so Nix must stay out of it.
+      #
+      # Because every bundle resolves from the installation first, a profile
+      # named here needs no `dsh plugin add` and no pnpm: declaring it is enough
+      # for `dsh --profile <name>` to boot.
+      profilePath = name: ".dsh/profiles/${name}";
+
+      pnpmWorkspace = pkgs.writeText "dsh-pnpm-workspace.yaml" ''
+        packages:
+          - .
+
+        nodeLinker: hoisted
+        autoInstallPeers: false
+      '';
+
+      manifestFor =
+        name: profile:
+        jsonFormat.generate "dsh-profile-${name}-package.json" {
+          name = "dsh-profile-${name}";
+          private = true;
+          dependencies = { };
+          dsh.profile.bundles = profile.bundles;
+        };
+
+      # force, because the harness seeds these as real files on first boot and
+      # the web UI can rewrite package.json through `dsh plugin`. Declaring a
+      # profile means Nix is the source of truth for its shape; drift is
+      # replaced at activation rather than silently accumulating.
+      filesFor = name: profile: {
+        "${profilePath name}/package.json" = {
+          source = manifestFor name profile;
+          force = true;
+        };
+        "${profilePath name}/cordis.patch.yml" = {
+          source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" profile.patch;
+          force = true;
+        };
+        "${profilePath name}/pnpm-workspace.yaml" = {
+          source = pnpmWorkspace;
+          force = true;
+        };
+      };
+
+      # normalizeShippedProfile() runs on every profile load and rewrites
+      # package.json in place when the bundle list is exactly one of these
+      # superseded tuples. That write would land on a read-only store symlink,
+      # so the assertion below refuses the configuration instead of letting it
+      # fail at runtime with an EROFS from inside node.
+      supersededTuples = {
+        headless = [
+          "@deepseek-ai/dsh-base"
+          "@deepseek-ai/dsh-web-app"
+          "@deepseek-ai/dsh-headless"
+        ];
+      };
+
+      superseded = lib.filterAttrs (
+        name: profile: (supersededTuples.${name} or null) == profile.bundles
+      ) profiles;
     in
     {
-      # settings.yaml is generated here rather than by home.file because it has
-      # to carry the Cloudflare Access client secret in cleartext: dsh types
-      # `headers` as a plain string dict, and only `apiKeyEnv` gets credential
-      # indirection. home.file would place that secret in the world-readable
-      # Nix store. Written at activation from the sops-decrypted files instead,
-      # mode 0600, with the values passed through the environment (strenv) so
-      # they never appear in argv where /proc/*/cmdline would expose them.
-      #
-      # Upstream caveat worth knowing: a credential in `headers` is returned
-      # verbatim by a redacted describe() and rendered by the Models page. That
-      # is a known limitation in llm-pi-ai, not something this config can avoid.
-      home.activation.deepseekHarness = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
-        dsh_id="${secretsDir}/cf-access-client-id"
-        dsh_secret="${secretsDir}/cf-access-client-secret"
-        dsh_url="${secretsDir}/vllm-base-url"
+      options.deepseek.profiles = lib.mkOption {
+        type = lib.types.attrsOf (
+          lib.types.submodule {
+            options = {
+              bundles = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                description = ''
+                  Ordered `dsh.profile.bundles` layer list. Each entry is a
+                  plugin-bundle package name resolved from the dsh installation,
+                  so only bundles that ship in the box are usable without pnpm.
+                '';
+              };
 
-        if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
-          $DRY_RUN_CMD mkdir -p "$(dirname "${settingsFile}")"
-          [ -f "${settingsFile}" ] || $DRY_RUN_CMD touch "${settingsFile}"
-          $DRY_RUN_CMD chmod 600 "${settingsFile}"
+              patch = lib.mkOption {
+                type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
+                default = [ ];
+                description = ''
+                  The profile's `cordis.patch.yml` user layer, applied after
+                  every bundle layer: id-targeted config overrides, disables and
+                  insert lists. Upstream also allows `!!js` expressions in this
+                  file; those are not expressible as Nix values and so are not
+                  supported here.
+                '';
+              };
+            };
+          }
+        );
+        default = { };
+        description = ''
+          dsh profiles to materialize under ~/.dsh/profiles. A profile is an
+          ordered stack of plugin-bundle patch layers under its own override
+          layer, booted with `dsh --profile <name>`.
+        '';
+      };
 
-          if DSH_CF_ID="$(cat "$dsh_id")" \
-             DSH_CF_SECRET="$(cat "$dsh_secret")" \
-             DSH_VLLM_URL="$(cat "$dsh_url")" \
-             ${lib.getExe pkgs.yq-go} -i '${program}' "${settingsFile}"; then
-            :
+      config = {
+        assertions = lib.mapAttrsToList (name: _: {
+          assertion = false;
+          message = ''
+            deepseek.profiles.${name}.bundles is the superseded tuple that dsh
+            normalizes by rewriting package.json in place, which cannot work
+            against a Nix-managed store symlink. Drop
+            "@deepseek-ai/dsh-web-app" from the list.
+          '';
+        }) superseded;
+
+        home.file = lib.concatMapAttrs filesFor profiles;
+
+        # The two profiles the harness ships templates for. mkDefault so another
+        # module can retune a bundle list without mkForce, and separate
+        # definitions so declaring a third profile elsewhere merges rather than
+        # replacing these.
+        deepseek.profiles = {
+          web.bundles = lib.mkDefault [
+            "@deepseek-ai/dsh-base"
+            "@deepseek-ai/dsh-web-app"
+          ];
+          headless.bundles = lib.mkDefault [
+            "@deepseek-ai/dsh-base"
+            "@deepseek-ai/dsh-headless"
+          ];
+        };
+
+        # settings.yaml is generated here rather than by home.file because it has
+        # to carry the Cloudflare Access client secret in cleartext: dsh types
+        # `headers` as a plain string dict, and only `apiKeyEnv` gets credential
+        # indirection. home.file would place that secret in the world-readable
+        # Nix store. Written at activation from the sops-decrypted files instead,
+        # mode 0600, with the values passed through the environment (strenv) so
+        # they never appear in argv where /proc/*/cmdline would expose them.
+        #
+        # Upstream caveat worth knowing: a credential in `headers` is returned
+        # verbatim by a redacted describe() and rendered by the Models page. That
+        # is a known limitation in llm-pi-ai, not something this config can avoid.
+        home.activation.deepseekHarness = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
+          dsh_id="${secretsDir}/cf-access-client-id"
+          dsh_secret="${secretsDir}/cf-access-client-secret"
+          dsh_url="${secretsDir}/vllm-base-url"
+
+          if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
+            $DRY_RUN_CMD mkdir -p "$(dirname "${settingsFile}")"
+            [ -f "${settingsFile}" ] || $DRY_RUN_CMD touch "${settingsFile}"
+            $DRY_RUN_CMD chmod 600 "${settingsFile}"
+
+            if DSH_CF_ID="$(cat "$dsh_id")" \
+               DSH_CF_SECRET="$(cat "$dsh_secret")" \
+               DSH_VLLM_URL="$(cat "$dsh_url")" \
+               ${lib.getExe pkgs.yq-go} -i '${program}' "${settingsFile}"; then
+              :
+            else
+              echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
+            fi
           else
-            echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
+            echo "deepseek: sops secrets not present yet, skipping settings.yaml" >&2
           fi
-        else
-          echo "deepseek: sops secrets not present yet, skipping settings.yaml" >&2
-        fi
-      '';
+        '';
+      };
     };
 }
