@@ -22,7 +22,6 @@ _: {
       hyprpicker
       hyprshade
       hyprshot
-      hyprsunset
       kitty
       kitty-themes
       fuzzel
