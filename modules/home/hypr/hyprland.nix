@@ -34,9 +34,10 @@ _: {
           "$menu" = "pkill fuzzel || fuzzel";
 
           # Autostart applications
+          # hyprpaper is a systemd user service (see hyprpaper.nix) so that
+          # home-manager restarts it when its config changes.
           exec-once = [
             "gnome-keyring-daemon --start --components=secrets,pkcs11"
-            "hyprpaper"
             "nm-applet --indicator"
           ];
 
