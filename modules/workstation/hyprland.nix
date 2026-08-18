@@ -16,7 +16,6 @@ _: {
       adw-gtk3
       brightnessctl
       hyprcursor
-      hypridle
       hyprland
       hyprlock
       hyprpaper
