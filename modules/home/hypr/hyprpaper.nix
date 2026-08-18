@@ -6,12 +6,12 @@ _: {
 
       wallpaper {
           monitor =
-          path = ${config.home.homeDirectory}/.config/wallpapers/default.jpg
+          path = ${config.home.homeDirectory}/.config/wallpapers/default.png
           fit_mode = cover
       }
     '';
 
     # Copy wallpaper from Nix configuration to home directory
-    home.file.".config/wallpapers/default.jpg".source = ../../../wallpapers/default.jpg;
+    home.file.".config/wallpapers/default.png".source = ../../../wallpapers/default.png;
   };
 }
