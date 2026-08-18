@@ -1,0 +1,509 @@
+/*
+ * Shared skin structure — owned by the runtime, identical for every theme.
+ *
+ * These rules position and animate the decoration nodes the engine inserts:
+ * the character stage, edge trims and their layers, sidebar corners and
+ * mascot, the title-bar wordmark, and the settings backdrop frame. They are
+ * theme-agnostic by construction, because every theme fills the same eighteen
+ * art slots and the engine projects the same state attributes.
+ *
+ * That is what makes a theme cheap: supply the assets and the token table and
+ * the skin renders complete. A theme.css is optional on top, for restyling the
+ * product's own UI beyond what the --dsw-* tokens reach.
+ *
+ * Scoped to `body[data-dsh-skin]`, so it applies to whichever theme is
+ * active. A theme's own sheet uses `body[data-dsh-skin='<id>']`, which is one
+ * attribute-value more specific and therefore always wins a tie.
+ *
+ * Decoration colours are parameterised: the var() fallbacks below reproduce
+ * the reference theme exactly, and a theme overrides them by declaring the
+ * variable rather than by copying these rules.
+ */
+
+/*
+ * What the engine hands this sheet, per the ThemeManifest contract:
+ *   --skin-<slot>                one per art slot
+ *   --skin-sidebar-width         live sidebar column width
+ *   --skin-sidebar-swag-height   drape height, scaled with the column
+ *   --skin-sidebar-mascot-width  figure width, scaled with the column
+ *   --skin-titlebar-height       resolved title-bar row height
+ *   data-skin-* body attributes  projected app state (see the engine)
+ *   [data-skin-chrome] nodes     the decoration elements this file positions
+ *
+ * The --dsw-* palette is NOT set here: it is declared in theme.nix and applied
+ * through ctx.theme.overrideTokens, which composes it per colour scheme. The
+ * nested --dsw-* blocks further down are surface-local overrides and stay.
+ *
+ * Left unminified on purpose: when a dsh upgrade breaks the layout, this has
+ * to be legible in devtools.
+ */
+/*
+ * Initial values for every var the engine supplies at runtime.
+ *
+ * These are not cosmetic defaults — they are what keeps a pre-measurement
+ * paint from collapsing. A var() with no fallback that resolves to nothing is
+ * invalid at computed-value time, which drops the WHOLE declaration to its
+ * initial value rather than just that one term. `translate: calc(var(
+ * --skin-sidebar-width) + …)` therefore becomes `translate: none`, and the
+ * left figure lands at x=0 and is drawn underneath the sidebar, sliced down
+ * its middle. The art slots fail the same way: the backdrop and trims simply
+ * do not paint until the art sheet lands.
+ *
+ * Declared on :root so they can never shadow a real value. The engine writes
+ * measurements into a `body[data-dsh-skin='<id>']` rule and the art sheet uses
+ * the same selector; both outrank this, whatever the sheet order turns out to
+ * be. Relying on insertion order here would be a latent bug.
+ *
+ * The lengths are dsh's own expanded-sidebar geometry, so the frame before the
+ * first measurement is already correct for the common case, and the collapsed
+ * rail merely settles inward instead of clipping.
+ */
+:root {
+  --skin-sidebar-width: 280px;
+  --skin-sidebar-swag-height: 72px;
+  --skin-sidebar-mascot-width: 230px;
+  --skin-backdrop: none;
+  --skin-top-trim: none;
+  --skin-bottom-trim: none;
+  --skin-bottom-crest: none;
+  --skin-sidebar-corner: none;
+  --skin-accent-bow: none;
+}
+
+body[data-dsh-skin] {
+  color: var(--skin-body-color, #172347);
+  background-color: var(--skin-body-bg, #dce6f5);
+}
+
+body[data-dsh-skin] [id='root'] {
+  position: relative;
+  background: transparent;
+}
+
+/* High-resolution characters remain independent from the palace so viewport
+   and conversation changes never resample the architecture behind them. */
+body[data-dsh-skin] [data-skin-chrome='character-stage'] {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+body[data-dsh-skin] [data-skin-character] {
+  position: absolute;
+  display: block;
+  z-index: 1;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 20px 24px var(--skin-figure-shadow, rgba(27, 44, 91, 0.14)));
+  transition:
+    translate 620ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    bottom 620ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    height 620ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    opacity 420ms ease;
+}
+
+body[data-dsh-skin] [data-skin-character='left'] {
+  bottom: clamp(-34px, -2.4vh, -12px);
+  left: 0;
+  translate: calc(var(--skin-sidebar-width)
+    + var(--skin-figure-left-gap, clamp(8px, 1.3vw, 24px))) 0;
+  height: clamp(320px, 96vh, 1180px);
+}
+
+body[data-dsh-skin] [data-skin-character='right'] {
+  right: 0;
+  translate: clamp(-8px, -0.2vw, 0px) 0;
+  bottom: clamp(-26px, -1.8vh, -8px);
+  height: clamp(310px, 92vh, 1120px);
+}
+
+/* Dark-scheme treatment of the figures. Parameterised because it is a
+   property of the ART, not of the structure: a theme with bright figures on a
+   light backdrop wants them knocked back, while a theme whose figures are
+   already dark against a dark room is crushed by the same values. Defaults
+   reproduce the reference theme. */
+/* Light-scheme mascot treatment. The dark-scheme figure rule above exists for
+   the same reason: whether art reads against a surface is a property of the
+   art, and a single value cannot serve a light and a dark rail at once. */
+body[data-dsh-skin]:not([data-ds-dark-theme]) [data-skin-chrome='sidebar-mascot'] {
+  opacity: var(--skin-mascot-opacity-light, var(--skin-mascot-opacity, 0.92));
+  filter:
+    saturate(var(--skin-mascot-saturate-light, var(--skin-mascot-saturate, 1)))
+    brightness(var(--skin-mascot-brightness-light, var(--skin-mascot-brightness, 1.08)))
+    contrast(var(--skin-mascot-contrast-light, var(--skin-mascot-contrast, 1.04)))
+    drop-shadow(0 5px 12px var(--skin-mascot-shadow, rgba(2, 7, 24, 0.24)));
+}
+
+body[data-dsh-skin][data-ds-dark-theme] [data-skin-character] {
+  filter:
+    brightness(var(--skin-figure-brightness-dark, 0.84))
+    saturate(var(--skin-figure-saturate-dark, 0.92))
+    drop-shadow(0 22px 28px var(--skin-figure-shadow-dark, rgba(0, 0, 0, 0.3)));
+}
+
+/* Chat alone retreats the two figures toward the edges. Inspection views do
+   not expose data-chat-flow, so Trajectory and similar canvases stay put. */
+body[data-dsh-skin][data-skin-chat-active]
+  [data-skin-character='left'] {
+  translate: calc(var(--skin-sidebar-width)
+    + var(--skin-figure-left-gap, clamp(8px, 1.3vw, 24px))) 0;
+  bottom: clamp(-24px, -1.5vh, -8px);
+  height: clamp(420px, 64vh, 760px);
+  opacity: var(--skin-figure-opacity-chat, 0.9);
+}
+
+body[data-dsh-skin][data-skin-chat-active]
+  [data-skin-character='right'] {
+  translate: clamp(-8px, -0.5vw, 0px) 0;
+  bottom: clamp(-24px, -1.5vh, -8px);
+  height: clamp(420px, 62vh, 730px);
+  opacity: var(--skin-figure-opacity-chat, 0.9);
+}
+
+/* dsh-better-sidebar ports a right workbench onto document.body. While its
+   right panel is open, pull the right maid left of the panel so the artwork
+   is not hidden behind the fixed workbench. The skin projects that state
+   without a root :has(), so terminal row writes stay locally invalidated. */
+body[data-dsh-skin][data-skin-better-sidebar-open]
+  [data-skin-character='right'] {
+  translate: clamp(-460px, -24vw, -320px) 0;
+}
+
+body[data-dsh-skin][data-skin-better-sidebar-open][data-skin-chat-active]
+  [data-skin-character='right'] {
+  translate: clamp(-460px, -24vw, -320px) 0;
+  height: clamp(360px, 56vh, 680px);
+  opacity: var(--skin-figure-opacity-panel, 0.86);
+}
+
+/* A continuously changing viewport gives layout transitions a new destination
+   every frame. Follow the resize directly, then restore state-change motion. */
+body[data-dsh-skin][data-skin-viewport-resizing]
+  [data-skin-character] {
+  transition: none;
+  filter: none;
+}
+
+/* Chromium rejects failIfMajorPerformanceCaveat when it would fall back to a
+   software renderer. Keep large transparent character layers cheap there. */
+body[data-dsh-skin][data-skin-low-power]
+  [data-skin-character] {
+  filter: none;
+  transition: opacity 180ms ease;
+}
+
+/* The top curtain belongs to the main pane, not to the sidebar. Its two
+   independently translated layers let the landing ornament leave upward
+   while the lace-free workspace band drops in from above. */
+body[data-dsh-skin] [data-skin-chrome='top-trim'] {
+  position: fixed;
+  inset: 0 0 auto 0;
+  translate: var(--skin-sidebar-width) 0;
+  z-index: 20;
+  height: 76px;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+body[data-dsh-skin] [data-skin-trim-layer] {
+  position: absolute;
+  inset: 0;
+  transition: transform 520ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The compact source retains the landing-page lace. Slight overscan keeps the
+   source's transparent edge rows outside the 48px layer. */
+/* Trim sizing is themable because it decides whether the art has to TILE.
+   `auto <h>px repeat-x` needs a tile that meets its own edges, which a
+   generated band cannot promise: cropping to whole periods leaves a residual
+   step, mirroring reverses the weave, and cross-fading the join ghosts the
+   line art. A theme whose trim is one continuous piece sets `100% <h>px`
+   instead, so the art fills the width and never repeats -- then no seam can
+   exist, whatever the artwork does. */
+body[data-dsh-skin] [data-skin-trim-layer='landing'] {
+  height: 48px;
+  background: var(--skin-top-trim) left -2px /
+    var(--skin-top-trim-size, auto 51px) repeat-x;
+  transform: translateY(0);
+}
+
+/* At the expanded scale, the source's white embroidery starts below this
+   76px layer, leaving only the navy fabric and gold horizontal rules. */
+body[data-dsh-skin] [data-skin-trim-layer='workspace'] {
+  height: 76px;
+  background: var(--skin-top-trim) left -4px /
+    var(--skin-trim-size-tall, auto 149px) repeat-x;
+  transform: translateY(-100%);
+}
+
+body[data-dsh-skin][data-skin-workspace]
+  [data-skin-trim-layer='landing'] {
+  transform: translateY(-100%);
+}
+
+body[data-dsh-skin][data-skin-workspace]
+  [data-skin-trim-layer='workspace'] {
+  transform: translateY(0);
+}
+
+body[data-dsh-skin][data-skin-composer-motion]
+  [data-skin-trim-layer] {
+  will-change: transform;
+}
+
+body[data-dsh-skin] [data-skin-trim-layer='landing']::after {
+  content: '';
+  position: absolute;
+  /* ConversationRoot reserves DSH's stable 8px scrollbar gutter. Center the
+     ornaments on that content box, the same axis as the title and composer. */
+  left: calc((100% - var(--skin-sidebar-width) - 8px) / 2);
+  top: -1px;
+  width: 80px;
+  height: 42px;
+  transform: translateX(-50%);
+  background: var(--skin-accent-bow) center / contain no-repeat;
+  filter: drop-shadow(0 3px 6px var(--skin-bow-shadow, rgba(4, 11, 35, 0.32)));
+}
+
+/* The bottom band repeats at its native height while the center crest remains
+   an independent fixed-size layer. Resizing the sidebar therefore changes the
+   main-pane span without scaling either raster ornament. */
+body[data-dsh-skin] [data-skin-chrome='bottom-trim'] {
+  position: fixed;
+  inset: auto 0 0 0;
+  translate: var(--skin-sidebar-width) 0;
+  transform: translateY(0);
+  z-index: 19;
+  height: 60px;
+  pointer-events: none;
+  /* Height is themable because it sets the PATTERN SCALE: the same artwork
+     rendered at 30px reads about 60% the size of the same thing at 51px, so
+     a theme whose two edges share one piece of art has to match them here or
+     they look like different ornaments. */
+  background: var(--skin-bottom-trim) left bottom /
+    var(--skin-bottom-trim-size, auto 30px) repeat-x;
+  contain: paint;
+  transition: transform 520ms cubic-bezier(0.22, 0.78, 0.2, 1);
+}
+
+body[data-dsh-skin][data-skin-conversation-active] [data-skin-chrome='bottom-trim'] {
+  transform: translateY(100%);
+}
+
+body[data-dsh-skin][data-skin-composer-motion]
+  [data-skin-chrome='bottom-trim'] {
+  will-change: transform;
+}
+
+body[data-dsh-skin] [data-skin-chrome='bottom-trim']::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: calc((100% - var(--skin-sidebar-width) - 8px) / 2);
+  width: 94px;
+  height: 54px;
+  transform: translateX(-50%);
+  background: var(--skin-bottom-crest) center / contain no-repeat;
+  filter: drop-shadow(0 3px 6px var(--skin-crest-shadow, rgba(4, 11, 35, 0.34)));
+}
+
+/* Tooltip bubbles are fixed-position siblings of the rail controls. Keeping
+   them out of this stacking helper prevents their delayed mount from becoming
+   another row in the sidebar's column flex layout. */
+body[data-dsh-skin] :is([data-pane='sidebar'], [class*='sidebarCol']) > div > :not(
+    [data-skin-chrome='sidebar-mascot'],
+    [data-skin-chrome='sidebar-corners'],
+    [role='tooltip']
+  ) {
+  position: relative;
+  z-index: 2;
+}
+
+/* A fixed-size raster corner keeps the original curl detail intact while the
+   straight frame segments remain free to grow with the resizable sidebar. */
+body[data-dsh-skin] [data-skin-chrome='sidebar-corners'] {
+  --maid-sidebar-frame-line-x: 1.35px;
+  --maid-sidebar-frame-line-y: 1.25px;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background:
+    linear-gradient(90deg, var(--skin-ornament-glow, rgba(238, 210, 153, 0.94)), var(--skin-ornament-glow-strong, rgba(190, 145, 75, 0.96)), var(--skin-ornament-glow, rgba(238, 210, 153, 0.94))) left 62px top 8.875px / calc(100% - 124px) var(--maid-sidebar-frame-line-y) no-repeat,
+    linear-gradient(90deg, var(--skin-ornament-glow, rgba(238, 210, 153, 0.94)), var(--skin-ornament-glow-strong, rgba(190, 145, 75, 0.96)), var(--skin-ornament-glow, rgba(238, 210, 153, 0.94))) left 62px bottom 8.875px / calc(100% - 124px) var(--maid-sidebar-frame-line-y) no-repeat,
+    linear-gradient(180deg, var(--skin-ornament-glow, rgba(238, 210, 153, 0.94)), var(--skin-ornament-glow-strong, rgba(190, 145, 75, 0.96)), var(--skin-ornament-glow, rgba(238, 210, 153, 0.94))) left 8.05px top 62px / var(--maid-sidebar-frame-line-x) calc(100% - 124px) no-repeat,
+    linear-gradient(180deg, var(--skin-ornament-glow, rgba(238, 210, 153, 0.94)), var(--skin-ornament-glow-strong, rgba(190, 145, 75, 0.96)), var(--skin-ornament-glow, rgba(238, 210, 153, 0.94))) right 8.05px top 62px / var(--maid-sidebar-frame-line-x) calc(100% - 124px) no-repeat;
+  pointer-events: none;
+}
+
+/* The sidebar COLUMN anchors the sidebar decorations.
+   Its inner wrapper is the obvious candidate but measures 0x0 in this build —
+   its own children are positioned — so anchoring there resolves `left: 52%`
+   against zero width and throws the mascot into the middle of the page. The
+   column is the element that actually carries the sidebar's dimensions. */
+body[data-dsh-skin] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+  position: relative;
+}
+
+body[data-dsh-skin] [data-skin-chrome='sidebar-corners'] > [data-skin-corner] {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  background: var(--skin-sidebar-corner) top right / 130px 130px no-repeat;
+  filter: drop-shadow(0 1px 1px var(--skin-corner-shadow, rgba(2, 7, 24, 0.42)));
+  transform-origin: center;
+}
+
+body[data-dsh-skin] [data-skin-corner='top-left'] {
+  top: 1px;
+  left: 1px;
+  transform: scaleX(-1);
+}
+
+body[data-dsh-skin] [data-skin-corner='top-right'] {
+  top: 1px;
+  right: 1px;
+}
+
+body[data-dsh-skin] [data-skin-corner='bottom-right'] {
+  right: 1px;
+  bottom: 1px;
+  transform: scaleY(-1);
+}
+
+body[data-dsh-skin] [data-skin-corner='bottom-left'] {
+  bottom: 1px;
+  left: 1px;
+  transform: scale(-1);
+}
+
+body[data-dsh-skin] [data-skin-chrome='sidebar-mascot'] {
+  position: absolute;
+  left: 52%;
+  bottom: calc(var(--skin-sidebar-swag-height) + 94px);
+  /* Which layer the mascot occupies is a property of the THEME, because it
+     depends on how opaque that theme made its rail. Every other child of the
+     column is given z-index 2 below, and the element carrying the sidebar fill
+     is one of them: a theme with a translucent rail can leave the mascot at 1
+     and let it read through, which is what the reference theme does and why
+     its workspace cards stay above it. A theme with a near-opaque rail must
+     lift it to 3 or only a percent or two comes through. It is
+     pointer-events: none either way. */
+  z-index: var(--skin-mascot-layer, 1);
+  /* The engine sizes the mascot from the column width, which assumes a
+     landscape figure like the reference theme's. A portrait mascot at the
+     same width is far taller and dominates the rail, so themes can scale
+     it to taste. */
+  width: calc(var(--skin-sidebar-mascot-width) * var(--skin-mascot-scale, 1));
+  height: auto;
+  max-height: calc(38% * var(--skin-mascot-scale, 1));
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  opacity: var(--skin-mascot-opacity, 0.92);
+  /* Art tuning, not layout: a theme whose mascot is already bright or already
+     dark needs different values, and the shadow tint has to match its palette. */
+  filter:
+    saturate(var(--skin-mascot-saturate, 1))
+    brightness(var(--skin-mascot-brightness, 1.08))
+    contrast(var(--skin-mascot-contrast, 1.04))
+    drop-shadow(0 5px 12px var(--skin-mascot-shadow, rgba(2, 7, 24, 0.24)));
+  transform: translateX(-50%) translateZ(0);
+}
+
+body[data-dsh-skin][data-skin-sidebar-size='rail'] [data-skin-chrome='sidebar-corners'] {
+  display: none;
+}
+
+body[data-dsh-skin][data-skin-sidebar-size='rail'] [data-skin-chrome='sidebar-mascot'] {
+  display: none;
+}
+
+/* This copy sits immediately before the official mask, so the mask samples
+   and blurs it together with the rest of the sidebar instead of dropping the
+   sibling frame's composited layer. */
+body[data-dsh-skin] [data-skin-settings-backdrop-frame] {
+  inset: 0 auto 0 0;
+  width: var(--skin-sidebar-width);
+  height: 100%;
+  z-index: 0;
+}
+
+/* The frameless title bar (Web-app overlay / desktop shell) carries the
+   whale-free wordmark dead-center of the window, mirroring the sidebar
+   brand at a smaller scale. It rides the navy gradient and never hides
+   with the rail: it is purely decorative (pointer-events none), so the
+   drag region and the window buttons stay fully usable. */
+body[data-dsh-skin] [data-skin-chrome='titlebar-brand'] {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--skin-brand-ink, #f3e3c0);
+  --dsw-alias-label-primary-inverted: var(--skin-brand-knockout, #10204d);
+  pointer-events: none;
+}
+
+body[data-dsh-skin] [data-skin-chrome='titlebar-brand'] svg {
+  display: block;
+  height: 18px;
+  width: auto;
+  flex: none;
+  filter: drop-shadow(0 1px 2px var(--skin-brand-shadow, rgba(2, 8, 28, 0.62)));
+}
+
+/* The top curtain is position:fixed against the viewport, so it paints over
+   the frame's own title-bar row in frameless surfaces (Web-app overlay /
+   desktop shell). Move it below that row. env() cannot be used here: the
+   CSS-modules pipeline rewrites its identifier, so the fallback always
+   wins; the skin runtime instead measures the sidebar column's rendered
+   top edge (the exact row boundary) into --skin-titlebar-height. */
+body[data-dsh-skin] [data-skin-chrome='top-trim'] {
+  top: var(--skin-titlebar-height, 0px);
+}
+
+/* --- moved out of the reference theme: these are engine contract, not style --- */
+/* Title-bar row geometry. Upstream asserts these through CSSOM because its
+   CSS-modules pipeline rewrites the env() identifier; this build loads CSS
+   through esbuild's `text` loader, which transforms nothing, so env() survives
+   here and the rules can stay declarative. Without them the title-bar row
+   falls back to auto and a collapsed sidebar lets the content row stretch it. */
+body[data-dsh-skin] [class*='frame'][data-wco] {
+  grid-template-rows: env(titlebar-area-height, 40px) 1fr;
+}
+
+body[data-dsh-skin] [class*='frame'][data-desktop] {
+  grid-template-rows: 32px 1fr;
+}
+
+body[data-dsh-skin] [class*='frame'] [class*='handle'] {
+  top: var(--skin-titlebar-height, 0px);
+}
+
+/* The backdrop. Upstream writes these four properties onto body.style from
+   JS; here the engine only publishes --skin-backdrop (resolved light/dark) and
+   the composition stays declarative, so the per-scheme swap costs one custom
+   property write instead of four inline style mutations on body. */
+body[data-dsh-skin] {
+  background-image: var(--skin-backdrop);
+  background-position: center top;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+}
+
+/* pointer-events does not affect painting order, and the trims are fixed
+   layers above the document flow. The workspace header carries real controls,
+   so it has to sit above them whatever a theme does with its appearance. */
+body[data-dsh-skin] header:has([role='tablist']) {
+  position: relative;
+  z-index: 21;
+}
