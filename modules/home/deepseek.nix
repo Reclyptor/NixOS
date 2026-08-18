@@ -87,33 +87,57 @@ _: {
         autoInstallPeers: false
       '';
 
+      # Skins built by the dsh-skin overlay, one derivation per theme directory.
+      availableSkins = pkgs.dshSkins or { };
+
+      skinFor = profile: if profile.skin == null then null else availableSkins.${profile.skin} or null;
+
+      # A skin is just another bundle layer. Appending it last puts its patch
+      # layer above the product's own, which is what lets it insert its client
+      # entry. Nothing is disabled: an unselected theme is simply never linked
+      # into the profile, so "exactly one skin" is structural rather than an
+      # assertion we have to police.
+      bundlesFor =
+        profile: profile.bundles ++ lib.optional (skinFor profile != null) (skinFor profile).packageName;
+
       manifestFor =
         name: profile:
         jsonFormat.generate "dsh-profile-${name}-package.json" {
           name = "dsh-profile-${name}";
           private = true;
           dependencies = { };
-          dsh.profile.bundles = profile.bundles;
+          dsh.profile.bundles = bundlesFor profile;
         };
 
       # force, because the harness seeds these as real files on first boot and
       # the web UI can rewrite package.json through `dsh plugin`. Declaring a
       # profile means Nix is the source of truth for its shape; drift is
       # replaced at activation rather than silently accumulating.
-      filesFor = name: profile: {
-        "${profilePath name}/package.json" = {
-          source = manifestFor name profile;
-          force = true;
+      filesFor =
+        name: profile:
+        {
+          "${profilePath name}/package.json" = {
+            source = manifestFor name profile;
+            force = true;
+          };
+          "${profilePath name}/cordis.patch.yml" = {
+            source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" profile.patch;
+            force = true;
+          };
+          "${profilePath name}/pnpm-workspace.yaml" = {
+            source = pnpmWorkspace;
+            force = true;
+          };
+        }
+        # The skin lands in the profile's OWN node_modules, which node's
+        # resolution walk reaches before profiles/node_modules. That keeps Nix
+        # strictly out of the directory healProfilesModuleFallback manages —
+        # it throws on anything there that is not a symlink it created — and
+        # it means two profiles can wear different skins without their
+        # home.file keys colliding.
+        // lib.optionalAttrs (skinFor profile != null) {
+          "${profilePath name}/node_modules/${(skinFor profile).packageName}".source = skinFor profile;
         };
-        "${profilePath name}/cordis.patch.yml" = {
-          source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" profile.patch;
-          force = true;
-        };
-        "${profilePath name}/pnpm-workspace.yaml" = {
-          source = pnpmWorkspace;
-          force = true;
-        };
-      };
 
       # normalizeShippedProfile() runs on every profile load and rewrites
       # package.json in place when the bundle list is exactly one of these
@@ -143,6 +167,19 @@ _: {
                   Ordered `dsh.profile.bundles` layer list. Each entry is a
                   plugin-bundle package name resolved from the dsh installation,
                   so only bundles that ship in the box are usable without pnpm.
+                '';
+              };
+
+              skin = lib.mkOption {
+                type = lib.types.nullOr (lib.types.enum (lib.attrNames availableSkins));
+                default = null;
+                example = "placeholder";
+                description = ''
+                  Web skin this profile wears, named after a directory under
+                  `modules/workstation/overlays/dsh-skin/_themes`. The skin is
+                  linked into the profile and appended to its bundle list;
+                  switching themes is changing this one value. Only meaningful
+                  for profiles that load a web UI.
                 '';
               };
 
@@ -186,6 +223,7 @@ _: {
         # definitions so declaring a third profile elsewhere merges rather than
         # replacing these.
         deepseek.profiles = {
+          web.skin = lib.mkDefault "maid-atelier";
           web.bundles = lib.mkDefault [
             "@deepseek-ai/dsh-base"
             "@deepseek-ai/dsh-web-app"
