@@ -14,6 +14,15 @@ _: {
       model = "deepseek-v4-flash-0731";
       contextWindow = 1048576;
 
+      # pi-ai's OpenAI-compatible transport will not build a request without
+      # either a credential or an Authorization header, but this endpoint is
+      # keyless — Cloudflare Access in front of it does the authenticating.
+      # Upstream sanctions exactly this: "a keyless local server needs a
+      # placeholder credential referenced by apiKeyEnv or an Authorization
+      # entry in headers". Not a secret, so it is inlined rather than sops'd,
+      # and it is safe from the headers-are-never-redacted caveat below.
+      placeholderKey = "unused-cloudflare-access-fronts-this";
+
       # Owned keys only. Everything else in settings.yaml — including anything
       # the web Models page writes — is left untouched, so this merge is safe to
       # re-run and does not fight the UI for ownership of the document.
@@ -28,8 +37,9 @@ _: {
         .["llm-pi-ai"].providers.vllm.api = "openai-completions" |
         .["llm-pi-ai"].providers.vllm.displayName = "vLLM (DeepSeek V4 Flash)" |
         .["llm-pi-ai"].providers.vllm.baseURL = strenv(DSH_VLLM_URL) |
-        .["llm-pi-ai"].providers.vllm.apiKeyEnv = "VLLM_API_KEY" |
+        del(.["llm-pi-ai"].providers.vllm.apiKeyEnv) |
         .["llm-pi-ai"].providers.vllm.defaultContextWindow = ${toString contextWindow} |
+        .["llm-pi-ai"].providers.vllm.headers.Authorization = "Bearer ${placeholderKey}" |
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Id"] = strenv(DSH_CF_ID) |
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Secret"] = strenv(DSH_CF_SECRET) |
         .["llm-pi-ai"].providers.vllm.models = [{"id": "${model}"}] |
@@ -38,13 +48,6 @@ _: {
       '';
     in
     {
-      # pi-ai's OpenAI-compatible transport refuses to build a request without a
-      # credential, but this endpoint is keyless — Cloudflare Access in front of
-      # it does the authenticating, via the header pair below. Upstream's own
-      # guidance for that case is a placeholder referenced by apiKeyEnv. It is
-      # not a secret and deliberately does not come from sops.
-      home.sessionVariables.VLLM_API_KEY = "unused-cloudflare-access-fronts-this";
-
       # settings.yaml is generated here rather than by home.file because it has
       # to carry the Cloudflare Access client secret in cleartext: dsh types
       # `headers` as a plain string dict, and only `apiKeyEnv` gets credential
