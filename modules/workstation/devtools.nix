@@ -6,6 +6,7 @@ _: {
       codex
       crush
       deno
+      dsh
       gcc
       gh
       go
