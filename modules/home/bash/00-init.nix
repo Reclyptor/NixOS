@@ -25,6 +25,15 @@ _: {
         # Scoped token for the Makotogotchi zones (Tunnel/DNS/Cache/WAF Edit);
         # consumed by Makotogotchi's scripts/cloudflare-setup.sh.
         CLOUDFLARE_API_TOKEN = "cloudflare-token";
+        # Cloudflare Access service token guarding the vLLM endpoint. This is a
+        # different credential from CLOUDFLARE_API_TOKEN above: that one manages
+        # zones, this pair authenticates THROUGH Access to a tunnelled origin.
+        CF_ACCESS_CLIENT_ID = "cf-access-client-id";
+        CF_ACCESS_CLIENT_SECRET = "cf-access-client-secret";
+        # Deliberately not DEEPSEEK_BASE_URL: pi-ai does ambient environment
+        # discovery for its built-in providers, so a DEEPSEEK_-prefixed variable
+        # risks repointing the official route instead of only the custom one.
+        VLLM_BASE_URL = "vllm-base-url";
       };
 
       # Secrets whose PATH becomes the variable value (certs read on use).
