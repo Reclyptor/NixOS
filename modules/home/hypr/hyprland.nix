@@ -203,6 +203,7 @@ _: {
             "$mainMod SHIFT, S, exec, hyprshot -m region"
             "$mainMod CTRL, RETURN, exec, $menu"
             "$mainMod, H, exec, hyprshade toggle blue-light-filter"
+            "$mainMod, D, exec, hyprctl dispatch dpms toggle"
             "$mainMod, L, exec, hyprlock"
 
             # Workspaces
