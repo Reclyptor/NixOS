@@ -256,6 +256,14 @@ _: {
       # below.)
       programs.claudeCode.hooks = claudeHooks;
 
+      # dsh: the same launcher, mounted into every profile as an MCP client row
+      # by home/deepseek/deepseek.nix. Declarative rather than an activation
+      # merge because that module already owns the whole cordis.patch.yml. The
+      # tools arrive server-qualified as mcp__agentmemory__*; dsh has no
+      # lifecycle-hook seam, so there is no auto-capture counterpart here and
+      # ~/.dsh/AGENTS.md §11 says so outright.
+      deepseek.mcpServers.agentmemory.command = claudeMcpBin;
+
       # Single source of truth for all agentmemory wiring — MCP servers, lifecycle
       # hooks, and skills, for every connected agent. JSON agents are jq-merged in
       # place; Codex's MCP block is appended onto the base config that
@@ -325,9 +333,13 @@ _: {
         am_merge_hooks "$HOME/.codex/hooks.json"     ${lib.escapeShellArg codexHooksJson}
       '';
 
-      # agentmemory skills for Claude Code and Codex: read-only symlinks into the
-      # pinned plugin. The slash commands (/remember, /recall, ...) come from each
-      # skill's SKILL.md frontmatter name, not the directory name.
-      home.file = (mkSkillLinks ".claude/skills") // (mkSkillLinks ".codex/skills");
+      # agentmemory skills for Claude Code, Codex, and dsh: read-only symlinks
+      # into the pinned plugin. The slash commands (/remember, /recall, ...) come
+      # from each skill's SKILL.md frontmatter name, not the directory name. dsh
+      # scans $DSH_HOME/skills through its filesystem skill provider, so the same
+      # per-skill links land there; keying them individually leaves the parent
+      # directory writable for hand-placed skills.
+      home.file =
+        (mkSkillLinks ".claude/skills") // (mkSkillLinks ".codex/skills") // (mkSkillLinks ".dsh/skills");
     };
 }

@@ -100,6 +100,23 @@ _: {
       bundlesFor =
         profile: profile.bundles ++ lib.optional (skinFor profile != null) (skinFor profile).packageName;
 
+      # dsh mounts no MCP client of its own — dsh-mcp-client ships in the
+      # installation's closure but no bundle inserts it — so every declared
+      # server becomes one row here, in every profile. The rows go in their own
+      # patch entry ahead of the profile's, which leaves a profile free to
+      # retarget or disable `mcp-<name>` by id in its own layer.
+      mcpRows = lib.mapAttrsToList (server: cfg: {
+        id = "mcp-${server}";
+        name = "@deepseek-ai/dsh-mcp-client";
+        config = {
+          serverName = server;
+          transport = "stdio";
+          inherit (cfg) command args;
+        };
+      }) config.deepseek.mcpServers;
+
+      patchFor = profile: lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
+
       manifestFor =
         name: profile:
         jsonFormat.generate "dsh-profile-${name}-package.json" {
@@ -121,7 +138,7 @@ _: {
             force = true;
           };
           "${profilePath name}/cordis.patch.yml" = {
-            source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" profile.patch;
+            source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" (patchFor profile);
             force = true;
           };
           "${profilePath name}/pnpm-workspace.yaml" = {
@@ -202,6 +219,38 @@ _: {
           dsh profiles to materialize under ~/.dsh/profiles. A profile is an
           ordered stack of plugin-bundle patch layers under its own override
           layer, booted with `dsh --profile <name>`.
+        '';
+      };
+
+      options.deepseek.mcpServers = lib.mkOption {
+        type = lib.types.attrsOf (
+          lib.types.submodule {
+            options = {
+              command = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Executable dsh spawns for this server's stdio transport. It
+                  starts from a scrubbed parent environment — every name
+                  matching `/KEY|PASSWORD|SECRET|TOKEN/i` and every `DSH_*` name
+                  is stripped — so a server needing a credential has to read it
+                  itself rather than inherit it.
+                '';
+              };
+
+              args = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                default = [ ];
+                description = "Arguments passed to `command`.";
+              };
+            };
+          }
+        );
+        default = { };
+        description = ''
+          MCP servers mounted into every dsh profile, keyed by the name that
+          namespaces their model-facing tools (`mcp__<name>__<tool>`). dsh
+          validates that name as `[A-Za-z0-9_-]{1,32}`. Only the stdio
+          transport is modeled; nothing here needs the HTTP one yet.
         '';
       };
 
