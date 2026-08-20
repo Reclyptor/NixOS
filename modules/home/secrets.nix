@@ -48,6 +48,7 @@ _: {
               "bash/k3s-redis-password"
               "bash/steam-web-api-key"
               "bash/github-token"
+              "bash/civitai-token"
               "bash/cloudflare-token"
               "bash/cf-access-client-id"
               "bash/cf-access-client-secret"
