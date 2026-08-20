@@ -22,6 +22,12 @@ _: {
         # stored in ~/.config/gh/hosts.yml — deliberate, and not a downgrade: this
         # PAT is scoped wider than the gh OAuth token it shadows.
         GITHUB_TOKEN = "github-token";
+        # CivitAI personal API token. Roughly 70% of CivitAI downloads redirect
+        # to an auth wall without one; with it they resolve. Sent as a bearer
+        # header, never as ?token= in a URL — curl correctly drops the header on
+        # the cross-host redirect to R2, which authorises by its own pre-signed
+        # signature, and a token in a URL would leak into process lists.
+        CIVITAI_TOKEN = "civitai-token";
         # Scoped token for the Makotogotchi zones (Tunnel/DNS/Cache/WAF Edit);
         # consumed by Makotogotchi's scripts/cloudflare-setup.sh.
         CLOUDFLARE_API_TOKEN = "cloudflare-token";
