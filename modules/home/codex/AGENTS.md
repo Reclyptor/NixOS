@@ -421,7 +421,7 @@ like right now?" — for building, planning, or cross-repo reference. The
 moment it drifts onto a branch, every concurrent session is reading a lie.
 
 ### Sessions Work in Worktrees, Never in the Repo
-Every Claude or Codex session that will modify a repo creates a git
+Every Claude, Codex, or dsh session that will modify a repo creates a git
 worktree first and does all of its work there. The source checkout is read
 from, not written to.
 
@@ -432,8 +432,8 @@ All worktrees live in `~/Worktrees`, named:
 ~/Worktrees/<repo>-<agent>-<session-id>
 ```
 
-where `<agent>` is `claude` or `codex` and `<session-id>` is the session's
-own id. Deterministic naming is the point: later, either the user or
+where `<agent>` is `claude`, `codex`, or `dsh` and `<session-id>` is the
+session's own id. Deterministic naming is the point: later, either the user or
 another agent can map any session to its worktree — and any worktree back
 to the session that owns it — without guessing.
 
