@@ -97,8 +97,15 @@ _: {
       # entry. Nothing is disabled: an unselected theme is simply never linked
       # into the profile, so "exactly one skin" is structural rather than an
       # assertion we have to police.
+      # Bundle layers, broadest first: the shipped bundles, then any packaged
+      # third-party plugin, then the skin. The skin stays last so its patch
+      # layer sits above the product's own — that ordering is what lets it
+      # insert its client entry.
       bundlesFor =
-        profile: profile.bundles ++ lib.optional (skinFor profile != null) (skinFor profile).packageName;
+        profile:
+        profile.bundles
+        ++ map (plugin: plugin.packageName) profile.plugins
+        ++ lib.optional (skinFor profile != null) (skinFor profile).packageName;
 
       # dsh mounts no MCP client of its own — dsh-mcp-client ships in the
       # installation's closure but no bundle inserts it — so every declared
@@ -154,7 +161,17 @@ _: {
         # home.file keys colliding.
         // lib.optionalAttrs (skinFor profile != null) {
           "${profilePath name}/node_modules/${(skinFor profile).packageName}".source = skinFor profile;
-        };
+        }
+        # Packaged plugins land in the same per-profile node_modules for the
+        # same reason, and their own @deepseek-ai peers still resolve from
+        # profiles/node_modules further up the walk — so a plugin never carries
+        # a second copy of the harness it plugs into.
+        // lib.listToAttrs (
+          map (plugin: {
+            name = "${profilePath name}/node_modules/${plugin.packageName}";
+            value.source = plugin.packageRoot;
+          }) profile.plugins
+        );
 
       # normalizeShippedProfile() runs on every profile load and rewrites
       # package.json in place when the bundle list is exactly one of these
@@ -197,6 +214,20 @@ _: {
                   linked into the profile and appended to its bundle list;
                   switching themes is changing this one value. Only meaningful
                   for profiles that load a web UI.
+                '';
+              };
+
+              plugins = lib.mkOption {
+                type = lib.types.listOf lib.types.package;
+                default = [ ];
+                example = lib.literalExpression "[ pkgs.dsh-tui ]";
+                description = ''
+                  Third-party bundle layers packaged as derivations, appended to
+                  the bundle list in order. Each needs `passthru.packageName`
+                  and `passthru.packageRoot`; the root is linked into this
+                  profile's own `node_modules` under that name, which is how a
+                  bundle outside the dsh installation's closure becomes
+                  resolvable without `dsh plugin add` or pnpm.
                 '';
               };
 
@@ -289,6 +320,12 @@ _: {
             "@deepseek-ai/dsh-base"
             "@deepseek-ai/dsh-headless"
           ];
+
+          # The terminal front end, over dsh-base alone: dsh-tui replaces the
+          # web app rather than layering on it, and its patch owns the
+          # interactive surface. No skin — that is a web-client concern.
+          tui.bundles = lib.mkDefault [ "@deepseek-ai/dsh-base" ];
+          tui.plugins = lib.mkDefault [ pkgs.dsh-tui ];
         };
 
         # settings.yaml is generated here rather than by home.file because it has
