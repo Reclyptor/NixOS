@@ -49,6 +49,7 @@ _: {
               "bash/steam-web-api-key"
               "bash/github-token"
               "bash/civitai-token"
+              "bash/huggingface-token"
               "bash/cloudflare-token"
               "bash/cf-access-client-id"
               "bash/cf-access-client-secret"

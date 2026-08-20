@@ -28,6 +28,10 @@ _: {
         # the cross-host redirect to R2, which authorises by its own pre-signed
         # signature, and a token in a URL would leak into process lists.
         CIVITAI_TOKEN = "civitai-token";
+        # Hugging Face access token, for gated and private model repos. Unlike
+        # CivitAI, the cluster itself can reach huggingface.co, so in-pod
+        # downloads authenticate with this too.
+        HUGGINGFACE_TOKEN = "huggingface-token";
         # Scoped token for the Makotogotchi zones (Tunnel/DNS/Cache/WAF Edit);
         # consumed by Makotogotchi's scripts/cloudflare-setup.sh.
         CLOUDFLARE_API_TOKEN = "cloudflare-token";
