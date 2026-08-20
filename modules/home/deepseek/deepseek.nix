@@ -311,7 +311,7 @@ _: {
         # definitions so declaring a third profile elsewhere merges rather than
         # replacing these.
         deepseek.profiles = {
-          web.skin = lib.mkDefault "maid-atelier";
+          web.skin = lib.mkDefault "neko";
           web.bundles = lib.mkDefault [
             "@deepseek-ai/dsh-base"
             "@deepseek-ai/dsh-web-app"
