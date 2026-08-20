@@ -216,7 +216,15 @@ _: {
           '';
         }) superseded;
 
-        home.file = lib.concatMapAttrs filesFor profiles;
+        # Global dsh directives. The loader's user-global scope is the fixed
+        # path $DSH_HOME/AGENTS.md — dshHome is configurable, the file name is
+        # not — and it is read before any project AGENTS.md, so this is the
+        # broadest layer every session starts from. Edit ./AGENTS.md next to
+        # this module, not the symlink.
+        home.file = {
+          ".dsh/AGENTS.md".source = ./AGENTS.md;
+        }
+        // lib.concatMapAttrs filesFor profiles;
 
         # The two profiles the harness ships templates for. mkDefault so another
         # module can retune a bundle list without mkForce, and separate
