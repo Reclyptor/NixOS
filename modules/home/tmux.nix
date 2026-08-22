@@ -9,6 +9,15 @@ _: {
       # Turning mouse mode on makes tmux capture the wheel and enter copy-mode
       # over the pane's real scrollback instead.
       mouse = true;
+
+      # vim-style pane resizing alongside tmux's built-in arrow bindings:
+      # prefix + shift + hjkl matches prefix + M-<arrow> (5 cells).
+      extraConfig = ''
+        bind -r H resize-pane -L 5
+        bind -r J resize-pane -D 5
+        bind -r K resize-pane -U 5
+        bind -r L resize-pane -R 5
+      '';
     };
   };
 }
