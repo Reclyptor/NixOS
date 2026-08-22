@@ -72,7 +72,10 @@ export interface ThemeManifest {
   readonly title: string
   /** Value forced into `<meta name="theme-color">` for OS window chrome. */
   readonly systemChromeColor: string
-  /** `--dsw-alias-*` overrides stacked over the active base palette. */
+  /**
+   * `--dsw-*` overrides stacked over the active base theme: the palette table
+   * the theme declares, under the engine's typography layer.
+   */
   readonly tokens: Readonly<Record<string, ThemeTokenModes>>
   /** Generated art, inlined at build time. */
   readonly art: ThemeArt

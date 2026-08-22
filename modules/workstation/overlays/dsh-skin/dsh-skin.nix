@@ -36,6 +36,40 @@ _: {
               "@deepseek-ai/dsh-client-schema-form"
             ];
 
+            # Typography is a legibility policy for the harness, not a per-theme
+            # aesthetic, so it lives at engine level and every theme inherits it.
+            # dsh routes its entire type scale through one `:root` property — the
+            # thirty-odd composite `--dsw-font-*` tokens are each declared as
+            # `var(--dsw-font-family)` — so overriding that one name is the whole
+            # job. It reaches the page the same way the palette does: dsh's
+            # presenter writes every override token as an inline `body` style,
+            # which outranks the `:root` declaration it is replacing.
+            #
+            # A theme that genuinely wants its own face still wins, because
+            # `theme.tokens` is merged over this.
+            typographyTokens =
+              let
+                # The app's own stack is kept verbatim behind Atkinson rather
+                # than replaced: Atkinson carries no CJK, dsh ships Chinese
+                # strings, and the browser falls through per glyph — landing on
+                # noto-fonts-cjk-sans by way of the PingFang/YaHei entries.
+                # Classic Hyperlegible sits second so the UI keeps the typeface
+                # if Next ever leaves fonts.packages.
+                stack =
+                  "'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', "
+                  + "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', "
+                  + "'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', "
+                  + "Helvetica, Arial, sans-serif";
+              in
+              {
+                # Repeated across both modes because a typeface is
+                # scheme-invariant and `overrideTokens` refuses a bare string.
+                "--dsw-font-family" = {
+                  light = stack;
+                  dark = stack;
+                };
+              };
+
             mkSkin =
               theme:
               let
@@ -60,7 +94,7 @@ _: {
                     packageName: ${builtins.toJSON packageName},
                     title: ${builtins.toJSON theme.title},
                     systemChromeColor: ${builtins.toJSON theme.systemChromeColor},
-                    tokens: ${builtins.toJSON theme.tokens},
+                    tokens: ${builtins.toJSON (typographyTokens // theme.tokens)},
                     decoration: ${builtins.toJSON (theme.decoration or { })},
                     art: { ${lib.concatMapStringsSep ", " (a: a.slot) artSlots} },
                     css,
