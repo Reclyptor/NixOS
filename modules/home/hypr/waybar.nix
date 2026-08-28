@@ -1,6 +1,11 @@
 _: {
   flake.modules.homeManager.base =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       inherit (config) palette;
       playerctl = "${pkgs.playerctl}/bin/playerctl";
@@ -56,6 +61,159 @@ _: {
           *)             printf '{"text":"󰊴","class":"off"}\n' ;;
         esac
       '';
+
+      # One button per everyday output device: click it and that device becomes
+      # the default sink. Devices are matched by a node.name PREFIX, which is
+      # the only identifier that survives real use — node ids are handed out per
+      # session and change on every replug, node.description is presentation
+      # text a wireplumber rule may rewrite, and a bluez node name ends in a
+      # profile index (".1" for a2dp-sink) that changes when the profile does.
+      # The prefix stops short of that index; for a USB device it is simply the
+      # whole name.
+      audioSink = pkgs.writeShellApplication {
+        name = "waybar-audio-sink";
+
+        runtimeInputs = with pkgs; [
+          bluez # bluetoothctl
+          coreutils
+          gawk
+          jq
+          pipewire # pw-dump
+          systemd # systemctl
+          wireplumber # wpctl
+        ];
+
+        text = ''
+          usage() {
+            echo "usage: waybar-audio-sink {status|switch} PREFIX ICON LABEL [BT_ADDRESS]" >&2
+            exit 2
+          }
+
+          # An empty prefix would match every sink in the graph, so the count is
+          # checked before the arguments are bound rather than defaulted.
+          [ "$#" -ge 4 ] || usage
+
+          action="$1"
+          prefix="$2"
+          icon="$3"
+          label="$4"
+          address="''${5:-}"
+
+          # Lowest-numbered sink whose node.name starts with the prefix — the
+          # first one this device published. Prints nothing when the device is
+          # not in the graph at all, which is the unplugged/disconnected case
+          # rather than an error.
+          sink_id() {
+            pw-dump | jq -r --arg p "$prefix" '
+              [ .[]
+                | select(.info.props."media.class" == "Audio/Sink")
+                | select(.info.props."node.name" // "" | startswith($p))
+                | .id
+              ] | min // empty
+            '
+          }
+
+          is_default() {
+            local current
+            current="$(wpctl inspect @DEFAULT_AUDIO_SINK@ 2>/dev/null |
+              awk -F'"' '/node\.name = /{print $2; exit}' || true)"
+            case "$current" in
+              "$prefix"*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          status() {
+            local class tip
+            if [ -z "$(sink_id || true)" ]; then
+              class=unavailable
+              tip="$label — not connected"
+            elif is_default; then
+              class=active
+              tip="$label — active"
+            else
+              class=inactive
+              tip="$label — click to switch"
+            fi
+            printf '{"text":"%s","class":"%s","tooltip":"%s"}\n' "$icon" "$class" "$tip"
+          }
+
+          switch() {
+            local id
+            id="$(sink_id || true)"
+
+            # Absent from the graph. A bluetooth device can be summoned, so the
+            # button works from the charging case and not only once the earbuds
+            # are already up; an unplugged USB device cannot, and clicking it is
+            # a no-op rather than an error nobody would see anyway.
+            if [ -z "$id" ] && [ -n "$address" ]; then
+              bluetoothctl connect "$address" >/dev/null 2>&1 || true
+              for _ in $(seq 40); do
+                id="$(sink_id || true)"
+                if [ -n "$id" ]; then
+                  break
+                fi
+                sleep 0.25
+              done
+            fi
+
+            [ -n "$id" ] || return 0
+
+            # This moves streams that are already playing, not just the next one
+            # to start; streams pinned to a device in pavucontrol stay pinned,
+            # exactly as when the default is changed there.
+            wpctl set-default "$id"
+
+            # Both pills listen on this signal, so the one losing default dims in
+            # the same frame as the one gaining it instead of up to a poll later.
+            #
+            # Through the unit rather than by process name: waybar's binary is
+            # wrapped, so it runs as ".waybar-wrapped" and `pkill -x waybar`
+            # never matches it — while a loose `pkill waybar` matches THIS
+            # script, which waybar spawned as "waybar-audio-sink", and kills the
+            # switch mid-flight. `--kill-whom=main` addresses waybar itself and
+            # nothing else in the cgroup.
+            systemctl --user kill --kill-whom=main --signal=SIGRTMIN+9 waybar.service || true
+          }
+
+          case "$action" in
+            status) status ;;
+            switch) switch ;;
+            *) usage ;;
+          esac
+        '';
+
+        meta = {
+          description = "Report and switch the default pipewire sink for a waybar button";
+          mainProgram = "waybar-audio-sink";
+        };
+      };
+
+      # `address` is the bluetooth adapter address, and its presence is what
+      # tells the button it may connect the device rather than only route to it.
+      sinkButton =
+        {
+          icon,
+          label,
+          prefix,
+          address ? "",
+        }:
+        let
+          args = lib.escapeShellArgs [
+            prefix
+            icon
+            label
+            address
+          ];
+        in
+        {
+          format = "{}";
+          return-type = "json";
+          exec = "${lib.getExe audioSink} status ${args}";
+          on-click = "${lib.getExe audioSink} switch ${args}";
+          interval = 2;
+          signal = 9;
+        };
     in
     {
       # Waybar configuration
@@ -87,6 +245,8 @@ _: {
               "memory"
               "temperature"
               "disk"
+              "custom/audio-soundcore"
+              "custom/audio-kraken"
               "pulseaudio"
               "tray"
             ];
@@ -163,6 +323,21 @@ _: {
               on-click = "${mediaLoopToggle}";
               interval = 1;
               tooltip = false;
+            };
+
+            "custom/audio-soundcore" = sinkButton {
+              icon = "󰋋";
+              label = "soundcore Liberty 5 Pro";
+              # No profile index: a2dp and hsp publish different node names off
+              # the same address, and either one is still "the earbuds".
+              prefix = "bluez_output.7C_E9_13_B0_E7_2C.";
+              address = "7C:E9:13:B0:E7:2C";
+            };
+
+            "custom/audio-kraken" = sinkButton {
+              icon = "󰋎";
+              label = "Kraken 7.1 Chroma";
+              prefix = "alsa_output.usb-Synaptics_USB-C_HEADSET_00000000-00.analog-stereo";
             };
 
             "custom/gamemode" = {
@@ -294,6 +469,8 @@ _: {
           #memory,
           #temperature,
           #disk,
+          #custom-audio-soundcore,
+          #custom-audio-kraken,
           #bluetooth,
           #clock,
           #network,
@@ -336,6 +513,8 @@ _: {
           #memory,
           #temperature,
           #disk,
+          #custom-audio-soundcore,
+          #custom-audio-kraken,
           #bluetooth,
           #network,
           #pulseaudio,
@@ -349,6 +528,8 @@ _: {
           #memory:hover,
           #temperature:hover,
           #disk:hover,
+          #custom-audio-soundcore:hover,
+          #custom-audio-kraken:hover,
           #bluetooth:hover,
           #network:hover,
           #pulseaudio:hover,
@@ -377,6 +558,8 @@ _: {
           #memory:hover,
           #temperature:hover,
           #disk:hover,
+          #custom-audio-soundcore:hover,
+          #custom-audio-kraken:hover,
           #bluetooth:hover,
           #clock:hover,
           #network:hover,
@@ -404,9 +587,28 @@ _: {
           #custom-media-shuffle.off,
           #custom-media-play.off,
           #custom-media-loop.none,
-          #custom-gamemode.off {
+          #custom-gamemode.off,
+          #custom-audio-soundcore.unavailable,
+          #custom-audio-kraken.unavailable {
             color: #${palette.muted};
             border-color: #${palette.muted};
+          }
+
+          /* The sink that owns the audio is filled rather than outlined — the
+             same "this one is current" language as the active workspace. */
+          #custom-audio-soundcore.active,
+          #custom-audio-kraken.active {
+            background: #${palette.accent};
+            color: #${palette.background};
+          }
+
+          /* A device that is not in the graph keeps its dimmed identity on
+             hover. The pill still responds, because clicking the earbuds
+             connects them, but it must not read as "ready to switch". */
+          #custom-audio-soundcore.unavailable:hover,
+          #custom-audio-kraken.unavailable:hover {
+            background: #${palette.muted};
+            color: #${palette.background};
           }
 
           /* Per-module geometry. */
@@ -475,10 +677,21 @@ _: {
           #memory,
           #temperature,
           #disk,
+          #custom-audio-soundcore,
+          #custom-audio-kraken,
           #bluetooth,
           #network,
           #pulseaudio {
             margin-right: 8px;
+          }
+
+          /* Icon-only pills on the right, sized like the gamemode toggle so the
+             two of them read as one control rather than two odd-width buttons. */
+          #custom-audio-soundcore,
+          #custom-audio-kraken {
+            padding-left: 12px;
+            padding-right: 12px;
+            min-width: 36px;
           }
 
           #cpu,
