@@ -203,11 +203,11 @@ _: {
             "$mainMod SHIFT, S, exec, hyprshot -m region"
 
             # Video twins of the two screenshot binds above: same S/P letters,
-            # CTRL instead of SHIFT. Each toggles — press to pick and record,
-            # press again to stop.
-            "$mainMod CTRL, P, exec, screenrecord output"
-            "$mainMod CTRL, S, exec, screenrecord region"
-            "$mainMod CTRL SHIFT, S, exec, screenrecord region --audio"
+            # plus CTRL. Each toggles — press to pick and record, press again to
+            # stop. Audio moves to A because SHIFT+S is the region video itself.
+            "$mainMod CTRL SHIFT, P, exec, screenrecord output"
+            "$mainMod CTRL SHIFT, S, exec, screenrecord region"
+            "$mainMod CTRL SHIFT, A, exec, screenrecord region --audio"
 
             "$mainMod CTRL, RETURN, exec, $menu"
             "$mainMod, H, exec, hyprshade toggle blue-light-filter"
