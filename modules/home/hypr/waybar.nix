@@ -5,6 +5,7 @@ _: {
       inherit (config) palette;
       playerctl = "${pkgs.playerctl}/bin/playerctl";
       gamemoded = "${pkgs.gamemode}/bin/gamemoded";
+      screenrecord = "${pkgs.screenrecord}/bin/screenrecord";
 
       # These modules used to shell out through `bash -lc`, which sources the full
       # login profile on every tick — four modules at interval 1 plus gamemode at
@@ -78,6 +79,7 @@ _: {
             ];
             modules-center = [ "clock" ];
             modules-right = [
+              "custom/screenrecord"
               "custom/gamemode"
               "bluetooth"
               "network"
@@ -168,6 +170,18 @@ _: {
               return-type = "json";
               exec = "${gamemodeStatus}";
               interval = 2;
+              tooltip = false;
+            };
+
+            # Emits empty text when idle, which waybar renders as a hidden
+            # module — the pill exists only while it means something. Clicking
+            # it is the mouse equivalent of pressing the keybind again.
+            "custom/screenrecord" = {
+              format = "{}";
+              return-type = "json";
+              exec = "${screenrecord} status";
+              on-click = "${screenrecord} stop";
+              interval = 1;
               tooltip = false;
             };
 
@@ -316,6 +330,7 @@ _: {
             border-radius: 20px 5px 20px 5px;
           }
 
+          #custom-screenrecord,
           #custom-gamemode,
           #cpu,
           #memory,
@@ -328,6 +343,7 @@ _: {
             border-radius: 20px 5px 20px 5px;
           }
 
+          #custom-screenrecord:hover,
           #custom-gamemode:hover,
           #cpu:hover,
           #memory:hover,
@@ -433,6 +449,26 @@ _: {
             padding-left: 12px;
             padding-right: 12px;
             min-width: 36px;
+          }
+
+          /* The one pill allowed off the green scheme. A recording that is still
+             running is worth breaking the palette for — and it is only on screen
+             while that is true. */
+          #custom-screenrecord {
+            border: solid 2px;
+            border-color: #${palette.urgent};
+            background: #${palette.background};
+            color: #${palette.urgent};
+            transition: background 0.3s ease,
+            border-radius 0.3s ease;
+            margin-right: 8px;
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+
+          #custom-screenrecord:hover {
+            background: #${palette.urgent};
+            color: #${palette.background};
           }
 
           #cpu,
