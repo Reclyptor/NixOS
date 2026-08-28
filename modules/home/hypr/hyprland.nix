@@ -201,6 +201,14 @@ _: {
             "$mainMod SHIFT, R, exec, hyprctl reload"
             "$mainMod SHIFT, P, exec, hyprshot -m output"
             "$mainMod SHIFT, S, exec, hyprshot -m region"
+
+            # Video twins of the two screenshot binds above: same S/P letters,
+            # CTRL instead of SHIFT. Each toggles — press to pick and record,
+            # press again to stop.
+            "$mainMod CTRL, P, exec, screenrecord output"
+            "$mainMod CTRL, S, exec, screenrecord region"
+            "$mainMod CTRL SHIFT, S, exec, screenrecord region --audio"
+
             "$mainMod CTRL, RETURN, exec, $menu"
             "$mainMod, H, exec, hyprshade toggle blue-light-filter"
             "$mainMod, D, exec, hyprctl dispatch dpms toggle"
@@ -301,7 +309,8 @@ _: {
         };
       };
 
-      # Create screenshots directory
+      # Create screenshot and recording directories
       home.file."Screenshots/.keep".text = "";
+      home.file."Recordings/.keep".text = "";
     };
 }

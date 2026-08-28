@@ -85,6 +85,12 @@ _: {
         default = "485148";
         description = "Active border gray-green.";
       };
+
+      urgent = lib.mkOption {
+        type = lib.types.str;
+        default = "d94f4f";
+        description = "The one non-green: states that must not blend in, like a live screen recording.";
+      };
     };
   };
 }

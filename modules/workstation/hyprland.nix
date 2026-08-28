@@ -25,7 +25,10 @@ _: {
       kitty
       kitty-themes
       fuzzel
+      screenrecord
+      slurp
       waybar
+      wf-recorder
       xwayland
     ];
 
