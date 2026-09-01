@@ -7,7 +7,6 @@ _: {
       brave
       code-cursor
       google-chrome
-      hytale
       discord
       discordx
       element-desktop
