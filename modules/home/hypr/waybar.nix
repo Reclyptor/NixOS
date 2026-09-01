@@ -54,6 +54,71 @@ _: {
         esac
       '';
 
+      # Today's agent spend, with the billing cycle in the tooltip. One
+      # `codeburn status` per minute: cold it takes ~6s, warm off its own cache
+      # ~0.65s, and it is the only invocation — the per-model table lives behind
+      # the click, in the TUI, rather than costing a second process every tick
+      # (it is only in --format menubar-json, which carries no plan block).
+      #
+      # `plan.spent` rather than `month.cost`: the plan block counts the real
+      # Aug-20-to-Sep-20 billing cycle, the month block counts the calendar
+      # month, and on the first of the month they differ by a factor of three.
+      # The `else` branch is what shows if the plan config ever goes missing.
+      #
+      # Deliberately no colour on plan.status: it reads "over" at 1415% of a
+      # $200 plan and will stay there, so a permanently red pill would say
+      # nothing. It dims only when codeburn genuinely fails to report.
+      codeburnStatus = pkgs.writeShellApplication {
+        name = "waybar-codeburn";
+
+        runtimeInputs = with pkgs; [
+          codeburn
+          jq
+        ];
+
+        text = ''
+          status="$(codeburn status --format json 2>/dev/null)" || status=""
+
+          # No plan, no cache, no session logs yet — all land here, and all of
+          # them are "nothing to say" rather than an error worth a red pill.
+          case "$status" in
+            \{*) ;;
+            *)
+              printf '{"text":"󰧑 --","class":"unavailable","tooltip":"CodeBurn: no usage data"}\n'
+              exit 0
+              ;;
+          esac
+
+          printf '%s' "$status" | jq -c '
+            def money: (. * 100 | round) as $c
+              | ($c / 100 | floor) as $d
+              | ($c - $d * 100) as $r
+              | "$\($d).\(if $r < 10 then "0\($r)" else "\($r)" end)";
+            def budget: if . == floor then "$\(.)" else money end;
+            def row($k; $v): "\($k + (" " * (10 - ($k | length))))\($v)";
+
+            . as $s
+            | ($s.today.cost // 0) as $today
+            | $s.plan as $p
+            | [ row("Today"; "\($today | money) · \($s.today.calls // 0) calls") ]
+              + (if $p then
+                   [ row("Cycle"; "\($p.spent | money) · \(($p.percentUsed / 10 | round) / 10)× the \($p.budget | budget) plan")
+                   , row("Projected"; "\($p.projectedMonthEnd | money) by \($p.periodEnd | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 | strflocaltime("%-d %b"))")
+                   , row("Resets"; "in \($p.daysUntilReset) days")
+                   ]
+                 else
+                   [ row("Month"; "\($s.month.cost | money) · \($s.month.calls) calls") ]
+                 end)
+            | { text: "󰧑 \($today | money)", tooltip: join("\n") }
+          '
+        '';
+
+        meta = {
+          description = "Report today's AI agent spend for a waybar pill";
+          mainProgram = "waybar-codeburn";
+        };
+      };
+
       gamemodeStatus = pkgs.writeShellScript "waybar-gamemode" ''
         status=$(${gamemoded} -s 2>/dev/null || true)
         case "$status" in
@@ -241,6 +306,7 @@ _: {
               "custom/gamemode"
               "bluetooth"
               "network"
+              "custom/codeburn"
               "cpu"
               "memory"
               "temperature"
@@ -360,6 +426,14 @@ _: {
               tooltip = false;
             };
 
+            "custom/codeburn" = {
+              format = "{}";
+              return-type = "json";
+              exec = "${lib.getExe codeburnStatus}";
+              on-click = "kitty --class codeburn -e codeburn";
+              interval = 60;
+            };
+
             cpu = {
               format = "  {usage}%";
               interval = 2;
@@ -465,6 +539,7 @@ _: {
           #custom-media-next,
           #custom-media-loop,
           #custom-gamemode,
+          #custom-codeburn,
           #cpu,
           #memory,
           #temperature,
@@ -509,6 +584,7 @@ _: {
 
           #custom-screenrecord,
           #custom-gamemode,
+          #custom-codeburn,
           #cpu,
           #memory,
           #temperature,
@@ -524,6 +600,7 @@ _: {
 
           #custom-screenrecord:hover,
           #custom-gamemode:hover,
+          #custom-codeburn:hover,
           #cpu:hover,
           #memory:hover,
           #temperature:hover,
@@ -554,6 +631,7 @@ _: {
           #custom-media-next:hover,
           #custom-media-loop:hover,
           #custom-gamemode:hover,
+          #custom-codeburn:hover,
           #cpu:hover,
           #memory:hover,
           #temperature:hover,
@@ -589,7 +667,8 @@ _: {
           #custom-media-loop.none,
           #custom-gamemode.off,
           #custom-audio-soundcore.unavailable,
-          #custom-audio-usbc.unavailable {
+          #custom-audio-usbc.unavailable,
+          #custom-codeburn.unavailable {
             color: #${palette.muted};
             border-color: #${palette.muted};
           }
@@ -673,6 +752,7 @@ _: {
             color: #${palette.background};
           }
 
+          #custom-codeburn,
           #cpu,
           #memory,
           #temperature,
@@ -694,6 +774,7 @@ _: {
             min-width: 36px;
           }
 
+          #custom-codeburn,
           #cpu,
           #memory,
           #temperature,
