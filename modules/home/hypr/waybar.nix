@@ -246,7 +246,7 @@ _: {
               "temperature"
               "disk"
               "custom/audio-soundcore"
-              "custom/audio-kraken"
+              "custom/audio-usbc"
               "pulseaudio"
               "tray"
             ];
@@ -334,9 +334,9 @@ _: {
               address = "7C:E9:13:B0:E7:2C";
             };
 
-            "custom/audio-kraken" = sinkButton {
+            "custom/audio-usbc" = sinkButton {
               icon = "󰋎";
-              label = "Kraken 7.1 Chroma";
+              label = "USB-C Earbuds";
               prefix = "alsa_output.usb-Synaptics_USB-C_HEADSET_00000000-00.analog-stereo";
             };
 
@@ -470,7 +470,7 @@ _: {
           #temperature,
           #disk,
           #custom-audio-soundcore,
-          #custom-audio-kraken,
+          #custom-audio-usbc,
           #bluetooth,
           #clock,
           #network,
@@ -514,7 +514,7 @@ _: {
           #temperature,
           #disk,
           #custom-audio-soundcore,
-          #custom-audio-kraken,
+          #custom-audio-usbc,
           #bluetooth,
           #network,
           #pulseaudio,
@@ -529,7 +529,7 @@ _: {
           #temperature:hover,
           #disk:hover,
           #custom-audio-soundcore:hover,
-          #custom-audio-kraken:hover,
+          #custom-audio-usbc:hover,
           #bluetooth:hover,
           #network:hover,
           #pulseaudio:hover,
@@ -559,7 +559,7 @@ _: {
           #temperature:hover,
           #disk:hover,
           #custom-audio-soundcore:hover,
-          #custom-audio-kraken:hover,
+          #custom-audio-usbc:hover,
           #bluetooth:hover,
           #clock:hover,
           #network:hover,
@@ -589,7 +589,7 @@ _: {
           #custom-media-loop.none,
           #custom-gamemode.off,
           #custom-audio-soundcore.unavailable,
-          #custom-audio-kraken.unavailable {
+          #custom-audio-usbc.unavailable {
             color: #${palette.muted};
             border-color: #${palette.muted};
           }
@@ -597,7 +597,7 @@ _: {
           /* The sink that owns the audio is filled rather than outlined — the
              same "this one is current" language as the active workspace. */
           #custom-audio-soundcore.active,
-          #custom-audio-kraken.active {
+          #custom-audio-usbc.active {
             background: #${palette.accent};
             color: #${palette.background};
           }
@@ -606,7 +606,7 @@ _: {
              hover. The pill still responds, because clicking the earbuds
              connects them, but it must not read as "ready to switch". */
           #custom-audio-soundcore.unavailable:hover,
-          #custom-audio-kraken.unavailable:hover {
+          #custom-audio-usbc.unavailable:hover {
             background: #${palette.muted};
             color: #${palette.background};
           }
@@ -678,7 +678,7 @@ _: {
           #temperature,
           #disk,
           #custom-audio-soundcore,
-          #custom-audio-kraken,
+          #custom-audio-usbc,
           #bluetooth,
           #network,
           #pulseaudio {
@@ -688,7 +688,7 @@ _: {
           /* Icon-only pills on the right, sized like the gamemode toggle so the
              two of them read as one control rather than two odd-width buttons. */
           #custom-audio-soundcore,
-          #custom-audio-kraken {
+          #custom-audio-usbc {
             padding-left: 12px;
             padding-right: 12px;
             min-width: 36px;
