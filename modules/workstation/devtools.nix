@@ -3,6 +3,7 @@ _: {
     environment.systemPackages = with pkgs; [
       claude-code
       cmake
+      codeburn
       codex
       crush
       deno
