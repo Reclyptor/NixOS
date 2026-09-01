@@ -6,11 +6,16 @@ _: {
         # so Discord needs that window's PID. It only gets one from WebRTC's X11
         # capturer; under Wayland it captures through the ScreenCast portal, which
         # reports no PID and carries no audio of its own, so the stream goes out with
-        # a silent audio track. WebRTC picks its capturer off XDG_SESSION_TYPE while
-        # the render path keys off NIXOS_OZONE_WL/WAYLAND_DISPLAY, so pinning only
-        # XDG_SESSION_TYPE buys the X11 capturer without giving up native Wayland
-        # rendering. Proton games are XWayland clients and stay capturable, as does
-        # `mpvx` (see overlays/mpv.nix).
+        # a silent audio track. WebRTC picks its capturer off XDG_SESSION_TYPE, so
+        # pinning it to x11 buys the X11 capturer. Proton games are XWayland clients
+        # and stay capturable, as does `mpvx` (see overlays/mpv.nix).
+        #
+        # NIXOS_OZONE_WL is unset so the launcher adds no Wayland ozone flags and
+        # Electron renders through XWayland like the capturer. Rendering Wayland
+        # while capturing X11 left the browser process holding both display
+        # connections, and that mixed mode crashed repeatedly mid-stream (native
+        # SEGV/TRAP in the browser process alongside GPU-process exits); whole-app
+        # X11 is the path every non-Wayland Discord user exercises.
         #
         # Stock `discord` keeps the portal path, which is the only way to share a
         # native Wayland window or a whole screen — at the cost of stream audio.
@@ -28,7 +33,8 @@ _: {
             }
             ''
               makeWrapper ${final.discord}/bin/Discord $out/bin/discordx \
-                --set XDG_SESSION_TYPE x11
+                --set XDG_SESSION_TYPE x11 \
+                --unset NIXOS_OZONE_WL
 
               # MimeType is dropped so this entry never takes over discord:// links;
               # Icon=discord resolves against the discord package's own hicolor theme.
