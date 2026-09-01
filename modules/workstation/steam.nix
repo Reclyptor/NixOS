@@ -23,5 +23,15 @@ _: {
     };
 
     programs.gamemode.enable = true;
+
+    programs.gamemode.settings = {
+      general = {
+        renice = 10;
+        desiredgov = "performance";
+        defaultgov = "powersave";
+        igpu_desiredgov = "performance";
+        inhibit_screensaver = 1;
+      };
+    };
   };
 }
