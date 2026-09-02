@@ -24,11 +24,15 @@ _: {
 
     programs.gamemode.enable = true;
 
+    # defaultgov is deliberately unset: naming a governor here makes GameMode
+    # restore *that* one on exit rather than whatever was actually running, so
+    # a hardcoded value silently leaves the machine parked there after every
+    # session. Omitted, GameMode records the governor at activation and puts it
+    # back.
     programs.gamemode.settings = {
       general = {
         renice = 10;
         desiredgov = "performance";
-        defaultgov = "powersave";
         igpu_desiredgov = "performance";
         inhibit_screensaver = 1;
       };
