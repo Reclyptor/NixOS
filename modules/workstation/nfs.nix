@@ -20,6 +20,18 @@ _: {
       ];
     };
 
+    # movies is its own dataset on the NAS, and NFS does not cross a dataset
+    # boundary — mounting only the parent shows an empty directory here.
+    fileSystems."/data/nfs/dxp4800/movies" = {
+      device = "192.168.1.3:/mnt/primary/videos/movies";
+      fsType = "nfs4";
+      options = [
+        "defaults"
+        "_netdev"
+        "x-systemd.automount"
+      ];
+    };
+
     fileSystems."/data/nfs/flashstor/videos" = {
       device = "192.168.1.4:/mnt/primary/videos";
       fsType = "nfs4";
