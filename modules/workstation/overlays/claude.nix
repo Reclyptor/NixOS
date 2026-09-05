@@ -4,11 +4,11 @@ _: {
       (_final: prev: {
         claude-code = prev.stdenvNoCC.mkDerivation rec {
           pname = "claude-code";
-          version = "2.1.220";
+          version = "2.1.261";
 
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64/-/claude-code-linux-x64-${version}.tgz";
-            hash = "sha256-JdLiyubT0dXO6vDaAug8RcFkVeRe+hqzBTldwFInrQ0=";
+            hash = "sha256-kKPmdenzy2E/6i/4gf5BCFJ6v7zqcH4ENOFaUkz2vI4=";
           };
 
           sourceRoot = "package";
