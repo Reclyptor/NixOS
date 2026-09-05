@@ -13,10 +13,22 @@ _: {
 
           sourceRoot = ".";
 
+          nativeBuildInputs = [ prev.makeWrapper ];
+
+          # Static musl binary: nothing to strip or patchelf, and fixup would
+          # only mangle it. The wrapper below is written by the makeWrapper
+          # setup hook, which is independent of fixupPhase.
           dontFixup = true;
 
+          # Codex sandboxes every command it runs through bwrap and falls back
+          # to a bundled copy (with a startup warning) when the real one is
+          # absent. bubblewrap is not in systemPackages, so put it on codex's
+          # own PATH rather than the whole system's.
           installPhase = ''
             install -Dm755 codex-x86_64-unknown-linux-musl $out/bin/codex
+
+            wrapProgram $out/bin/codex \
+              --prefix PATH : ${prev.lib.makeBinPath [ prev.bubblewrap ]}
           '';
 
           meta = {
