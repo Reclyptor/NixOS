@@ -1,10 +1,5 @@
 _: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
-    environment.sessionVariables = {
-      STEAM_RUNTIME = "1";
-      LD_PRELOAD = "";
-    };
-
     # steam is deliberately absent: programs.steam below installs its own
     # package and steam-run. Adding bare pkgs.steam here collides with it on
     # bin/steam and the bare one wins, which costs the FHS environment
