@@ -3,6 +3,7 @@ _: {
     fonts.packages = with pkgs; [
       nerd-fonts.fira-code
       nerd-fonts.jetbrains-mono
+      noto-fonts
       noto-fonts-cjk-sans
       atkinson-hyperlegible
       # The 2025 revision, carrying a variable weight axis. The dsh web skin
@@ -11,5 +12,28 @@ _: {
       atkinson-hyperlegible-next
       open-dyslexic
     ];
+
+    # DejaVu stays first so Latin text renders exactly as it did; the rest is
+    # fallback for what it does not cover. The CJK entries are pinned to the JP
+    # variant because every regional cut lives in one .ttc and all of them
+    # claim ja coverage, so with nothing to break the tie fontconfig hands back
+    # the KR face and draws Japanese with Korean glyph forms.
+    fonts.fontconfig.defaultFonts = {
+      sansSerif = [
+        "DejaVu Sans"
+        "Noto Sans"
+        "Noto Sans CJK JP"
+      ];
+      serif = [
+        "DejaVu Serif"
+        "Noto Serif"
+        "Noto Serif CJK JP"
+      ];
+      monospace = [
+        "DejaVu Sans Mono"
+        "Noto Sans Mono"
+        "Noto Sans Mono CJK JP"
+      ];
+    };
   };
 }
