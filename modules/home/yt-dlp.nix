@@ -8,7 +8,7 @@ _: {
         set -euo pipefail
 
         GUM="${pkgs.gum}/bin/gum"
-        NFS_ROOT="/data/nfs/dxp6800"
+        NFS_ROOT="/data/nfs/dxp4800"
         VIDEO_FORMAT="%(upload_date)s.%(title)s.%(id)s.%(ext)s"
 
         declare -A CATEGORY_DIRS=(
