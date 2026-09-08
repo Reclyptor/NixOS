@@ -11,8 +11,33 @@ _: {
       general = {
         renice = 10;
         desiredgov = "performance";
-        igpu_desiredgov = "performance";
-        inhibit_screensaver = 1;
+
+        # Disables the iGPU heuristic, the only thing igpu_desiredgov feeds. It
+        # reads the RAPL energy counters to decide whether the integrated GPU is
+        # loaded enough to deserve the CPU's power budget, and this board does not
+        # expose /sys/class/powercap/intel-rapl/.../energy_uj, so every activation
+        # logged a read failure. Games run on the discrete card regardless.
+        #
+        # 10000 rather than the -1 the man page suggests: gamemode 1.8.2 rejects a
+        # negative threshold with an error of its own and then still reads the
+        # counters. The daemon short-circuits on `threshold < 10000` before
+        # touching RAPL, which is the branch its own comment describes as the way
+        # to turn the heuristic off.
+        igpu_power_threshold = 10000;
+
+        # Nothing on this system claims org.freedesktop.ScreenSaver — no
+        # hypridle, no swayidle, and Hyprland does not implement it — so the
+        # inhibit call failed with ServiceUnknown on every activation while
+        # inhibiting nothing. Turn this back on if an idle daemon ever lands.
+        inhibit_screensaver = 0;
+
+        # ioprio is deliberately left at its default. GameMode logs "Skipping
+        # ioprio on client: ioprio was (0) but we expected (4)" on every
+        # activation because it compares against a value no process that never
+        # called ioprio_set actually has, and no config value avoids that: "off"
+        # is clamped back to 0 with a second error before the check that would
+        # honour it. Moot regardless, since every NVMe here runs the `none`
+        # scheduler, which does not arbitrate by priority.
       };
     };
 
