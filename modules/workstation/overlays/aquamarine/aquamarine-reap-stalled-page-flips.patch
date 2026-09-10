@@ -1,0 +1,171 @@
+drm: reap page-flips whose completion never arrives
+
+A page-flip completion the kernel never delivers strands the output for good.
+CFrameScheduler keeps the frame pending, CDRMOutput::commitState refuses every
+subsequent buffer commit with "Cannot commit when a page-flip is awaiting", and
+CDRMOutput::scheduleFrame returns early on canSchedule(), so nothing is left to
+ask for the frame that would clear the flag. The output stays dark until a
+modeset shakes the flip loose, which in practice means the user cycling DPMS by
+hand.
+
+The kernel does not guarantee flip_done. Observed on an NVIDIA-driven DP sink
+whose link re-trains when the monitor's input is switched away and back: the
+connector disconnects and reconnects, aquamarine modesets and arms a flip, and
+that flip's event only surfaces once a later disable commit tears the CRTC down,
+by which point it is stale. amdgpu reports the same shape via flip_done timeouts
+and i915 via MST resume.
+
+restoreAfterVT() and the modeset branch of commitState already drop flips whose
+completion is known to be lost; both carry comments describing exactly this
+failure. Extend the same treatment to losses that arrive without warning: stamp
+the frame on submission, and drop it when a caller finds it still outstanding
+past a deadline no healthy pipeline can reach. The commit that follows either
+flips, or is refused by the kernel and carried through commitState's existing
+re-modeset retry.
+
+Refs: hyprwm/aquamarine#240, hyprwm/aquamarine#382, hyprwm/aquamarine#390
+---
+--- a/include/aquamarine/backend/DRM.hpp
++++ b/include/aquamarine/backend/DRM.hpp
+@@ -366,6 +366,7 @@
+         void                                           releaseFBBuffer(const Hyprutils::Memory::CSharedPointer<CDRMFB> fb);
+         void                                           releaseFBReferences(DRMFBList* retired = nullptr);
+         void                                           invalidateFrame();
++        bool                                           reapStalledFrame();
+         void                                           setCRTC(Hyprutils::Memory::CSharedPointer<SDRMCRTC> newCRTC);
+ 
+         Hyprutils::Memory::CSharedPointer<CDRMOutput>  output;
+--- a/include/aquamarine/backend/FrameScheduler.hpp
++++ b/include/aquamarine/backend/FrameScheduler.hpp
+@@ -2,6 +2,8 @@
+ 
+ #include <hyprutils/signal/Signal.hpp>
+ 
++#include <chrono>
++
+ namespace Aquamarine {
+     // Per-output frame scheduling state, shared by the DRM and Wayland backends.
+     //
+@@ -29,6 +31,10 @@
+         // is a frame in flight awaiting completion?
+         bool frameInFlight() const;
+ 
++        // how long the in-flight frame has been awaiting its completion event.
++        // zero when no frame is in flight.
++        std::chrono::steady_clock::duration frameInFlightFor() const;
++
+         // may a new frame be scheduled? (does not consider output enabled state)
+         bool canSchedule() const;
+ 
+@@ -49,10 +55,11 @@
+         Hyprutils::Signal::CSignalT<> rescheduleNeeded;
+ 
+       private:
+-        bool m_pending             = false;
+-        bool m_frameScheduled      = false;
+-        bool m_frameRunning        = false;
+-        bool m_rescheduleRequested = false;
++        bool                                  m_pending = false;
++        std::chrono::steady_clock::time_point m_submittedAt{};
++        bool                                  m_frameScheduled      = false;
++        bool                                  m_frameRunning        = false;
++        bool                                  m_rescheduleRequested = false;
+ 
+         friend class CFrameRunningGuard;
+     };
+--- a/src/backend/FrameScheduler.cpp
++++ b/src/backend/FrameScheduler.cpp
+@@ -3,7 +3,8 @@
+ using namespace Aquamarine;
+ 
+ void CFrameScheduler::onFrameSubmitted() {
+-    m_pending = true;
++    m_pending     = true;
++    m_submittedAt = std::chrono::steady_clock::now();
+ }
+ 
+ void CFrameScheduler::onFrameComplete() {
+@@ -21,6 +22,13 @@
+     return m_pending;
+ }
+ 
++std::chrono::steady_clock::duration CFrameScheduler::frameInFlightFor() const {
++    if (!m_pending)
++        return {};
++
++    return std::chrono::steady_clock::now() - m_submittedAt;
++}
++
+ bool CFrameScheduler::canSchedule() const {
+     return !m_pending && !m_frameRunning && !m_frameScheduled;
+ }
+--- a/src/backend/drm/DRM.cpp
++++ b/src/backend/drm/DRM.cpp
+@@ -2246,6 +2246,41 @@
+     }
+ }
+ 
++// A page-flip completion that never arrives strands the output for good: the
++// scheduler keeps the frame pending, CDRMOutput::commitState refuses every buffer
++// commit with "Cannot commit when a page-flip is awaiting", and scheduleFrame
++// returns early -- so nothing ever asks for the frame that would clear it. The
++// kernel does not always deliver flip_done: a DP link retrain behind a monitor
++// input switch, a driver-side flip timeout, or a sink that drops the flip across a
++// hotplug all end the same way, and only a modeset shakes it loose.
++//
++// restoreAfterVT() and the modeset path in commitState already drop flips whose
++// completion is known to be lost. This is the same treatment for the losses nobody
++// gets told about: give the in-flight frame a deadline and drop it once it passes.
++// The commit that follows either flips, or is refused by the kernel and taken
++// through commitState's existing re-modeset retry, which is the recovery a manual
++// DPMS off/on performs by hand.
++bool Aquamarine::SDRMConnector::reapStalledFrame() {
++    // One second sits far outside any legitimate submit-to-flip_done window: over
++    // 200 vblanks at 240Hz, and 50 at the slowest mode a sink is likely to offer. A
++    // healthy pipeline cannot reach it, and a flip still outstanding by then is not
++    // going to land on its own.
++    static constexpr auto PAGE_FLIP_DEADLINE = std::chrono::seconds(1);
++
++    // a frame mid-emit is not stalled, and clearing the scheduler out from under a
++    // live CFrameRunningGuard would stomp on its bookkeeping.
++    if (sched.frameRunning() || !sched.frameInFlight() || sched.frameInFlightFor() < PAGE_FLIP_DEADLINE)
++        return false;
++
++    backend->backend->log(AQ_LOG_ERROR,
++                          std::format("drm: page-flip on {} never completed after {}ms, dropping it to unblock the output", szName,
++                                      std::chrono::duration_cast<std::chrono::milliseconds>(sched.frameInFlightFor()).count()));
++
++    invalidateFrame();
++
++    return true;
++}
++
+ void Aquamarine::SDRMConnector::invalidateFrame() {
+     sched.invalidate();
+ 
+@@ -2587,8 +2622,12 @@
+         }
+ 
+         if (STATE.enabled && (COMMITTED & COutputState::eOutputStateProperties::AQ_OUTPUT_STATE_BUFFER) && connector->sched.frameInFlight()) {
+-            backend->backend->log(AQ_LOG_ERROR, "drm: Cannot commit when a page-flip is awaiting");
+-            return false;
++            // the flip may simply be lost. reapStalledFrame drops it once it is past its
++            // deadline, which lets this commit through and gets the pipeline moving again.
++            if (!connector->reapStalledFrame()) {
++                backend->backend->log(AQ_LOG_ERROR, "drm: Cannot commit when a page-flip is awaiting");
++                return false;
++            }
+         }
+ 
+         if (STATE.enabled && (COMMITTED & COutputState::eOutputStateProperties::AQ_OUTPUT_STATE_BUFFER))
+@@ -2941,6 +2980,10 @@
+     if (!enabledState)
+         return;
+ 
++    // a lost flip would block every schedule from here on, and no other caller is
++    // left to notice: this is the only path that runs while the output is stranded.
++    connector->reapStalledFrame();
++
+     // a scheduleFrame mid frame, reschedule one more.
+     if (connector->sched.frameRunning()) {
+         connector->sched.requestReschedule();
