@@ -54,14 +54,33 @@ _: {
       # hyprland.nix), so they are deliberately adjacent -- whichever way round they
       # go, that chord wants them next to each other rather than split across the arc.
       #
-      # DPI LADDER: { 400, 800, 1200, 1600 }, default 800
+      # DPI LADDER: { 400, 600, 800, 1000 }, default 800
       #
-      # The SlimBlade Pro's own four steps, cycled by its dedicated DPI button.
-      # DPI_CONFIG persists the chosen index to EEPROM, so it survives replug but
-      # NOT a keymap change that shortens the array -- ploopyco.c bounds-checks with
-      # `> DPI_OPTION_SIZE` rather than `>=`, so a stored index equal to the array
-      # length reads one past the end. Press the DPI button once after flashing if
-      # the pointer speed is wrong; cycle_dpi() takes a modulo and self-corrects.
+      # Began as { 400, 800, 1200, 1600 }, the Kensington SlimBlade Pro's own four
+      # steps, carried over unchanged when the Adept replaced it. Only the bottom
+      # two ever got used, and the 2x gap between them was too coarse to settle on
+      # a comfortable speed, so the top came off and the rungs were packed into the
+      # band in use.
+      #
+      # Even 200 CPI steps, picked by hand rather than derived. Pointer speed reads
+      # as a ratio rather than a difference, and a geometric ladder over this span
+      # would want a constant 1.36 -- these are 1.50, 1.33 and 1.25, so the low end
+      # steps harder than the high end. That is the price of round numbers, and the
+      # worst jump is still 1.5x against the 2x it replaced.
+      #
+      # The PMW3360 takes only multiples of 100 in any case: QMK's driver computes
+      # its register value as `cpi / PMW33XX_CPI_STEP` with the step at 100, in
+      # integer division, so anything else rounds down silently -- 850 would land
+      # on 800 with no warning.
+      #
+      # The array stays four long deliberately. DPI_CONFIG persists the chosen
+      # index to EEPROM, and ploopyco.c bounds-checks it with `> DPI_OPTION_SIZE`
+      # rather than `>=`, so a stored index equal to the array length reads one
+      # past the end. Shortening the array would have walked into that; holding at
+      # four means every index the old firmware could have written, 0 through 3,
+      # is still in range. The index now means a different speed, though, so after
+      # flashing the pointer comes back at whatever rung the stored index points
+      # at -- press the DPI button to cycle to the one you want.
       #
       # DRAG-SCROLL DIVISOR: 113
       #
@@ -83,7 +102,7 @@ _: {
       # Check: 800/113 = 7.1 clicks/inch against the SlimBlade's 48/6.803 = 7.06.
       #
       # A FIXED divisor would make scroll rate depend on DPI, since the rate is
-      # CPI/DIVISOR -- cycling to 1600 would scroll twice as fast, and the SlimBlade
+      # CPI/DIVISOR -- dropping to 400 would halve the scroll rate, and the SlimBlade
       # match would hold at 800 CPI only. Avoided by making the divisor track DPI.
       # ploopyco.c uses the macro in expression position:
       #
@@ -93,8 +112,8 @@ _: {
       # ./keymap.c that scales with the live DPI (ploopyco.h exports both
       # keyboard_config and dpi_array), holding 7.08 clicks/inch at every step:
       #
-      #   400 CPI -> divisor  56.5      1200 CPI -> divisor 169.5
-      #   800 CPI -> divisor 113.0      1600 CPI -> divisor 226.0
+      #   400 CPI -> divisor  56.50      800 CPI -> divisor 113.00
+      #   600 CPI -> divisor  84.75     1000 CPI -> divisor 141.25
       #
       # So the DPI button changes pointer speed only, as it does on the SlimBlade.
       # Cost is one array index, an int-to-float convert and a multiply per polled
@@ -125,7 +144,7 @@ _: {
       #
       # Verify the result without flashing, since a build can succeed while the
       # keymap silently fails to apply -- search the .uf2 for the expected bytes:
-      #   dpi_array          90012003 b0044006          (400, 800, 1200, 1600 LE)
+      #   dpi_array          90015802 2003e803          (400, 600, 800, 1000 LE)
       #   keymaps (matrix)   d100d300 007ee300 017ed200 (BTN1 BTN3 DPI GUI DRAG BTN2)
       #
       # keymaps is stored in MATRIX order -- [0,0] [0,1] ... [0,5], i.e. BL TLL TL
