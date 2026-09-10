@@ -1,10 +1,14 @@
 #pragma once
 
-// The SlimBlade Pro's four DPI steps, cycled by DPI_CONFIG and persisted to
-// EEPROM. Ploopy's own default ladder is { 600, 900, 1200, 1600, 2400 }.
+// Four DPI steps, cycled by DPI_CONFIG and persisted to EEPROM. Ploopy's own
+// default ladder is { 600, 900, 1200, 1600, 2400 }. This one began as
+// { 400, 800, 1200, 1600 }, the Kensington SlimBlade Pro's own steps, carried
+// over when the Adept replaced it; it was later narrowed to the band that
+// actually gets used -- see the DPI LADDER note in trackball.nix. Index 2 is
+// 800, the old default speed.
 #define PLOOPY_DPI_OPTIONS \
-    { 400, 800, 1200, 1600 }
-#define PLOOPY_DPI_DEFAULT 1
+    { 400, 600, 800, 1000 }
+#define PLOOPY_DPI_DEFAULT 2
 
 // Hold to scroll rather than toggle. Set explicitly: upstream madromys leaves
 // this undefined, which means toggle, and a toggle carries invisible state --
