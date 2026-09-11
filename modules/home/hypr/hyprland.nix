@@ -305,6 +305,8 @@ _: {
             "no_initial_focus on, opacity 0.9 0.9, match:class ^(jetbrains-.*)"
             "opaque on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
             "no_blur on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
+            "workspace empty, match:class ^(steam_app_[0-9]+)$"
+            "fullscreen on, match:class ^(steam_app_[0-9]+)$"
           ];
         };
       };
