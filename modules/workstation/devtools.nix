@@ -8,6 +8,7 @@ _: {
       crush
       deno
       dsh
+      gallery-dl
       gcc
       gh
       go
