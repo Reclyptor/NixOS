@@ -19,7 +19,7 @@ _: {
           # trying to thread a store path through its config.
           export PATH="${pkgs.ffmpeg-full}/bin:''${PATH}"
 
-          NFS_ROOT="/data/nfs/dxp4800"
+          NFS_ROOT="/data/nfs/dxp4800/images"
           BASE_PATH="''${NFS_ROOT}/pixiv"
           CONFIG="''${HOME}/.config/gallery-dl/config.json"
 
