@@ -1,6 +1,19 @@
+# Every entry here mounts a DATASET ROOT and never an individual child
+# dataset, and that is a privacy rule before it is a technical one.
+#
+# The NAS exports each media category under a root as its own ZFS dataset, and
+# NFSv4 crosses into an exported child on first access — the client builds the
+# submount itself. So enumerating the children would buy nothing: they are all
+# reachable through the root regardless. What enumerating them WOULD do is
+# write every category name into this file, and this repository is public.
+# Mounting only the root keeps the shape of what is stored off the internet.
+#
+# Mountpoints are <host>/<dataset> so a second dataset on the same NAS has
+# somewhere to land. dxp4800's videos used to sit at the bare /data/nfs/dxp4800,
+# which left a sibling nowhere to go except inside the videos dataset itself.
 _: {
   flake.modules.nixos.workstation = _: {
-    fileSystems."/data/nfs/dxp6800" = {
+    fileSystems."/data/nfs/dxp6800/videos" = {
       device = "192.168.1.2:/mnt/primary/videos";
       fsType = "nfs4";
       options = [
@@ -10,16 +23,8 @@ _: {
       ];
     };
 
-    # dxp4800 keeps each top-level media kind in its own ZFS dataset, and those
-    # are siblings under primary — not children of one another — so each needs
-    # its own mount. They are mounted at <host>/<dataset>, matching flashstor
-    # below; videos used to sit at the bare /data/nfs/dxp4800, which left no
-    # path for a sibling to occupy without landing inside the videos dataset.
-    #
-    # Within a dataset the old note still holds: NFSv4 crosses into a child
-    # dataset when the NAS exports it and the client creates the submount
-    # itself, so the per-category datasets under videos/ and images/ need no
-    # entry of their own here.
+    # videos and images are siblings under primary, not children of one
+    # another, so each needs its own entry. Their categories do not.
     fileSystems."/data/nfs/dxp4800/videos" = {
       device = "192.168.1.3:/mnt/primary/videos";
       fsType = "nfs4";
