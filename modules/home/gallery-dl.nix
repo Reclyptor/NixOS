@@ -32,10 +32,17 @@ _: {
           # stale cookie jar, because there is no partial success to preserve.
           auth_help() {
             {
-              echo "Run '${pkgs.gallery-dl}/bin/gallery-dl oauth:pixiv' and follow the browser flow."
+              echo "Run 'pixiv auth' and follow the browser flow."
               echo "It prints a refresh token; put it in ''${CONFIG} as:"
               echo '  { "extractor": { "pixiv": { "refresh-token": "<token>" } } }'
             } >&2
+          }
+
+          # Runs the OAuth flow through the same pinned build the downloads use,
+          # so authenticating can never drift to a different gallery-dl than the
+          # one that will consume the token.
+          run_auth() {
+            exec "''${GALLERY_DL}" oauth:pixiv
           }
 
           check_auth() {
@@ -56,12 +63,16 @@ _: {
 
           usage() {
             echo "Usage: pixiv [subfolder] [url]"
+            echo "       pixiv auth"
             echo ""
             echo "Run without arguments for interactive mode."
             echo ""
             echo "Downloads a pixiv work to ''${BASE_PATH}/<artist>/."
             echo "An animation (ugoira) is converted to GIF; illustrations and manga"
             echo "are saved at original resolution in their source format."
+            echo ""
+            echo "'pixiv auth' runs the one-time OAuth flow that yields the refresh"
+            echo "token gallery-dl's pixiv extractor requires."
             echo ""
             echo "Examples:"
             echo "  pixiv                                    (interactive)"
@@ -125,6 +136,12 @@ _: {
 
           # --- CLI mode ---
           [[ "''${1}" == "-h" || "''${1}" == "--help" ]] && usage
+
+          # Intercepted before check_auth, since this is the command that fixes
+          # the very thing check_auth refuses to run without. A subfolder that
+          # happens to be named "auth" is unreachable as a result; use the
+          # interactive mode for that.
+          [[ "''${1}" == "auth" ]] && run_auth
 
           check_auth
 
