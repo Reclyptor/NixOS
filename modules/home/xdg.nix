@@ -13,6 +13,7 @@ _: {
           zen = "zen-beta.desktop";
           signal = "signal.desktop";
           imv = "imv.desktop";
+          mpv = "mpv.desktop";
           mpvx = "mpvx.desktop";
 
           # Video opens in mpvx so anything playing is already shareable on Discord
@@ -20,7 +21,7 @@ _: {
           # path Discord's capturer can see (see workstation/overlays/mpv.nix). Its
           # .desktop declares no MimeType, so this explicit default is the only thing
           # that makes it the handler; plain `mpv` stays the handler for everything
-          # else. Audio is deliberately left off — there is no window to share.
+          # else.
           video = [
             "application/x-extension-mp4"
             "application/x-matroska"
@@ -64,8 +65,79 @@ _: {
             "video/x-theora"
             "video/x-theora+ogg"
           ];
+
+          # Audio goes to plain mpv rather than mpvx: an audio-only file opens no
+          # window, so there is nothing for Discord to capture and no reason to pay
+          # for the XWayland hop. Without these explicit defaults audacity wins most
+          # of them on .desktop ordering alone, which is not what a double-click on
+          # an mp3 should do. List mirrors mpv's own MimeType declaration.
+          audio = [
+            "audio/3gpp"
+            "audio/3gpp2"
+            "audio/aac"
+            "audio/ac3"
+            "audio/aiff"
+            "audio/AMR"
+            "audio/amr-wb"
+            "audio/dv"
+            "audio/eac3"
+            "audio/flac"
+            "audio/m3u"
+            "audio/m4a"
+            "audio/mp1"
+            "audio/mp2"
+            "audio/mp3"
+            "audio/mp4"
+            "audio/mpeg"
+            "audio/mpeg2"
+            "audio/mpeg3"
+            "audio/mpegurl"
+            "audio/mpg"
+            "audio/musepack"
+            "audio/ogg"
+            "audio/opus"
+            "audio/rn-mpeg"
+            "audio/scpls"
+            "audio/vnd.dolby.heaac.1"
+            "audio/vnd.dolby.heaac.2"
+            "audio/vnd.dts"
+            "audio/vnd.dts.hd"
+            "audio/vnd.rn-realaudio"
+            "audio/vnd.wave"
+            "audio/vorbis"
+            "audio/wav"
+            "audio/webm"
+            "audio/x-aac"
+            "audio/x-adpcm"
+            "audio/x-aiff"
+            "audio/x-ape"
+            "audio/x-m4a"
+            "audio/x-matroska"
+            "audio/x-mp1"
+            "audio/x-mp2"
+            "audio/x-mp3"
+            "audio/x-mpegurl"
+            "audio/x-mpg"
+            "audio/x-ms-asf"
+            "audio/x-ms-wma"
+            "audio/x-musepack"
+            "audio/x-pls"
+            "audio/x-pn-au"
+            "audio/x-pn-realaudio"
+            "audio/x-pn-wav"
+            "audio/x-pn-windows-pcm"
+            "audio/x-realaudio"
+            "audio/x-scpls"
+            "audio/x-shorten"
+            "audio/x-tta"
+            "audio/x-vorbis"
+            "audio/x-vorbis+ogg"
+            "audio/x-wav"
+            "audio/x-wavpack"
+          ];
         in
         lib.genAttrs video (_: mpvx)
+        // lib.genAttrs audio (_: mpv)
         // {
           # Web browser
           "text/html" = zen;
@@ -86,7 +158,10 @@ _: {
           # Claude Code URL handler (its .desktop lives in ~/.local/share/applications)
           "x-scheme-handler/claude-cli" = "claude-code-url-handler.desktop";
 
-          # Image viewer
+          # Image viewer. imv animates gifs through its libnsgif backend; without
+          # the explicit default aseprite claims the type and a double-click drops
+          # into a sprite editor.
+          "image/gif" = imv;
           "image/jpeg" = imv;
           "image/png" = imv;
           "image/webp" = imv;
@@ -99,6 +174,7 @@ _: {
           imv = "imv.desktop";
         in
         {
+          "image/gif" = imv;
           "image/jpeg" = imv;
           "image/png" = imv;
           "image/webp" = imv;
