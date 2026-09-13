@@ -7,40 +7,31 @@ _: {
       ...
     }:
     let
-      # agentmemory LoadBalancer endpoints on the LAN (shared Cilium IP, distinct ports).
-      claudeURL = "http://192.168.1.120:3111"; # agentmemory-claude (Claude Code, Codex)
-      qwenURL = "http://192.168.1.120:3211"; # agentmemory-qwen (Qwen Code, Crush, OpenCode)
+      # agentmemory LoadBalancer endpoint on the LAN (shared Cilium IP).
+      agentmemoryURL = "http://192.168.1.120:3111";
 
-      claudeTokenFile = config.sops.secrets."agentmemory/claude-token".path;
-      qwenTokenFile = config.sops.secrets."agentmemory/qwen-token".path;
+      agentmemoryTokenFile = config.sops.secrets."agentmemory/claude-token".path;
 
-      # --- MCP bridge launchers ---------------------------------------------------
+      # --- MCP bridge launcher ----------------------------------------------------
       # `@agentmemory/mcp` is a local stdio bridge each client spawns; it reads
       # AGENTMEMORY_URL + AGENTMEMORY_SECRET from its env and forwards to the
       # remote engine on the cluster. Instead of baking the bearer token into every
-      # client config, each client launches one of these wrappers, which reads the
-      # token from the sops file at spawn time — so the secret never lands in any
-      # client config file. One wrapper per instance (distinct URL + bearer token):
-      # the claude instance (Claude Code, Codex) and the qwen instance (Qwen, Crush,
-      # OpenCode).
-      mkMcpWrapper =
-        name: url: tokenFile:
-        pkgs.writeShellScriptBin name ''
-          set -eu
-          export PATH="${pkgs.nodejs}/bin:''${PATH:-/usr/bin:/bin}"
-          export AGENTMEMORY_URL="${url}"
-          if [ -r "${tokenFile}" ]; then
-            AGENTMEMORY_SECRET="$(cat "${tokenFile}")"
-            export AGENTMEMORY_SECRET
-          else
-            echo "${name}: ${tokenFile} not readable; agentmemory MCP starting unauthenticated" >&2
-          fi
-          exec ${pkgs.nodejs}/bin/node ${agentmemoryMcp}/libexec/agentmemory-mcp/bin.mjs "$@"
-        '';
-      mcpClaude = mkMcpWrapper "agentmemory-mcp-claude" claudeURL claudeTokenFile;
-      mcpQwen = mkMcpWrapper "agentmemory-mcp-qwen" qwenURL qwenTokenFile;
-      claudeMcpBin = "${mcpClaude}/bin/agentmemory-mcp-claude";
-      qwenMcpBin = "${mcpQwen}/bin/agentmemory-mcp-qwen";
+      # client config, each client launches this wrapper, which reads the token from
+      # the sops file at spawn time — so the secret never lands in any client config
+      # file. A single engine now serves every agent, so one wrapper serves them all.
+      mcpWrapper = pkgs.writeShellScriptBin "agentmemory-mcp" ''
+        set -eu
+        export PATH="${pkgs.nodejs}/bin:''${PATH:-/usr/bin:/bin}"
+        export AGENTMEMORY_URL="${agentmemoryURL}"
+        if [ -r "${agentmemoryTokenFile}" ]; then
+          AGENTMEMORY_SECRET="$(cat "${agentmemoryTokenFile}")"
+          export AGENTMEMORY_SECRET
+        else
+          echo "agentmemory-mcp: ${agentmemoryTokenFile} not readable; agentmemory MCP starting unauthenticated" >&2
+        fi
+        exec ${pkgs.nodejs}/bin/node ${agentmemoryMcp}/libexec/agentmemory-mcp/bin.mjs "$@"
+      '';
+      mcpBin = "${mcpWrapper}/bin/agentmemory-mcp";
 
       # Per-agent jq programs that set only the agentmemory MCP entry — command is
       # the launcher above, no embedded secret. Assigning the whole object replaces
@@ -119,7 +110,7 @@ _: {
 
       # One wrapper for every lifecycle hook. It reads the bearer token from the
       # sops secret at run time so the token never lands in any agent config, points
-      # at the claude instance, and asks for context injection only on the two
+      # at the memory engine, and asks for context injection only on the two
       # cheap, high-value events (session start and pre-compact). PreToolUse is
       # deliberately not wired: that script is injection-only — a no-op without
       # injection — and PostToolUse already records tool activity.
@@ -127,16 +118,16 @@ _: {
         set -euo pipefail
         hook="''${1:?usage: agentmemory-hook <hook-name>}"
         export PATH="${pkgs.git}/bin:${pkgs.nodejs}/bin:''${PATH:-/usr/bin:/bin}"
-        export AGENTMEMORY_URL="${claudeURL}"
+        export AGENTMEMORY_URL="${agentmemoryURL}"
         export AGENTMEMORY_TOOLS="all"
         case "$hook" in
           session-start|pre-compact) export AGENTMEMORY_INJECT_CONTEXT="true" ;;
         esac
-        if [ -r "${claudeTokenFile}" ]; then
-          AGENTMEMORY_SECRET="$(cat "${claudeTokenFile}")"
+        if [ -r "${agentmemoryTokenFile}" ]; then
+          AGENTMEMORY_SECRET="$(cat "${agentmemoryTokenFile}")"
           export AGENTMEMORY_SECRET
         else
-          echo "agentmemory-hook: ${claudeTokenFile} not readable; running unauthenticated" >&2
+          echo "agentmemory-hook: ${agentmemoryTokenFile} not readable; running unauthenticated" >&2
         fi
         exec ${pkgs.nodejs}/bin/node "${agentmemoryPkg}/plugin/scripts/$hook.mjs"
       '';
@@ -163,9 +154,9 @@ _: {
       directiveInject = pkgs.writeShellScript "agentmemory-inject-directives" ''
         set -eu
         export PATH="${pkgs.curl}/bin:${pkgs.jq}/bin:''${PATH:-/usr/bin:/bin}"
-        [ -r "${claudeTokenFile}" ] || exit 0
-        tok="$(cat "${claudeTokenFile}")"; [ -n "$tok" ] || exit 0
-        u="${claudeURL}/agentmemory"
+        [ -r "${agentmemoryTokenFile}" ] || exit 0
+        tok="$(cat "${agentmemoryTokenFile}")"; [ -n "$tok" ] || exit 0
+        u="${agentmemoryURL}/agentmemory"
         ids="$(curl -s --max-time 2 -X POST -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' \
           -d '{"matchAll":["inject:session-start"],"targetType":"memory"}' "$u/facets/query" \
           | jq -r '.results[]?.targetId' 2>/dev/null)" || exit 0
@@ -262,7 +253,7 @@ _: {
       # tools arrive server-qualified as mcp__agentmemory__*; dsh has no
       # lifecycle-hook seam, so there is no auto-capture counterpart here and
       # ~/.dsh/AGENTS.md §11 says so outright.
-      deepseek.mcpServers.agentmemory.command = claudeMcpBin;
+      deepseek.mcpServers.agentmemory.command = mcpBin;
 
       # Single source of truth for all agentmemory wiring — MCP servers, lifecycle
       # hooks, and skills, for every connected agent. JSON agents are jq-merged in
@@ -300,10 +291,10 @@ _: {
         # MCP servers (jq merge, non-destructive). The launcher reads the token from
         # sops at spawn time, so no secret is written here. Assigning the whole
         # agentmemory object also strips any token embedded by a previous version.
-        am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg (mcpServersProg claudeMcpBin)}
-        am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg qwenMcpBin)}
-        am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg qwenMcpBin)}
-        am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg qwenMcpBin)}
+        am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg (mcpServersProg mcpBin)}
+        am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg mcpBin)}
+        am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg mcpBin)}
+        am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg mcpBin)}
 
         # Codex (TOML): append the agentmemory block onto the base config that
         # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
@@ -319,7 +310,7 @@ _: {
           {
             cat "$codex_toml"
             printf '\n[mcp_servers.agentmemory]\n'
-            printf 'command = "%s"\n' "${claudeMcpBin}"
+            printf 'command = "%s"\n' "${mcpBin}"
           } > "$codex_toml.am.tmp"
           $DRY_RUN_CMD mv -- "$codex_toml.am.tmp" "$codex_toml"
           $DRY_RUN_CMD chmod 600 "$codex_toml"

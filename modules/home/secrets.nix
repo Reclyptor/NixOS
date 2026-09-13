@@ -55,7 +55,6 @@ _: {
               "bash/cf-access-client-secret"
               "bash/vllm-base-url"
               "agentmemory/claude-token"
-              "agentmemory/qwen-token"
             ]
             (name: {
               path = "${config.home.homeDirectory}/.config/sops/secrets/${name}";
