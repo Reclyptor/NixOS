@@ -10,14 +10,14 @@ _: {
             # Define new sources with updated version
             sources = {
               x86_64-linux = prev.fetchurl {
-                url = "https://downloads.cursor.com/production/dd066f332fcea7382764400fde902f61920648d5/linux/x64/Cursor-3.19.13-x86_64.AppImage";
-                hash = "sha256-B9kDP/TsvE2OmhYEq77ZyiQttho3FQlRa4Ux1RDptQg=";
+                url = "https://downloads.cursor.com/production/0c32194e3fb5ffaced9fb36430b860ec301e1fc8/linux/x64/Cursor-3.20.17-x86_64.AppImage";
+                hash = "sha256-E+gInIUlGhAveZBa3/uR3SmN1YYmUlmb5jRX4o3DEhg=";
               };
             };
 
             source = sources.${hostPlatform.system};
             pname = "cursor";
-            version = "3.19.13";
+            version = "3.20.17";
           in
           {
             # Override version and src with proper AppImage extraction
