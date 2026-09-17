@@ -54,6 +54,7 @@ _: {
               "bash/cf-access-client-id"
               "bash/cf-access-client-secret"
               "bash/vllm-base-url"
+              "bash/deepseek-api-key"
               "agentmemory/claude-token"
             ]
             (name: {
