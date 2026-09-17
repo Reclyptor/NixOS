@@ -10,6 +10,15 @@ _: {
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       settingsFile = "${config.home.homeDirectory}/.dsh/settings.yaml";
 
+      # The harness home's own environment layer. dsh reads it as the LOWEST
+      # credential layer, under the managed .credentials.yaml the web Models
+      # page writes and under a per-run `DEEPSEEK_API_KEY=… dsh`, so placing the
+      # key here configures the official route without taking it away from
+      # either override. A shell export would instead occupy the top,
+      # inherited-environment layer, which dsh reports as read-only and refuses
+      # to let the UI replace — and it would only ever reach interactive shells.
+      envFile = "${config.home.homeDirectory}/.dsh/.env";
+
       # Discovered from GET /models on the endpoint; max_model_len is 1048576.
       model = "deepseek-v4-flash-0731";
       contextWindow = 1048576;
@@ -23,6 +32,21 @@ _: {
       # and it is safe from the headers-are-never-redacted caveat below.
       placeholderKey = "unused-cloudflare-access-fronts-this";
 
+      route = config.deepseek.defaultRoute;
+
+      # A helper rather than an inline redirect, for two reasons: $DRY_RUN_CMD
+      # can gate a command but never a shell redirection, so an inline write
+      # would create the file during a dry-run activation; and taking the
+      # secret's PATH keeps its VALUE out of argv, where /proc/*/cmdline would
+      # expose it. umask before the write and an atomic rename mean no reader
+      # ever sees the file mode-0644 or half-written.
+      envWriter = pkgs.writeShellScript "dsh-write-env" ''
+        set -eu
+        umask 077
+        printf 'DEEPSEEK_API_KEY=%s\n' "$(cat "$1")" > "$2.tmp"
+        mv -f "$2.tmp" "$2"
+      '';
+
       # Owned keys only. Everything else in settings.yaml — including anything
       # the web Models page writes — is left untouched, so this merge is safe to
       # re-run and does not fight the UI for ownership of the document.
@@ -33,6 +57,13 @@ _: {
       # expose. Declaring a format would render an effort toggle that silently
       # does nothing. Reasoning output still surfaces — pi-ai's response parser
       # scans reasoning_content/reasoning/reasoning_text regardless of format.
+      #
+      # agent-default-model is the one key SEEDED rather than forced: the
+      # composer's /model picker records its choice there, and forcing it would
+      # revert that on the next activation — exactly when the endpoint is down
+      # and the switch matters. Assigned as a whole section, never field by
+      # field, because the harness treats provider+model as one atomic route and
+      # ignores a half-pinned one rather than merging it with a default.
       program = ''
         .["llm-pi-ai"].providers.vllm.api = "openai-completions" |
         .["llm-pi-ai"].providers.vllm.displayName = "vLLM (DeepSeek V4 Flash)" |
@@ -43,8 +74,7 @@ _: {
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Id"] = strenv(DSH_CF_ID) |
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Secret"] = strenv(DSH_CF_SECRET) |
         .["llm-pi-ai"].providers.vllm.models = [{"id": "${model}"}] |
-        .["agent-default-model"].provider = "vllm" |
-        .["agent-default-model"].model = "${model}"
+        .["agent-default-model"] = (.["agent-default-model"] // {"provider": "${route.provider}", "model": "${route.model}"})
       '';
 
       profiles = config.deepseek.profiles;
@@ -191,6 +221,45 @@ _: {
       ) profiles;
     in
     {
+      options.deepseek.defaultRoute = lib.mkOption {
+        type = lib.types.submodule {
+          options = {
+            provider = lib.mkOption {
+              type = lib.types.str;
+              description = "Provider route id, as an adapter registers it.";
+            };
+
+            model = lib.mkOption {
+              type = lib.types.str;
+              description = "Model id within that provider's catalog.";
+            };
+          };
+        };
+        default = {
+          provider = "vllm";
+          inherit model;
+        };
+        example = {
+          provider = "deepseek-official";
+          model = "deepseek-v4-flash";
+        };
+        description = ''
+          Route a new session starts on, seeded into `agent-default-model` the
+          first time settings.yaml has no such section. It is a seed, not a
+          pin: the composer's `/model` picker writes that section, and this
+          module leaves an existing one alone so a runtime switch survives
+          activation.
+
+          One submodule rather than two options because the harness resolves a
+          route atomically — a provider without its model is discarded rather
+          than merged with a default, so the pair cannot be allowed to drift
+          apart.
+
+          The dsh-tui front end keeps its own choice in
+          `~/.dsh-tui/model.json` and does not read this section at all.
+        '';
+      };
+
       options.deepseek.profiles = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.submodule {
@@ -359,6 +428,25 @@ _: {
             fi
           else
             echo "deepseek: sops secrets not present yet, skipping settings.yaml" >&2
+          fi
+
+          # The official api.deepseek.com route needs no settings section at
+          # all — dsh-base already mounts llm-deepseek, which owns the
+          # `deepseek-official` route and defaults its endpoint, its catalog and
+          # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
+          # whole of the configuration, and it is what makes that route a
+          # working fallback when the vLLM endpoint is unreachable: /model in
+          # either front end switches to it without a rebuild.
+          #
+          # Guarded separately from settings.yaml above: neither file's secrets
+          # should decide whether the other gets written.
+          dsh_key="${secretsDir}/deepseek-api-key"
+
+          if [ -f "$dsh_key" ]; then
+            $DRY_RUN_CMD mkdir -p "$(dirname "${envFile}")"
+            $DRY_RUN_CMD ${envWriter} "$dsh_key" "${envFile}"
+          else
+            echo "deepseek: deepseek-api-key not present yet, skipping ${envFile}" >&2
           fi
         '';
       };
