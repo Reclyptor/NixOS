@@ -58,19 +58,6 @@ _: {
 
       route = config.deepseek.defaultRoute;
 
-      # A helper rather than an inline redirect, for two reasons: $DRY_RUN_CMD
-      # can gate a command but never a shell redirection, so an inline write
-      # would create the file during a dry-run activation; and taking the
-      # secret's PATH keeps its VALUE out of argv, where /proc/*/cmdline would
-      # expose it. umask before the write and an atomic rename mean no reader
-      # ever sees the file mode-0644 or half-written.
-      envWriter = pkgs.writeShellScript "dsh-write-env" ''
-        set -eu
-        umask 077
-        printf 'DEEPSEEK_API_KEY=%s\n' "$(cat "$1")" > "$2.tmp"
-        mv -f "$2.tmp" "$2"
-      '';
-
       # Replaces the vllm route's model catalog with what the endpoint reports,
       # so the one fact this module cannot own is read from its owner instead of
       # copied. Each model carries its own max_model_len, which means the window
@@ -154,6 +141,78 @@ _: {
           builtins.toJSON (map (id: { inherit id; }) seedModels)
         }) |
         .["agent-default-model"] = (.["agent-default-model"] // {"provider": "${route.provider}", "model": "${route.model}"})
+      '';
+
+      # Everything in this module that consumes a sops secret, in one place.
+      #
+      # It does NOT live in home.activation, and that is the whole point: the
+      # secrets are installed by sops-nix.service, which home-manager starts
+      # from `reloadSystemd` — the LAST activation entry. Every earlier entry
+      # therefore runs before the secrets it wants exist, so a newly added
+      # secret is guaranteed to be missing on the very activation that
+      # introduces it. `entryAfter [ "sops-nix" ]` does not help: that DAG entry
+      # is not what installs them. Ordering the work after the unit is the only
+      # spelling that is actually true, and it costs nothing — a boot runs it
+      # too, so the discovered catalog refreshes without waiting for a rebuild.
+      harnessSync = pkgs.writeShellScript "dsh-harness-sync" ''
+        set -eu
+        umask 077
+
+        yq=${lib.getExe pkgs.yq-go}
+
+        # settings.yaml carries the Cloudflare Access client secret in cleartext:
+        # dsh types `headers` as a plain string dict, and only `apiKeyEnv` gets
+        # credential indirection, so home.file would publish it to the
+        # world-readable Nix store. Written here instead, mode 0600, with the
+        # values passed through the environment (strenv) so they never appear in
+        # argv where /proc/*/cmdline would expose them.
+        #
+        # Upstream caveat worth knowing: a credential in `headers` is returned
+        # verbatim by a redacted describe() and rendered by the Models page. That
+        # is a known limitation in llm-pi-ai, not something this config can avoid.
+        dsh_id="${secretsDir}/cf-access-client-id"
+        dsh_secret="${secretsDir}/cf-access-client-secret"
+        dsh_url="${secretsDir}/vllm-base-url"
+
+        if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
+          mkdir -p "$(dirname "${settingsFile}")"
+          [ -f "${settingsFile}" ] || : > "${settingsFile}"
+          chmod 600 "${settingsFile}"
+
+          if DSH_CF_ID="$(cat "$dsh_id")" \
+             DSH_CF_SECRET="$(cat "$dsh_secret")" \
+             DSH_VLLM_URL="$(cat "$dsh_url")" \
+             "$yq" -i '${program}' "${settingsFile}"; then
+            # A separate process on purpose: it reports every failure by exiting
+            # 0, which as an inlined function would abort this script and skip
+            # the .env write below.
+            ${vllmCatalogSync} "${settingsFile}" "$dsh_id" "$dsh_secret" "$dsh_url"
+          else
+            echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
+          fi
+        else
+          echo "deepseek: sops secrets not present yet, skipping ${settingsFile}" >&2
+        fi
+
+        # The official api.deepseek.com route needs no settings section at all —
+        # dsh-base already mounts llm-deepseek, which owns the
+        # `deepseek-official` route and defaults its endpoint, its catalog and
+        # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
+        # whole of the configuration, and it is what makes that route a working
+        # fallback when the vLLM endpoint is unreachable: /model in either front
+        # end switches to it without a rebuild.
+        #
+        # umask above makes the temp file 0600 and the rename preserves it, so
+        # no reader ever sees the key mode-0644 or half-written.
+        dsh_key="${secretsDir}/deepseek-api-key"
+
+        if [ -f "$dsh_key" ]; then
+          mkdir -p "$(dirname "${envFile}")"
+          printf 'DEEPSEEK_API_KEY=%s\n' "$(cat "$dsh_key")" > "${envFile}.tmp"
+          mv -f "${envFile}.tmp" "${envFile}"
+        else
+          echo "deepseek: deepseek-api-key not present yet, skipping ${envFile}" >&2
+        fi
       '';
 
       profiles = config.deepseek.profiles;
@@ -476,61 +535,29 @@ _: {
           tui.plugins = lib.mkDefault [ pkgs.dsh-tui ];
         };
 
-        # settings.yaml is generated here rather than by home.file because it has
-        # to carry the Cloudflare Access client secret in cleartext: dsh types
-        # `headers` as a plain string dict, and only `apiKeyEnv` gets credential
-        # indirection. home.file would place that secret in the world-readable
-        # Nix store. Written at activation from the sops-decrypted files instead,
-        # mode 0600, with the values passed through the environment (strenv) so
-        # they never appear in argv where /proc/*/cmdline would expose them.
+        # Ordered after sops-nix.service because that unit is what installs
+        # the secrets, and home-manager starts it from `reloadSystemd` — after
+        # every home.activation entry. Work that needs a secret therefore
+        # cannot live in activation at all: a newly added secret is missing on
+        # the activation that introduces it, and no DAG dependency fixes that,
+        # because the entry named "sops-nix" is not the thing doing the work.
         #
-        # Upstream caveat worth knowing: a credential in `headers` is returned
-        # verbatim by a redacted describe() and rendered by the Models page. That
-        # is a known limitation in llm-pi-ai, not something this config can avoid.
-        home.activation.deepseekHarness = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
-          dsh_id="${secretsDir}/cf-access-client-id"
-          dsh_secret="${secretsDir}/cf-access-client-secret"
-          dsh_url="${secretsDir}/vllm-base-url"
+        # WantedBy default.target so a login runs it too: the vllm catalog it
+        # discovers then refreshes on boot rather than only on rebuild.
+        systemd.user.services.dsh-harness-sync = {
+          Unit = {
+            Description = "Render dsh settings.yaml and credentials from sops secrets";
+            Wants = [ "sops-nix.service" ];
+            After = [ "sops-nix.service" ];
+          };
 
-          if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
-            $DRY_RUN_CMD mkdir -p "$(dirname "${settingsFile}")"
-            [ -f "${settingsFile}" ] || $DRY_RUN_CMD touch "${settingsFile}"
-            $DRY_RUN_CMD chmod 600 "${settingsFile}"
+          Service = {
+            Type = "oneshot";
+            ExecStart = toString harnessSync;
+          };
 
-            if DSH_CF_ID="$(cat "$dsh_id")" \
-               DSH_CF_SECRET="$(cat "$dsh_secret")" \
-               DSH_VLLM_URL="$(cat "$dsh_url")" \
-               ${lib.getExe pkgs.yq-go} -i '${program}' "${settingsFile}"; then
-              # Only after the merge above has guaranteed the route exists, and
-              # only ever replacing the catalog it just seeded — never running
-              # against a settings.yaml the merge failed to write.
-              $DRY_RUN_CMD ${vllmCatalogSync} "${settingsFile}" "$dsh_id" "$dsh_secret" "$dsh_url"
-            else
-              echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
-            fi
-          else
-            echo "deepseek: sops secrets not present yet, skipping settings.yaml" >&2
-          fi
-
-          # The official api.deepseek.com route needs no settings section at
-          # all — dsh-base already mounts llm-deepseek, which owns the
-          # `deepseek-official` route and defaults its endpoint, its catalog and
-          # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
-          # whole of the configuration, and it is what makes that route a
-          # working fallback when the vLLM endpoint is unreachable: /model in
-          # either front end switches to it without a rebuild.
-          #
-          # Guarded separately from settings.yaml above: neither file's secrets
-          # should decide whether the other gets written.
-          dsh_key="${secretsDir}/deepseek-api-key"
-
-          if [ -f "$dsh_key" ]; then
-            $DRY_RUN_CMD mkdir -p "$(dirname "${envFile}")"
-            $DRY_RUN_CMD ${envWriter} "$dsh_key" "${envFile}"
-          else
-            echo "deepseek: deepseek-api-key not present yet, skipping ${envFile}" >&2
-          fi
-        '';
+          Install.WantedBy = [ "default.target" ];
+        };
       };
     };
 }
