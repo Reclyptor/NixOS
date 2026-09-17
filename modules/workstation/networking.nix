@@ -5,6 +5,8 @@ _: {
     networking.networkmanager.enable = true;
     networking.networkmanager.wifi.powersave = false;
     networking.firewall.enable = true;
+    # mtr needs raw sockets; this wrapper grants them so it works unprivileged.
+    programs.mtr.enable = true;
     environment.systemPackages = with pkgs; [
       networkmanagerapplet
     ];
