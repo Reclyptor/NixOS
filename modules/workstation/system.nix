@@ -2,6 +2,8 @@ _: {
   flake.modules.nixos.workstation = { pkgs, ... }: {
     environment.systemPackages = with pkgs; [
       btop
+      dnsutils
+      ethtool
       eza
       fastfetch
       ffmpeg-full
@@ -10,6 +12,7 @@ _: {
       git
       htop
       iotop
+      iperf3
       jq
       killall
       kubectl
@@ -18,15 +21,20 @@ _: {
       lsof
       ncdu
       neovim
+      netcat-gnu
       nmap
       p7zip
       pciutils
       rar
+      socat
       talosctl
+      tcpdump
+      traceroute
       unrar
       unzip
       usbutils
       wget
+      whois
       xclip
       xxd
       xz
