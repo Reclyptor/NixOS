@@ -19,9 +19,33 @@ _: {
       # to let the UI replace — and it would only ever reach interactive shells.
       envFile = "${config.home.homeDirectory}/.dsh/.env";
 
-      # Discovered from GET /models on the endpoint; max_model_len is 1048576.
+      # BOOTSTRAP ONLY. What the endpoint serves is the endpoint's fact, not
+      # this module's: `vllm` is a hand-declared pi-ai route, so unlike the
+      # official route — a catalog route that picks up new models on its own —
+      # its models have to be spelled somewhere, and anything spelled here is a
+      # COPY that drifts. It already did: this list named one model at a
+      # 1048576 window long after the deployment had moved to two at 600000,
+      # which is the dangerous half, since an over-declared window sizes
+      # compaction against a ceiling the server enforces and fails only deep
+      # into a long session.
+      #
+      # So the catalog is discovered at activation (see vllmCatalogSync below)
+      # and this list is only what a first activation writes when the endpoint
+      # cannot be reached. It is seeded, never forced — a failed discovery must
+      # leave the last GOOD catalog in place, not overwrite it with this copy.
+      seedModels = [
+        "deepseek-v4-flash-0731"
+        "DeepSeek-v4.1-Flash-EXL3"
+      ];
+
+      # The route seeded as the default for a new session.
       model = "deepseek-v4-flash-0731";
-      contextWindow = 1048576;
+
+      # Route-level backstop, consulted only for a model carrying no window of
+      # its own — which, after any successful discovery, is none of them. Keep
+      # it at or below the smallest window the deployment serves: too low only
+      # wastes context, too high silently overruns the server.
+      contextWindow = 600000;
 
       # pi-ai's OpenAI-compatible transport will not build a request without
       # either a credential or an Authorization header, but this endpoint is
@@ -47,6 +71,59 @@ _: {
         mv -f "$2.tmp" "$2"
       '';
 
+      # Replaces the vllm route's model catalog with what the endpoint reports,
+      # so the one fact this module cannot own is read from its owner instead of
+      # copied. Each model carries its own max_model_len, which means the window
+      # can no longer be wrong even if the deployment serves models that differ.
+      #
+      # Non-destructive by construction: every failure path — unreachable
+      # endpoint, HTTP error, unparseable body, empty list, an entry missing an
+      # id or a positive window — warns and exits 0, leaving whatever catalog is
+      # already in settings.yaml. That matters more than freshness: this route
+      # goes down, and an activation during the outage must not be the thing
+      # that erases the catalog describing it.
+      vllmCatalogSync = pkgs.writeShellScript "dsh-sync-vllm-catalog" ''
+        set -eu
+        settings="$1"
+        id_file="$2"
+        secret_file="$3"
+        url_file="$4"
+
+        yq=${lib.getExe pkgs.yq-go}
+
+        keep() {
+          echo "deepseek: $1; keeping the vllm catalog already in $settings" >&2
+          exit 0
+        }
+
+        if ! body="$(${lib.getExe pkgs.curl} -sS --fail --max-time 8 \
+          -H "CF-Access-Client-Id: $(cat "$id_file")" \
+          -H "CF-Access-Client-Secret: $(cat "$secret_file")" \
+          -H "Authorization: Bearer ${placeholderKey}" \
+          "$(cat "$url_file")/models" 2>/dev/null)"; then
+          keep "vllm endpoint unreachable"
+        fi
+
+        if ! catalog="$(printf '%s' "$body" | "$yq" -p=json -o=json \
+          '[.data[] | {"id": .id, "contextWindow": .max_model_len}]' 2>/dev/null)"; then
+          keep "vllm /models returned a body this cannot read"
+        fi
+
+        total="$(printf '%s' "$catalog" | "$yq" -p=json 'length')"
+        usable="$(printf '%s' "$catalog" | "$yq" -p=json \
+          '[.[] | select((.id // "" | length) > 0 and (.contextWindow // 0) > 0)] | length')"
+
+        [ "$total" -gt 0 ] || keep "vllm /models listed no models"
+        [ "$total" = "$usable" ] || keep "vllm /models listed an entry with no id or no positive max_model_len"
+
+        DSH_VLLM_CATALOG="$catalog" "$yq" -i \
+          '.["llm-pi-ai"].providers.vllm.models = (strenv(DSH_VLLM_CATALOG) | from_json)' \
+          "$settings"
+
+        echo "deepseek: vllm catalog synced —" \
+          "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
+      '';
+
       # Owned keys only. Everything else in settings.yaml — including anything
       # the web Models page writes — is left untouched, so this merge is safe to
       # re-run and does not fight the UI for ownership of the document.
@@ -66,14 +143,16 @@ _: {
       # ignores a half-pinned one rather than merging it with a default.
       program = ''
         .["llm-pi-ai"].providers.vllm.api = "openai-completions" |
-        .["llm-pi-ai"].providers.vllm.displayName = "vLLM (DeepSeek V4 Flash)" |
+        .["llm-pi-ai"].providers.vllm.displayName = "vLLM (self-hosted)" |
         .["llm-pi-ai"].providers.vllm.baseURL = strenv(DSH_VLLM_URL) |
         del(.["llm-pi-ai"].providers.vllm.apiKeyEnv) |
         .["llm-pi-ai"].providers.vllm.defaultContextWindow = ${toString contextWindow} |
         .["llm-pi-ai"].providers.vllm.headers.Authorization = "Bearer ${placeholderKey}" |
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Id"] = strenv(DSH_CF_ID) |
         .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Secret"] = strenv(DSH_CF_SECRET) |
-        .["llm-pi-ai"].providers.vllm.models = [{"id": "${model}"}] |
+        .["llm-pi-ai"].providers.vllm.models = (.["llm-pi-ai"].providers.vllm.models // ${
+          builtins.toJSON (map (id: { inherit id; }) seedModels)
+        }) |
         .["agent-default-model"] = (.["agent-default-model"] // {"provider": "${route.provider}", "model": "${route.model}"})
       '';
 
@@ -422,7 +501,10 @@ _: {
                DSH_CF_SECRET="$(cat "$dsh_secret")" \
                DSH_VLLM_URL="$(cat "$dsh_url")" \
                ${lib.getExe pkgs.yq-go} -i '${program}' "${settingsFile}"; then
-              :
+              # Only after the merge above has guaranteed the route exists, and
+              # only ever replacing the catalog it just seeded — never running
+              # against a settings.yaml the merge failed to write.
+              $DRY_RUN_CMD ${vllmCatalogSync} "${settingsFile}" "$dsh_id" "$dsh_secret" "$dsh_url"
             else
               echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
             fi
