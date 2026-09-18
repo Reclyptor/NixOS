@@ -532,7 +532,14 @@ _: {
           # web app rather than layering on it, and its patch owns the
           # interactive surface. No skin — that is a web-client concern.
           tui.bundles = lib.mkDefault [ "@deepseek-ai/dsh-base" ];
-          tui.plugins = lib.mkDefault [ pkgs.dsh-tui ];
+          # dsh-herdr reports this pane's dsh session id to herdr, which is how a
+          # conversation survives a herdr server restart. It is inert outside a
+          # herdr pane, and deliberately reports identity only — herdr's screen
+          # manifest stays the authority on idle/working/blocked.
+          tui.plugins = lib.mkDefault [
+            pkgs.dsh-tui
+            pkgs.dsh-herdr
+          ];
         };
 
         # Ordered after sops-nix.service because that unit is what installs

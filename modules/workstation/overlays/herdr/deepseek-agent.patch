@@ -1,3 +1,81 @@
+diff --git a/src/agent_resume.rs b/src/agent_resume.rs
+index 04e6cf6..250fdf1 100644
+--- a/src/agent_resume.rs
++++ b/src/agent_resume.rs
+@@ -245,6 +245,27 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
+                 ]
+             }
+         }
++        ("herdr:deepseek", "deepseek", AgentSessionRefKind::Id) => {
++            // dsh takes its resume target from the environment, not argv: the
++            // package ships no `dsh-tui` bin on unix, and its own
++            // resumeCommand() spells this exact pair (the `--resume` form is
++            // the Windows wrapper, which reads ~/.dsh-tui/resume.txt).
++            if cfg!(windows) {
++                vec![
++                    "dsh-tui".into(),
++                    "--resume".into(),
++                    session_ref.value.clone(),
++                ]
++            } else {
++                vec![
++                    "env".into(),
++                    format!("DSH_TUI_RESUME_SESSION={}", session_ref.value),
++                    "dsh".into(),
++                    "--profile".into(),
++                    "tui".into(),
++                ]
++            }
++        }
+         _ => return None,
+     };
+ 
+@@ -283,6 +304,7 @@ pub(crate) fn is_official_agent_source(source: &str, agent: &str) -> bool {
+             | ("herdr:antigravity_cli", "agy")
+             | ("herdr:grok", "grok")
+             | ("herdr:letta", "letta")
++            | ("herdr:deepseek", "deepseek")
+     )
+ }
+ 
+@@ -856,4 +878,37 @@ mod tests {
+         )
+         .is_none());
+     }
++
++    #[test]
++    fn deepseek_resume_passes_the_session_through_the_environment() {
++        // dsh ships no `dsh-tui` bin on unix: its own resumeCommand() spells
++        // `DSH_TUI_RESUME_SESSION=<id> dsh --profile tui`, and the `--resume`
++        // argument form belongs to the Windows wrapper.
++        let plan = plan(
++            "herdr:deepseek",
++            "deepseek",
++            &AgentSessionRef::id("0930001d-93d3-4c11-8ec5-1bcd0dbd2a8a").unwrap(),
++        )
++        .unwrap();
++
++        assert_eq!(plan.agent, "deepseek");
++        #[cfg(not(windows))]
++        assert_eq!(
++            plan.argv,
++            vec![
++                "env".to_string(),
++                "DSH_TUI_RESUME_SESSION=0930001d-93d3-4c11-8ec5-1bcd0dbd2a8a".to_string(),
++                "dsh".to_string(),
++                "--profile".to_string(),
++                "tui".to_string(),
++            ]
++        );
++    }
++
++    #[test]
++    fn deepseek_session_reports_are_accepted_from_its_own_source() {
++        assert!(is_official_agent_source("herdr:deepseek", "deepseek"));
++        assert!(!is_official_agent_source("herdr:deepseek", "claude"));
++        assert!(!is_official_agent_source("dsh", "deepseek"));
++    }
+ }
 diff --git a/src/config/sound.rs b/src/config/sound.rs
 index 8eb2561..dc95377 100644
 --- a/src/config/sound.rs
@@ -39,10 +117,10 @@ index acd6b8f..b2cf47e 100644
  
  static MANIFEST_CACHE: OnceLock<RwLock<ManifestCache>> = OnceLock::new();
 diff --git a/src/detect/manifest/tests.rs b/src/detect/manifest/tests.rs
-index bdb0789..a94cb70 100644
+index bdb0789..e93a638 100644
 --- a/src/detect/manifest/tests.rs
 +++ b/src/detect/manifest/tests.rs
-@@ -1429,3 +1429,38 @@ fn codex_osc_working_beats_weak_blocker_screen() {
+@@ -1429,3 +1429,39 @@ fn codex_osc_working_beats_weak_blocker_screen() {
          Some("osc_title_working")
      );
  }
@@ -81,6 +159,7 @@ index bdb0789..a94cb70 100644
 +    assert_eq!(settled.state, AgentState::Idle);
 +    assert!(!settled.visible_blocker);
 +}
++
 diff --git a/src/detect/manifests/deepseek.toml b/src/detect/manifests/deepseek.toml
 new file mode 100644
 index 0000000..7431f4b
