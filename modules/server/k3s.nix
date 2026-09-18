@@ -32,6 +32,34 @@ in
 
       etcdRule =
         op: ip: "iptables -${op} nixos-fw -p tcp -s ${ip} --dport ${etcdPorts} -j nixos-fw-accept";
+
+      # What this node can do, derived from the fleet inventory rather than
+      # restated per host — the same data that drives the drivers and the udev
+      # rules also decides what workloads may land here. Manifests then match a
+      # capability instead of a hostname, so moving hardware is a fleet.nix
+      # change and not a sweep through the cluster repo.
+      #
+      # Same caveat as gvisor.nix: k3s applies --node-label and --node-taint
+      # only at first registration, so the five existing nodes were labelled and
+      # tainted by hand with kubectl. This is kept here so a rebuilt or
+      # replacement node comes up correct with no manual step.
+      capabilityFlags =
+        lib.optionals (config.host.gpu == "nvidia") [
+          # Reserves the GPU box for GPU work. The device plugin already
+          # tolerates this key by convention, and the democratic-csi node
+          # DaemonSets were given a matching toleration so they keep running
+          # here — without that, volumes stop mounting on the next reboot.
+          "--node-taint=nvidia.com/gpu=true:NoSchedule"
+        ]
+        ++ lib.optionals (config.host.gpu == "amd") [
+          # renderD128 is an AMD render node here, so VAAPI transcoding works.
+          # On the nvidia box that same path is a 3090 that radeonsi cannot
+          # drive — which is exactly why this is a capability and not a hostname.
+          "--node-label=hardware.reclyptor.com/vaapi=true"
+        ]
+        ++ lib.optionals (config.host.opticalDrives != [ ]) [
+          "--node-label=hardware.reclyptor.com/optical=true"
+        ];
     in
     {
       # The sops key source and defaultSopsFile live in server/sops.nix.
@@ -67,6 +95,7 @@ in
               "--disable=traefik"
               "--kubelet-arg=cluster-dns=${clusterDnsIP}"
             ]
+            ++ capabilityFlags
           else
             (
               [
@@ -77,6 +106,7 @@ in
                 "--node-label=nvidia.com/gpu.present=true"
                 "--node-label=node.kubernetes.io/gpu=true"
               ]
+              ++ capabilityFlags
               ++ [
                 "--kubelet-arg=cluster-dns=${clusterDnsIP}"
               ]
