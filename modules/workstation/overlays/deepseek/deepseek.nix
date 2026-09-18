@@ -51,6 +51,12 @@ _: {
 
             cat > $out/bin/dsh <<EOF
             #!${prev.runtimeShell}
+            # This wrapper execs node, so the foreground process herdr sees is
+            # "node" and its agent detection cannot name it. HERDR_AGENT is the
+            # documented remedy for exactly that shape — herdr reads it out of
+            # /proc/<pid>/environ (parse_agent_env_hint) and uses the deepseek
+            # manifest. Inert when herdr is not running.
+            export HERDR_AGENT=deepseek
             export PATH=${
               prev.lib.makeBinPath [
                 prev.pnpm

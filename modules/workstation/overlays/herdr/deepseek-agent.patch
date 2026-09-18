@@ -1,0 +1,212 @@
+diff --git a/src/config/sound.rs b/src/config/sound.rs
+index 8eb2561..dc95377 100644
+--- a/src/config/sound.rs
++++ b/src/config/sound.rs
+@@ -47,6 +47,7 @@ pub struct AgentSoundOverrides {
+     pub letta: AgentSoundSetting,
+     pub maki: AgentSoundSetting,
+     pub muse: AgentSoundSetting,
++    pub deepseek: AgentSoundSetting,
+ }
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+@@ -146,6 +147,7 @@ impl AgentSoundOverrides {
+             Some(Agent::Letta) => self.letta,
+             Some(Agent::Maki) => self.maki,
+             Some(Agent::Muse) => self.muse,
++            Some(Agent::Deepseek) => self.deepseek,
+             None => AgentSoundSetting::Default,
+         }
+     }
+@@ -188,6 +190,7 @@ impl Default for AgentSoundOverrides {
+             letta: AgentSoundSetting::Default,
+             maki: AgentSoundSetting::Default,
+             muse: AgentSoundSetting::Default,
++            deepseek: AgentSoundSetting::Default,
+         }
+     }
+ }
+diff --git a/src/detect/manifest.rs b/src/detect/manifest.rs
+index acd6b8f..b2cf47e 100644
+--- a/src/detect/manifest.rs
++++ b/src/detect/manifest.rs
+@@ -260,6 +260,7 @@ const BUNDLED_MANIFESTS: &[(&str, &str)] = &[
+     ("qodercli", include_str!("manifests/qodercli.toml")),
+     ("qwen", include_str!("manifests/qwen.toml")),
+     ("copilot", include_str!("manifests/github-copilot.toml")),
++    ("deepseek", include_str!("manifests/deepseek.toml")),
+ ];
+ 
+ static MANIFEST_CACHE: OnceLock<RwLock<ManifestCache>> = OnceLock::new();
+diff --git a/src/detect/manifest/tests.rs b/src/detect/manifest/tests.rs
+index bdb0789..a94cb70 100644
+--- a/src/detect/manifest/tests.rs
++++ b/src/detect/manifest/tests.rs
+@@ -1429,3 +1429,38 @@ fn codex_osc_working_beats_weak_blocker_screen() {
+         Some("osc_title_working")
+     );
+ }
++
++#[test]
++fn deepseek_manifest_reads_live_footer_chrome() {
++    // Screens below are verbatim captures from dsh 0.1.0-rc.7 with the
++    // dsh-tui 0.8.6 profile, trimmed to the footer the manifest reads.
++    let working = explain(
++        Agent::Deepseek,
++        "✻︎ Typing it out /home/user/project · 6m16s · ↑ 196.1k · ↓ 374 tokens\n╭────────────────╮\n❯\n╰────────────────╯\n deepseek-v4-flash-0731 · cache 99.5% · Games\n esc to interrupt",
++    );
++    assert_eq!(working.state, AgentState::Working);
++    assert!(working.visible_working);
++
++    let approval = explain(
++        Agent::Deepseek,
++        "───── Awaiting approval · write ─────\n  escalate sandbox to danger-full-access\n  Do you want to proceed?\n  ❯1. Yes, allow once\n   2. No\n  ↑/↓ select · Enter confirm · Esc reject\n deepseek-v4-flash-0731 · cache 98.4% · Games\n esc to interrupt",
++    );
++    assert_eq!(approval.state, AgentState::Blocked);
++    assert!(approval.visible_blocker);
++
++    let idle = explain(
++        Agent::Deepseek,
++        "  Explore the uncharted!\n ▶ （Ctrl+P Expand） Context loaded · System prompt 16 sections · Tools 78\n╭────────────────╮\n❯\n╰────────────────╯\n deepseek-v4-flash-0731 · max · cache 0.0% · gnome         ctx 29% (174k/600k)",
++    );
++    assert_eq!(idle.state, AgentState::Idle);
++    assert!(!idle.visible_blocker);
++
++    // A finished turn leaves its approval bar in the scrollback. The footer is
++    // back to the prompt box, so the pane must not stay blocked.
++    let settled = explain(
++        Agent::Deepseek,
++        "  ↑/↓ select · Enter confirm · Esc reject\n  Approved. Wrote src/parser.ts.\n\n  See you after the restart — ask me to continue and I'll pick up from the handoff.\n╭────────────────╮\n❯\n╰────────────────╯\n deepseek-v4-flash-0731 · max · cache 98.4% · Games",
++    );
++    assert_eq!(settled.state, AgentState::Idle);
++    assert!(!settled.visible_blocker);
++}
+diff --git a/src/detect/manifests/deepseek.toml b/src/detect/manifests/deepseek.toml
+new file mode 100644
+index 0000000..7431f4b
+--- /dev/null
++++ b/src/detect/manifests/deepseek.toml
+@@ -0,0 +1,44 @@
++id = "deepseek"
++version = "2026.09.18.1"
++min_engine_version = 2
++updated_at = "2026-09-18T00:00:00Z"
++aliases = ["dsh", "dsh-tui", "deepseek-harness"]
++
++# DeepSeek Harness (dsh) keeps its live state in the footer under the composer,
++# so every rule reads the bottom lines rather than the whole buffer: a finished
++# turn leaves its approval bar and its interrupt hint in the scrollback, and
++# matching those would strand a pane in a state it has already left.
++
++[[rules]]
++id = "approval_bar_blocked"
++state = "blocked"
++priority = 300
++region = "bottom_non_empty_lines(6)"
++visible_blocker = true
++any = [
++  # The banner itself: " Awaiting approval · <tool> ".
++  { contains = ["Awaiting approval ·"] },
++  # Its key hint, which sits under the numbered allow/reject bar.
++  { all = [{ contains = ["Enter confirm"] }, { contains = ["Esc reject"] }] },
++]
++# dsh replaces the composer box with the approval bar while it waits, so a live
++# block never draws the box. Seeing the box means the hint above it is scrollback
++# from an approval that has already been answered. A not-gate belongs at rule
++# level: gates inside `all` must each carry a positive matcher.
++not = [{ contains = ["╰"] }]
++
++[[rules]]
++id = "interrupt_hint_working"
++state = "working"
++priority = 110
++region = "bottom_non_empty_lines(4)"
++visible_working = true
++any = [
++  { contains = ["esc to interrupt"] },
++  { contains = ["ctrl+c to interrupt"] },
++]
++
++# Idle needs no rule of its own: for a known agent whose rules do not match,
++# herdr falls back to idle as `default_known_agent_idle_fallback`. Menus and
++# pickers the user opens are deliberately not treated as blocked — only an
++# approval the agent is actually waiting on counts.
+diff --git a/src/detect/mod.rs b/src/detect/mod.rs
+index 0c773f0..a341cb9 100644
+--- a/src/detect/mod.rs
++++ b/src/detect/mod.rs
+@@ -65,10 +65,11 @@ pub enum Agent {
+     Letta,
+     Maki,
+     Muse,
++    Deepseek,
+ }
+ 
+ impl Agent {
+-    pub const ALL: [Self; 24] = [
++    pub const ALL: [Self; 25] = [
+         Self::Pi,
+         Self::Claude,
+         Self::Codex,
+@@ -93,9 +94,10 @@ impl Agent {
+         Self::Letta,
+         Self::Maki,
+         Self::Muse,
++        Self::Deepseek,
+     ];
+ 
+-    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
++    pub const SCREEN_MANIFEST_AGENTS: [Self; 23] = [
+         Self::Pi,
+         Self::Claude,
+         Self::Codex,
+@@ -118,6 +120,7 @@ impl Agent {
+         Self::Letta,
+         Self::Maki,
+         Self::Muse,
++        Self::Deepseek,
+     ];
+ }
+ 
+@@ -147,6 +150,7 @@ pub fn agent_label(agent: Agent) -> &'static str {
+         Agent::Letta => "letta",
+         Agent::Maki => "maki",
+         Agent::Muse => "muse",
++        Agent::Deepseek => "deepseek",
+     }
+ }
+ 
+@@ -182,6 +186,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
+         Agent::Letta => "letta",
+         Agent::Maki => "maki",
+         Agent::Muse => "muse",
++        Agent::Deepseek => "dsh",
+     }
+ }
+ 
+@@ -222,6 +227,7 @@ fn lookup_agent(name: &str) -> Option<Agent> {
+         "letta" | "letta-code" | "letta code" => Some(Agent::Letta),
+         "maki" => Some(Agent::Maki),
+         "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
++        "deepseek" | "dsh" | "dsh-tui" | "deepseek-harness" => Some(Agent::Deepseek),
+         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
+         _ => None,
+     }
+@@ -921,6 +927,9 @@ mod tests {
+         assert_eq!(identify_agent("mastracode"), Some(Agent::Mastracode));
+         assert_eq!(identify_agent("mastra-code"), Some(Agent::Mastracode));
+         assert_eq!(identify_agent("opencode"), Some(Agent::OpenCode));
++        assert_eq!(identify_agent("dsh"), Some(Agent::Deepseek));
++        assert_eq!(identify_agent("deepseek"), Some(Agent::Deepseek));
++        assert_eq!(identify_agent("dsh-tui"), Some(Agent::Deepseek));
+         assert_eq!(identify_agent("opencode.exe"), Some(Agent::OpenCode));
+         assert_eq!(identify_agent("opencode2"), Some(Agent::OpenCode));
+         assert_eq!(identify_agent("opencode2.exe"), Some(Agent::OpenCode));
+@@ -1027,6 +1036,7 @@ mod tests {
+             (Agent::Letta, "letta"),
+             (Agent::Maki, "maki"),
+             (Agent::Muse, "muse"),
++            (Agent::Deepseek, "dsh"),
+         ];
+         assert_eq!(expected.len(), Agent::ALL.len());
+         for (agent, executable) in expected {
