@@ -39,6 +39,11 @@ _: {
         goals = true
         # agentmemory (MCP) is the exclusive memory path — native memories off.
         memories = false
+        # Required by herdr's codex integration (home/herdr/herdr.nix), which
+        # reports session identity through a SessionStart hook. It also switches
+        # on agentmemory's codex lifecycle hooks, which have been sitting in
+        # ~/.codex/hooks.json without this flag to dispatch them.
+        hooks = true
         BASE_EOF
               if [ -n "$PRESERVED" ]; then
                 printf '\n%s\n' "$PRESERVED"
