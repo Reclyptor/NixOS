@@ -201,24 +201,6 @@ _: {
         Stop = mkHook "stop";
       };
 
-      codexHooksJson = builtins.toJSON codexHooks;
-
-      # Idempotent, non-destructive merge into a host's hooks map: for each event we
-      # own, drop any prior agentmemory entry (matched by the wrapper name, so a
-      # stale store path from an earlier version is replaced) and append the current
-      # one. Unrelated user hooks on the same event survive, as does every other
-      # top-level settings key.
-      hookMergeProg = ''
-        .hooks = (.hooks // {})
-        | reduce ($am | to_entries[]) as $e (.;
-            .hooks[$e.key] = (
-              (((.hooks[$e.key]) // [])
-                | map(select(([ .hooks[]? | .command // "" ] | any(test("agentmemory-hook"))) | not)))
-              + $e.value
-            )
-          )
-      '';
-
       agentmemorySkills = [
         "remember"
         "recall"
@@ -247,6 +229,15 @@ _: {
       # below.)
       programs.claudeCode.hooks = claudeHooks;
 
+      # Codex lifecycle hooks, contributed to the twin list-merging option that
+      # home/codex/codex.nix folds into ~/.codex/hooks.json. Declarative like
+      # Claude's since codex.nix grew that option — the runtime jq merge this
+      # replaces appended a fresh copy of the directive-injection entry on every
+      # activation, because its drop-predicate only matched "agentmemory-hook".
+      # The wrapper reads the bearer token at run time, so these are wired
+      # regardless of token state and carry no secret in the file.
+      programs.codexCli.hooks = codexHooks;
+
       # dsh: the same launcher, mounted into every profile as an MCP client row
       # by home/deepseek/deepseek.nix. Declarative rather than an activation
       # merge because that module already owns the whole cordis.patch.yml. The
@@ -273,18 +264,6 @@ _: {
           else
             rm -f "$file.am.tmp"
             echo "agentmemory: jq merge failed for $file (left unchanged)" >&2
-          fi
-        }
-
-        am_merge_hooks() {
-          local file="$1" am="$2" base
-          $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
-          if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-          if printf '%s' "$base" | ${pkgs.jq}/bin/jq --argjson am "$am" '${hookMergeProg}' > "$file.am.tmp"; then
-            $DRY_RUN_CMD mv -- "$file.am.tmp" "$file"
-          else
-            rm -f "$file.am.tmp"
-            echo "agentmemory: jq hook merge failed for $file (left unchanged)" >&2
           fi
         }
 
@@ -316,12 +295,6 @@ _: {
           $DRY_RUN_CMD chmod 600 "$codex_toml"
         fi
 
-        # Codex lifecycle hooks (TOML client, no declarative home-manager surface, so
-        # still a runtime jq-merge). Claude Code's hooks are now declarative — see the
-        # programs.claudeCode.hooks contribution above. The wrapper reads the
-        # bearer token at run time, so these are wired regardless of token state and
-        # carry no secret in the file.
-        am_merge_hooks "$HOME/.codex/hooks.json"     ${lib.escapeShellArg codexHooksJson}
       '';
 
       # agentmemory skills for Claude Code, Codex, and dsh: read-only symlinks

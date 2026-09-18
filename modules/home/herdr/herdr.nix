@@ -36,35 +36,6 @@
       hookTimeout = 10;
       claudeMatcher = "^(startup|resume|clear|compact|fork)$";
 
-      codexHooksJson = builtins.toJSON {
-        SessionStart = [
-          {
-            hooks = [
-              {
-                type = "command";
-                command = hookCommand codexHook;
-                timeout = hookTimeout;
-              }
-            ];
-          }
-        ];
-      };
-
-      # Same non-destructive shape home/agentmemory.nix uses for the same file:
-      # drop any prior herdr entry (matched by the script name, so a stale store
-      # path from an earlier pin is replaced rather than duplicated), append the
-      # current one, leave every foreign hook — agentmemory's included — intact.
-      hookMergeProg = ''
-        .hooks = (.hooks // {})
-        | reduce ($herdr | to_entries[]) as $e (.;
-            .hooks[$e.key] = (
-              (((.hooks[$e.key]) // [])
-                | map(select(([ .hooks[]? | .command // "" ] | any(test("herdr-agent-state"))) | not)))
-              + $e.value
-            )
-          )
-      '';
-
       # Seed only — herdr writes this file itself (onboarding, the in-app settings
       # menu, `herdr server reload-config`), so a read-only store symlink would
       # break all three. Every key here is one herdr prints in --default-config.
@@ -124,31 +95,22 @@
         }
       ];
 
-      # Codex: TOML client with no declarative home-manager surface, so its hook
-      # is a runtime jq-merge like agentmemory's. Ordered after both writers of
-      # the files it touches; the merge is idempotent, so the order only keeps
-      # the diff quiet. `[features] hooks = true` lives in home/codex/codex.nix,
-      # whose activation rewrites config.toml on every switch.
-      home.activation.herdrCodexHook =
-        lib.hm.dag.entryAfter
-          [
-            "writeBoundary"
-            "codexConfig"
-            "agentmemory"
-          ]
-          ''
-            herdr_hooks="$HOME/.codex/hooks.json"
-            $DRY_RUN_CMD mkdir -p "$(dirname "$herdr_hooks")"
-            if [ -f "$herdr_hooks" ]; then base="$(cat "$herdr_hooks")"; else base="{}"; fi
-            if printf '%s' "$base" \
-              | ${pkgs.jq}/bin/jq --argjson herdr ${lib.escapeShellArg codexHooksJson} \
-                  '${hookMergeProg}' > "$herdr_hooks.herdr.tmp"; then
-              $DRY_RUN_CMD mv -- "$herdr_hooks.herdr.tmp" "$herdr_hooks"
-            else
-              rm -f "$herdr_hooks.herdr.tmp"
-              echo "herdr: jq hook merge failed for $herdr_hooks (left unchanged)" >&2
-            fi
-          '';
+      # Codex: the twin contribution, through the list-merging option
+      # home/codex/codex.nix folds into ~/.codex/hooks.json. Same single entry as
+      # Claude's above, minus the matcher — upstream passes none for codex
+      # (src/integration/targets.rs). `[features] hooks = true`, which codex needs
+      # to dispatch any of this, lives in that module too.
+      programs.codexCli.hooks.SessionStart = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = hookCommand codexHook;
+              timeout = hookTimeout;
+            }
+          ];
+        }
+      ];
 
       # Written once, then left alone — see configSeed above.
       home.activation.herdrConfigSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
