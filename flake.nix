@@ -27,6 +27,16 @@
       url = "github:yt-dlp/yt-dlp";
       flake = false;
     };
+
+    # Pinned to a release tag rather than taken from nixpkgs, which trails by two
+    # releases: the 0.9.x line is where Claude Code's "blocked" state became
+    # trustworthy (Bash approvals, MCP questions), and that signal is the whole
+    # point of running herdr. Its integration hook scripts are read out of this
+    # source tree too, so they can never drift from the binary.
+    herdr = {
+      url = "github:herdrdev/herdr/v0.9.1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   # Dendritic pattern (https://github.com/mightyiam/dendritic): every file under
