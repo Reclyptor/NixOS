@@ -3,7 +3,7 @@ _: {
     { lib, ... }:
     {
       nixpkgs.overlays = [
-        (_final: prev: {
+        (final: prev: {
           # The upstream-sanctioned way to give herdr a dsh agent's state: a dsh
           # bundle that reports lifecycle from the harness's own events —
           # tools/execute for the working label, the approval and user-question
@@ -22,9 +22,19 @@ _: {
           # pane id, and its transport fails open (500ms timeout, one retry,
           # never rejects into dsh). No child_process, no HTTP, no disk writes.
           #
-          # schemastery is a peer dependency that ships inside the dsh
-          # installation, so this package carries no node_modules of its own —
-          # an unpacked tarball is the whole build.
+          # schemastery is a peer dependency, and a store-linked plugin cannot
+          # reach it the way a profile-installed one would: node resolves from
+          # the realpath of the importing file, which is this store path, so the
+          # walk up never passes ~/.dsh/profiles/node_modules where dsh's own
+          # healProfilesModuleFallback keeps it. dsh-tui does not hit this
+          # because buildNpmPackage vendors its dependencies.
+          #
+          # So the peer is linked to the very copy the harness imports. Sharing
+          # one realpath is the point: node caches modules by resolved filename,
+          # so the plugin and the harness get the same schemastery instance
+          # rather than two that fail each other's schema checks. Coupled to
+          # dsh's internal layout on purpose — the guard below turns a layout
+          # change into a build failure instead of a runtime one.
           dsh-herdr =
             let
               version = "0.3.0";
@@ -45,6 +55,16 @@ _: {
                   runHook preInstall
                   mkdir -p $out
                   cp -r . $out/
+
+                  peer=${final.dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery
+                  if [ ! -d "$peer" ]; then
+                    echo "dsh-herdr: schemastery is no longer at $peer;" \
+                         "find where the dsh package keeps it and update this path" >&2
+                    exit 1
+                  fi
+                  mkdir -p $out/node_modules/@deepseek-ai
+                  ln -s "$peer" $out/node_modules/@deepseek-ai/schemastery
+
                   runHook postInstall
                 '';
 
