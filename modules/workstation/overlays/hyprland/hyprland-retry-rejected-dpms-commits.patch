@@ -1,0 +1,194 @@
+monitor: retry a rejected DPMS commit instead of latching a false state
+
+CMonitor::setDPMS assigns m_dpmsStatus before the commit meant to realise it,
+and returns early whenever that cached value already matches the request.
+commitDPMSState retries once, two frames later, and gives up silently if the
+retry fails too. On a 240Hz output those two frames are 8ms.
+
+A single rejected enable therefore leaves the compositor reporting a monitor
+that is on while the panel stays dark, and every later "dpms on" is discarded by
+the early return before it can reach the hardware. The only way out is toggling
+to off and back, which is what users end up doing repeatedly. Nothing on the
+sink side helps -- power cycling the display, reseating the cable and switching
+its input all fail -- because the source never attempts the commit again.
+
+Split the two meanings apart. m_dpmsStatus now records what committed, and
+remains what the toggle dispatcher, wlr-output-power and the Lua bindings read.
+m_dpmsTarget records what was asked for. The two differ only while a request is
+in flight or after one was rejected, and setDPMS treats that disagreement as
+work still outstanding rather than as a redundant request.
+
+Retries now back off from 50ms to a 2s ceiling across eight attempts, roughly
+seven seconds, rather than taking one shot 8ms later. That is long enough to
+outlast the conditions which cause the rejection: a disable and an enable
+arriving almost together, or a connector still settling after a hotplug. When
+the attempts are exhausted the target is abandoned but the reported state is
+left truthful, so the user's next request attempts again instead of being
+swallowed.
+
+The retry timer is cancelled and removed from the event loop before being
+replaced, and on monitor disconnect, matching clearModeRetry() in the same file.
+Previously a failed retry left it registered for the lifetime of the monitor.
+---
+--- a/src/output/Monitor.hpp
++++ b/src/output/Monitor.hpp
+@@ -115,6 +115,9 @@
+         bool                        m_createdByUser    = false;
+         bool                        m_isUnsafeFallback = false;
+ 
++        bool                        m_dpmsTarget         = true;  // requested state; m_dpmsStatus is what committed
++        bool                        m_dpmsAwaitingCommit = false; // a commit for m_dpmsTarget is in flight or scheduled
++        int                         m_dpmsRetryCount     = 0;
+         SP<CEventLoopTimer>         m_dpmsRetryTimer;
+ 
+         bool                        m_pendingFrame    = false; // if we schedule a frame during rendering, reschedule it after
+@@ -393,6 +396,9 @@
+         WORKSPACEID             findAvailableDefaultWS();
+         void                    setSpecialWorkspaceVisualState(bool active);
+         void                    commitDPMSState(bool state);
++        void                    scheduleDPMSRetry();
++        void                    cancelDPMSRetryTimer();
++        void                    clearDPMSRetry();
+         void                    scheduleModeRetry();
+         void                    clearModeRetry();
+         void                    updateVCGTRamps();
+--- a/src/output/Monitor.cpp
++++ b/src/output/Monitor.cpp
+@@ -402,6 +402,7 @@
+ 
+     m_frameScheduler.reset();
+     clearModeRetry();
++    clearDPMSRetry();
+ 
+     if (!m_enabled || g_pCompositor->m_isShuttingDown)
+         return;
+@@ -2308,12 +2309,17 @@
+ }
+ 
+ void CMonitor::setDPMS(bool on) {
+-    // Don't trigger animation if the target state is the same
+-    if (m_dpmsStatus == on)
++    // Redundant only when the hardware is already there, or when a commit for this same
++    // target is still on its way. A request that disagrees with what actually committed
++    // always gets a fresh attempt, even if an earlier one asked for the same thing and
++    // was rejected -- otherwise a single failed commit latches the compositor into a
++    // state that no later request can leave, and the display stays dark until the user
++    // toggles all the way around to the opposite state and back.
++    if (m_dpmsTarget == on && (m_dpmsAwaitingCommit || m_dpmsStatus == on))
+         return;
+ 
+-    m_dpmsStatus = on;
+-    m_events.dpmsChanged.emit();
++    m_dpmsTarget = on;
++    clearDPMSRetry();
+ 
+     if (on) {
+         // enable the monitor. Wait for the frame to be presented, then begin animation
+@@ -2340,38 +2346,87 @@
+ }
+ 
+ void CMonitor::commitDPMSState(bool state) {
++    // Set here rather than in setDPMS: the disable path defers this call to the end of a
++    // fade, and flagging the request in flight before that animation runs would swallow
++    // a repeat request if the animation never finished.
++    m_dpmsAwaitingCommit = true;
++
+     m_output->state->resetExplicitFences();
+     m_output->state->setEnabled(state);
+ 
+     if (!m_state.commit()) {
+         Log::logger->log(Log::ERR, "Couldn't commit output {} for DPMS = {}, will retry.", m_name, state);
++        scheduleDPMSRetry();
++        return;
++    }
+ 
+-        // retry in 2 frames. This could happen when the DRM backend rejects our commit
+-        // because disable + enable were sent almost instantly
++    clearDPMSRetry();
++    m_dpmsAwaitingCommit = false;
+ 
+-        m_dpmsRetryTimer = makeShared<CEventLoopTimer>(
+-            std::chrono::milliseconds(2000 / sc<int>(m_refreshRate)),
+-            [this, self = m_self](SP<CEventLoopTimer> s, void* d) {
+-                if (!self)
+-                    return;
+-
+-                m_output->state->resetExplicitFences();
+-                m_output->state->setEnabled(m_dpmsStatus);
+-                if (!m_state.commit()) {
+-                    Log::logger->log(Log::ERR, "Couldn't retry committing output {} for DPMS = {}", m_name, m_dpmsStatus);
+-                    return;
+-                }
++    // Only now is the cached state true, and only now do listeners get told.
++    if (m_dpmsStatus != state) {
++        m_dpmsStatus = state;
++        m_events.dpmsChanged.emit();
++    }
+ 
+-                m_dpmsRetryTimer.reset();
+-            },
+-            nullptr);
+-        g_pEventLoopManager->addTimer(m_dpmsRetryTimer);
++    if (state)
++        g_pHyprRenderer->damageMonitor(m_self.lock());
++}
+ 
++// The DRM backend rejects a commit for reasons that clear on their own -- a disable and
++// an enable sent almost together, or a connector still settling after a hotplug. Those
++// resolve over hundreds of milliseconds, so back off across a window that can outlast
++// them instead of taking a single shot two frames later.
++//
++// If the window is exhausted the target is abandoned, but m_dpmsStatus is left telling
++// the truth. setDPMS then sees the disagreement and the user's next press tries again,
++// rather than being discarded as redundant.
++void CMonitor::scheduleDPMSRetry() {
++    static constexpr int MAX_DPMS_RETRIES = 8;
++    static constexpr int FIRST_DELAY_MS   = 50;
++    static constexpr int MAX_DELAY_MS     = 2000;
++
++    if (m_dpmsRetryCount >= MAX_DPMS_RETRIES) {
++        Log::logger->log(Log::ERR, "Gave up committing output {} for DPMS = {} after {} attempts, leaving it reported as {}", m_name, m_dpmsTarget, m_dpmsRetryCount, m_dpmsStatus);
++        clearDPMSRetry();
++        m_dpmsAwaitingCommit = false;
+         return;
+     }
+ 
+-    if (state)
+-        g_pHyprRenderer->damageMonitor(m_self.lock());
++    int delayMs = FIRST_DELAY_MS << m_dpmsRetryCount;
++    if (delayMs > MAX_DELAY_MS)
++        delayMs = MAX_DELAY_MS;
++
++    m_dpmsRetryCount++;
++
++    // Safe from inside the timer's own callback: the event loop copies its timer list
++    // before dispatching and hands the timer to the callback by value.
++    cancelDPMSRetryTimer();
++
++    m_dpmsRetryTimer = makeShared<CEventLoopTimer>(
++        std::chrono::milliseconds(delayMs),
++        [this, self = m_self](SP<CEventLoopTimer>, void*) {
++            if (!self)
++                return;
++
++            commitDPMSState(m_dpmsTarget);
++        },
++        nullptr);
++    g_pEventLoopManager->addTimer(m_dpmsRetryTimer);
++}
++
++void CMonitor::cancelDPMSRetryTimer() {
++    if (!m_dpmsRetryTimer)
++        return;
++
++    m_dpmsRetryTimer->cancel();
++    g_pEventLoopManager->removeTimer(m_dpmsRetryTimer);
++    m_dpmsRetryTimer.reset();
++}
++
++void CMonitor::clearDPMSRetry() {
++    cancelDPMSRetryTimer();
++    m_dpmsRetryCount = 0;
+ }
+ 
+ void CMonitor::debugLastPresentation(const std::string& message) {
