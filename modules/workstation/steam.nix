@@ -2,10 +2,10 @@ _: {
   flake.modules.nixos.workstation =
     { pkgs, ... }:
     let
-      # Steam has no global launch-option default, so the same two flags have to
-      # be written into every game individually, and a newly installed game
-      # arrives with the field blank. Rather than fixing that by hand each time,
-      # this writes both rules into localconfig.vdf:
+      # Steam has no global launch-option default, so the same flags have to be
+      # written into every game individually, and a newly installed game arrives
+      # with the field blank. Rather than fixing that by hand each time, this
+      # writes all three rules into localconfig.vdf:
       #
       #   * `gamemoderun %command%` everywhere it is blank, so games actually
       #     run under GameMode (see gamemode.nix for why gamemoderun needed
@@ -17,10 +17,15 @@ _: {
       #     syncobj attached" and drops the connection, which the game reads as
       #     a quit request. Proton games are left alone — they reach the display
       #     through wine, not SDL.
+      #   * `steam-wmclass-run` on native Linux games, which forces the window
+      #     class to steam_app_<appid> so that the window rules keyed on that
+      #     pattern reach native games too. Proton games already arrive named
+      #     that way and are left alone; see overlays/steam-wmclass for why this
+      #     is a preloaded library rather than an environment variable.
       #
-      # Both rules are idempotent and neither overwrites an existing option: a
-      # game that already carries flags only ever gains the SDL variable, and
-      # only when it does not already set one.
+      # Every rule is idempotent and none overwrites an existing option: a game
+      # that already carries flags only ever gains what it is missing, and only
+      # when it does not already set it.
       #
       # Run by hand with Steam closed, which the script enforces. Steam holds
       # localconfig.vdf open and rewrites it wholesale on exit, so anything
@@ -36,6 +41,11 @@ _: {
         STEAM_ROOT = os.path.expanduser("~/.local/share/Steam")
         GAMEMODE = "gamemoderun %command%"
         SDL_X11 = "SDL_VIDEODRIVER=x11"
+        WMCLASS = "steam-wmclass-run"
+
+        # Leading VAR=VAL assignments, so a launcher can be inserted at the head
+        # of the command itself rather than in front of the environment.
+        ASSIGNMENTS = re.compile(r'^(?:\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|\'[^\']*\'|\S*)\s+)*')
 
         # Soundtracks, Proton builds and the runtimes live in the same app list as
         # games and own no executable worth inspecting.
@@ -127,6 +137,9 @@ _: {
             options = current.strip() or GAMEMODE
             if native and "SDL_VIDEODRIVER" not in options:
                 options = SDL_X11 + " " + options
+            if native and WMCLASS not in options:
+                head = ASSIGNMENTS.match(options).end()
+                options = options[:head] + WMCLASS + " " + options[head:]
             return options
 
 
@@ -252,6 +265,7 @@ _: {
       # steamwebhelper and the client UI draws every CJK codepoint as tofu.
       environment.systemPackages = with pkgs; [
         launchOptions
+        steam-wmclass
         mangohud
         protonup-qt
       ];
