@@ -160,6 +160,16 @@ _: {
             force_default_wallpaper = -1;
             disable_hyprland_logo = false;
             vrr = 2;
+
+            # A window on a workspace Hyprland is not displaying stops receiving
+            # frame callbacks, so a game left on one blocks in its buffer swap and
+            # stops running at all -- and because most engines drive networking
+            # from the same loop, a multiplayer session reads that as a client
+            # that has stopped answering and drops it. The render_unfocused rule
+            # below opts a window back into callbacks; this is the rate they
+            # arrive at. The default of 15 is a budget for keeping a preview
+            # alive, not for keeping a game's simulation fed.
+            render_unfocused_fps = 60;
           };
 
           ecosystem = {
@@ -307,6 +317,7 @@ _: {
             "no_blur on, match:class ^(cursor|Cursor|code-url-handler|Code|electron)$"
             "workspace empty, match:class ^(steam_app_[0-9]+)$"
             "fullscreen on, match:class ^(steam_app_[0-9]+)$"
+            "render_unfocused on, match:class ^(steam_app_[0-9]+)$"
           ];
         };
       };
