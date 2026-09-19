@@ -532,13 +532,32 @@ _: {
           # web app rather than layering on it, and its patch owns the
           # interactive surface. No skin — that is a web-client concern.
           tui.bundles = lib.mkDefault [ "@deepseek-ai/dsh-base" ];
-          # dsh-herdr reports this pane's dsh session id to herdr, which is how a
-          # conversation survives a herdr server restart. It is inert outside a
-          # herdr pane, and deliberately reports identity only — herdr's screen
-          # manifest stays the authority on idle/working/blocked.
           tui.plugins = lib.mkDefault [
             pkgs.dsh-tui
             pkgs.dsh-herdr
+          ];
+
+          # dsh-herdr reports this pane's state, session ref and metadata to
+          # herdr from the harness's own events. Its defaults report as agent
+          # `dsh` from source `herdr:dsh-agent-state`; both are retargeted here
+          # onto the pair the herdr overlay's patch whitelists in
+          # `is_official_agent_source`, which is what lets herdr accept the
+          # session reference and bring the conversation back after a server
+          # restart. The pair is deliberately absent from
+          # `is_reserved_native_state_source`, so these reports also carry
+          # lifecycle authority instead of only setting the session ref —
+          # event-driven state beats reading the footer.
+          #
+          # An id-targeted row replaces that row's whole config; every field
+          # left out falls back to the bundle's own schema default.
+          tui.patch = lib.mkDefault [
+            {
+              id = "herdr-agent-state";
+              config = {
+                agent = "deepseek";
+                source = "herdr:deepseek";
+              };
+            }
           ];
         };
 
