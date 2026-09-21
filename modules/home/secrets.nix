@@ -56,6 +56,7 @@ _: {
               "bash/vllm-base-url"
               "bash/deepseek-api-key"
               "agentmemory/claude-token"
+              "ytdlp/categories"
             ]
             (name: {
               path = "${config.home.homeDirectory}/.config/sops/secrets/${name}";

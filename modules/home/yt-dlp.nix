@@ -11,50 +11,29 @@ _: {
         NFS_ROOT="/data/nfs/dxp4800/videos"
         VIDEO_FORMAT="%(upload_date)s.%(title)s.%(id)s.%(ext)s"
 
-        declare -A CATEGORY_DIRS=(
-          [CatA]="cat-a"
-          [CatB]="cat-b"
-          [CatC]="cat-c"
-          [CatD]="cat-d"
-        )
-
-        declare -A CATEGORY_KEYS=(
-          [a]="CatA"
-          [b]="CatB"
-          [c]="CatC"
-          [d]="CatD"
-        )
-
-        declare -A CATEGORY_COOKIES=(
-          [CatA]="''${HOME}/.config/yt-dlp/cookies.txt"
-          [CatB]="''${HOME}/.config/yt-dlp/cookies.txt"
-          [CatC]="''${HOME}/.config/yt-dlp/cookies.txt"
-          [CatD]="''${HOME}/.config/yt-dlp/d-cookies.txt"
-        )
-
-        # A signed-out jar is still a file, so checking that the export exists
-        # proves nothing. These mirror yt-dlp's own tests. A guest run still works
-        # for public media, so a stale jar only warns; what it buys is that the
-        # login-walled failure -- which surfaces as "no video in this tweet" --
-        # is explained before it happens rather than blamed on the URL.
+        # The category table -- which directories exist and which cookies each
+        # needs -- lives in the sops secret rather than here. This repository is
+        # public, and the set of category names is itself the thing worth not
+        # publishing; the mechanism is safe to show, the list is not.
         #
-        # YouTube clears LOGIN_INFO on sign-out but leaves 3PAPISID behind, so
-        # LOGIN_INFO is the one that actually settles it; one of the SAPISID family
-        # then signs the Innertube authorization header. X tests auth_token and
-        # sends ct0 as the CSRF token beside it.
-        declare -A CATEGORY_COOKIES_REQUIRED=(
-          [CatA]="LOGIN_INFO"
-          [CatB]="LOGIN_INFO"
-          [CatC]="LOGIN_INFO"
-          [CatD]="auth_token ct0"
-        )
+        # sops-nix decrypts it at activation. A missing file means that unit did
+        # not run or could not decrypt, so say that rather than failing later on
+        # an unbound array subscript.
+        CATEGORY_CONF="''${HOME}/.config/sops/secrets/ytdlp/categories"
+        if [[ ! -r "''${CATEGORY_CONF}" ]]; then
+          echo "Error: category table not readable: ''${CATEGORY_CONF}" >&2
+          echo "It is decrypted by sops-nix at activation -- check: systemctl --user status sops-nix" >&2
+          exit 1
+        fi
+        # shellcheck source=/dev/null
+        source "''${CATEGORY_CONF}"
 
-        declare -A CATEGORY_COOKIES_ANY=(
-          [CatA]="SAPISID __Secure-1PAPISID __Secure-3PAPISID"
-          [CatB]="SAPISID __Secure-1PAPISID __Secure-3PAPISID"
-          [CatC]="SAPISID __Secure-1PAPISID __Secure-3PAPISID"
-          [CatD]=""
-        )
+        # display name -> short key, so the usage text can be printed from the
+        # table instead of repeating it.
+        declare -A SHORT_OF=()
+        for KEY in "''${!CATEGORY_KEYS[@]}"; do
+          SHORT_OF["''${CATEGORY_KEYS[''${KEY}]}"]="''${KEY}"
+        done
 
         export_help() {
           {
@@ -119,10 +98,12 @@ _: {
           echo "Run without arguments for interactive mode."
           echo ""
           echo "Categories:"
-          echo "  a     - CatA (''${NFS_ROOT}/cat-a)"
-          echo "  b     - CatB (''${NFS_ROOT}/cat-b)"
-          echo "  c     - CatC (''${NFS_ROOT}/cat-c)"
-          echo "  d     - CatD (''${NFS_ROOT}/cat-d)"
+          # Printed from the table, not restated here: a second copy of the list
+          # drifts, and it would put the category names back in this file.
+          for NAME in "''${CATEGORY_ORDER[@]}"; do
+            printf "  %-5s - %s (%s/%s)\n" \
+              "''${SHORT_OF[''${NAME}]}" "''${NAME}" "''${NFS_ROOT}" "''${CATEGORY_DIRS[''${NAME}]}"
+          done
           echo ""
           echo "Examples:"
           echo "  ytdlp                                        (interactive)"
@@ -162,7 +143,7 @@ _: {
 
         # --- Interactive mode ---
         if [[ $# -eq 0 ]]; then
-          CATEGORY=$("''${GUM}" choose --header "Select category:" "CatA" "CatB" "CatC" "CatD")
+          CATEGORY=$("''${GUM}" choose --header "Select category:" "''${CATEGORY_ORDER[@]}")
           BASE_PATH="''${NFS_ROOT}/''${CATEGORY_DIRS[''${CATEGORY}]}"
           check_cookies
 
