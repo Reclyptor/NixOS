@@ -85,38 +85,49 @@ _: {
           mark3_foreground = "#${palette.surface}";
           mark3_background = "#818b4b";
 
-          # The 16 ANSI colors
+          # The 16 ANSI colors.
+          #
+          # These are the only sixteen colors a terminal program can ask for
+          # by name, so each one has to carry its meaning on its own. They
+          # resolve from the palette's semantic layer, never from structural
+          # tokens — a surface color in a text slot is an unreadable one.
+          #
+          # Calibration held here: every chromatic slot clears 4.5:1 against
+          # the background, every bright slot is strictly brighter than its
+          # normal, and no two slots in a row sit closer than ΔE 25. The
+          # accent stays the loudest hue on screen.
+
           # Black
           color0 = "#${palette.surface}";
-          color8 = "#535f53";
+          color8 = "#${palette.accentDim}";
 
           # Red
-          color1 = "#5c705c";
-          color9 = "#cbe25a";
+          color1 = "#${palette.error}";
+          color9 = "#${palette.errorBright}";
 
           # Green
           color2 = "#${palette.accent}";
-          color10 = "#${palette.surfaceLight}";
+          color10 = "#${palette.greenBright}";
 
           # Yellow
-          color3 = "#${palette.accentBright}";
-          color11 = "#${palette.borderActive}";
+          color3 = "#${palette.warning}";
+          color11 = "#${palette.warningBright}";
 
           # Blue
-          color4 = "#687d68";
-          color12 = "#5e6e5e";
+          color4 = "#${palette.info}";
+          color12 = "#${palette.infoBright}";
 
           # Magenta
-          color5 = "#bfd454";
-          color13 = "#${palette.textSoft}";
+          color5 = "#${palette.special}";
+          color13 = "#${palette.specialBright}";
 
           # Cyan
-          color6 = "#8fae8f";
-          color14 = "#b1c44f";
+          color6 = "#${palette.detail}";
+          color14 = "#${palette.detailBright}";
 
           # White
           color7 = "#${palette.textDim}";
-          color15 = "#f0fff0";
+          color15 = "#${palette.textBright}";
         };
       };
     };
