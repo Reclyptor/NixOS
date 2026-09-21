@@ -8,6 +8,7 @@ _: {
       crush
       deno
       dsh
+      duckdb
       gallery-dl
       gcc
       gh
