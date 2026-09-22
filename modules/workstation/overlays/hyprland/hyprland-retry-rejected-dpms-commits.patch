@@ -13,18 +13,27 @@ sink side helps -- power cycling the display, reseating the cable and switching
 its input all fail -- because the source never attempts the commit again.
 
 Split the two meanings apart. m_dpmsStatus now records what committed, and
-remains what the toggle dispatcher, wlr-output-power and the Lua bindings read.
-m_dpmsTarget records what was asked for. The two differ only while a request is
-in flight or after one was rejected, and setDPMS treats that disagreement as
-work still outstanding rather than as a redundant request.
+remains what hyprctl, wlr-output-power, the session lock and the Lua bindings
+read. m_dpmsTarget records what was asked for. The two differ only while a
+request is in flight or after one was rejected, and setDPMS treats that
+disagreement as work still outstanding rather than as a redundant request.
+
+The toggle action follows the target rather than what committed. Toggling states
+an intent -- the opposite of what was last asked for -- and deriving it from the
+committed state means a rejected disable leaves every following press asking to
+disable again, each discarded as redundant while the retry is still outstanding.
+The presses do nothing until the retries run out, which is the same dance from
+the other side: the user is pressing a key that cannot reach the hardware. Only
+the toggle changes; dpms on and dpms off state their direction outright and
+never consulted the cached value.
 
 Retries now back off from 50ms to a 2s ceiling across eight attempts, roughly
 seven seconds, rather than taking one shot 8ms later. That is long enough to
 outlast the conditions which cause the rejection: a disable and an enable
 arriving almost together, or a connector still settling after a hotplug. When
-the attempts are exhausted the target is abandoned but the reported state is
-left truthful, so the user's next request attempts again instead of being
-swallowed.
+the attempts are exhausted the target is reconciled with what is actually live,
+so intent and reality agree again and the next toggle asks for the opposite of
+what is on the panel.
 
 The retry timer is cancelled and removed from the event loop before being
 replaced, and on monitor disconnect, matching clearModeRetry() in the same file.
@@ -36,7 +45,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
          bool                        m_createdByUser    = false;
          bool                        m_isUnsafeFallback = false;
  
-+        bool                        m_dpmsTarget         = true;  // requested state; m_dpmsStatus is what committed
++        bool                        m_dpmsTarget         = true;  // requested state, and what a toggle inverts
 +        bool                        m_dpmsAwaitingCommit = false; // a commit for m_dpmsTarget is in flight or scheduled
 +        int                         m_dpmsRetryCount     = 0;
          SP<CEventLoopTimer>         m_dpmsRetryTimer;
@@ -84,7 +93,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
  
      if (on) {
          // enable the monitor. Wait for the frame to be presented, then begin animation
-@@ -2340,38 +2346,87 @@
+@@ -2340,38 +2346,92 @@
  }
  
  void CMonitor::commitDPMSState(bool state) {
@@ -138,18 +147,23 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 +// resolve over hundreds of milliseconds, so back off across a window that can outlast
 +// them instead of taking a single shot two frames later.
 +//
-+// If the window is exhausted the target is abandoned, but m_dpmsStatus is left telling
-+// the truth. setDPMS then sees the disagreement and the user's next press tries again,
-+// rather than being discarded as redundant.
++// If the window is exhausted the target is reconciled with what actually committed, so
++// intent and reality agree again: the next toggle inverts a state the panel is really in,
++// and an explicit request is no longer mistaken for one already in flight.
 +void CMonitor::scheduleDPMSRetry() {
 +    static constexpr int MAX_DPMS_RETRIES = 8;
 +    static constexpr int FIRST_DELAY_MS   = 50;
 +    static constexpr int MAX_DELAY_MS     = 2000;
 +
 +    if (m_dpmsRetryCount >= MAX_DPMS_RETRIES) {
-+        Log::logger->log(Log::ERR, "Gave up committing output {} for DPMS = {} after {} attempts, leaving it reported as {}", m_name, m_dpmsTarget, m_dpmsRetryCount, m_dpmsStatus);
++        Log::logger->log(Log::ERR, "Gave up committing output {} for DPMS = {} after {} attempts, leaving it on {}", m_name, m_dpmsTarget, m_dpmsRetryCount, m_dpmsStatus);
 +        clearDPMSRetry();
 +        m_dpmsAwaitingCommit = false;
++
++        // stop calling it a target once it has been given up on. left pointing at a state
++        // that never committed, it would make the next toggle invert an intention the
++        // compositor has already abandoned and ask for the state already on the panel.
++        m_dpmsTarget = m_dpmsStatus;
          return;
      }
  
@@ -192,3 +206,18 @@ Previously a failed retry left it registered for the lifetime of the monitor.
  }
  
  void CMonitor::debugLastPresentation(const std::string& message) {
+--- a/src/config/shared/actions/ConfigActions.cpp
++++ b/src/config/shared/actions/ConfigActions.cpp
+@@ -1246,7 +1246,11 @@
+ 
+         bool enable = false;
+         switch (action) {
+-            case TOGGLE_ACTION_TOGGLE: enable = !m->m_dpmsStatus; break;
++            // the target, not what committed. a toggle asks for the opposite of the last
++            // request, and a request still being retried has not changed what committed --
++            // inverting that would repeat the pending request, which setDPMS discards as
++            // redundant, and the key would do nothing until the retries ran out.
++            case TOGGLE_ACTION_TOGGLE: enable = !m->m_dpmsTarget; break;
+             case TOGGLE_ACTION_ENABLE: enable = true; break;
+             case TOGGLE_ACTION_DISABLE: enable = false; break;
+         }
