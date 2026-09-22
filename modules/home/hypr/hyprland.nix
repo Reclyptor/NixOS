@@ -176,6 +176,19 @@ _: {
             no_update_news = true;
           };
 
+          # TEMPORARY -- instrumentation for the DPMS black-screen bug, remove once the
+          # fix in modules/workstation/overlays/hyprland/ is confirmed against a real
+          # occurrence. Hyprland defaults disable_logs to true and its logger re-reads the
+          # value only on config reload, so hyprctl keyword cannot turn it on for a running
+          # session. With it off, nothing the overlay's patch reports ("will retry", "Gave
+          # up committing") reaches disk, and neither does any dpms dispatch: the 2026-09-22
+          # failure had to be reconstructed from aquamarine's lines alone, which do not say
+          # what the compositor asked for.
+          debug = {
+            disable_logs = false;
+            disable_time = false;
+          };
+
           # Key bindings
           "$mainMod" = "SUPER";
 
