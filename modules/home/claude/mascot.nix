@@ -43,6 +43,24 @@ _: {
         agent="$(field agent_type subagent_type)"
         [ -n "$session" ] || exit 0
 
+        # PreToolUse reports nothing on its own. It fires 49ms before
+        # PermissionRequest, and because every post is a detached curl the two
+        # race: measured, a generic "working" from PreToolUse landed after the
+        # "needs_input" from PermissionRequest and wiped it, so a prompt sitting
+        # on screen showed as working. Dropping the generic post removes the
+        # race outright rather than trying to order two independent processes.
+        # working is still carried by UserPromptSubmit at the head of a turn and
+        # by PostToolUse after every tool, which is ample.
+        #
+        # Its one remaining job is AskUserQuestion: being asked a question is a
+        # genuine "you are needed", and unlike a permission prompt it raises no
+        # PermissionRequest, because it is not a permission. PostToolUse for the
+        # same tool stays working, so answering clears it.
+        if [ "$(field hook_event_name)" = PreToolUse ] &&
+           [ "$(field tool_name)" != AskUserQuestion ]; then
+          exit 0
+        fi
+
         # "esp32/amoled" from a path, and the session id from a worktree name if
         # the directory is one, so every worktree of a repo reads distinctly.
         repo="$(basename "$(dirname "$cwd")")/$(basename "$cwd")"
@@ -80,21 +98,33 @@ _: {
       # land BESIDE the agentmemory entries rather than replacing them: per-event
       # lists concatenate across modules.
       #
-      # PreToolUse is the only event agentmemory deliberately omits, and it is the
-      # one this needs most: it is the "working" signal.
+      # This mapping is measured, not assumed. An instrumented session logging
+      # every hook around a real permission prompt produced:
       #
-      # Clearing a prompt is a separate problem, and assuming PreToolUse did it is
-      # what left the creature jumping after the user had already answered. Claude
-      # Code fires nothing when a permission prompt is answered — PermissionRequest
-      # runs *before* the prompt — so the device has to infer it from the next
-      # thing the session does. UserPromptSubmit is that signal for an idle
-      # notification, and PostToolUse for an approved tool; without them the only
-      # way out was the following PreToolUse, which can be minutes away.
+      #   PreToolUse WebFetch          +0.000  before the prompt
+      #   PermissionRequest WebFetch   +0.049  the prompt is now on screen
+      #   Notification permission_prompt  +6.073  a delayed nag, not the event
+      #   (answered)                  +21.099  nothing fires
+      #   PostToolUse WebFetch        +22.365  the tool's own runtime
+      #   Stop                        +23.909
+      #
+      # So PermissionRequest is the exact moment a human becomes blocked, and it
+      # is what needs_input hangs off. Notification is deliberately NOT wired:
+      # its permission_prompt form is a ~6s setTimeout that never fires at all if
+      # you answer promptly, and its idle_prompt form re-fires for any session
+      # merely sitting at a prompt. Driving the alert off it produced both a
+      # permanent false alarm and a late true one.
+      #
+      # Nothing fires when a prompt is answered, so the clear has to be inferred
+      # from the next thing the session does: PostToolUse once the approved tool
+      # finishes, UserPromptSubmit when the human types. That leaves one bounded
+      # wrong window - between answering and the tool completing - which is the
+      # tool's own runtime and self-corrects at PostToolUse.
       programs.claudeCode.hooks = {
-        PreToolUse = mkHook "working";
+        PreToolUse = mkHook "needs_input";
         PostToolUse = mkHook "working";
         UserPromptSubmit = mkHook "working";
-        Notification = mkHook "needs_input";
+        PermissionRequest = mkHook "needs_input";
         Stop = mkHook "finished";
         SubagentStop = mkHook "subagent_finished";
         PostToolUseFailure = mkHook "tool_failure";
