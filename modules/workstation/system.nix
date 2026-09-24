@@ -25,6 +25,7 @@ _: {
       nmap
       p7zip
       pciutils
+      poppler-utils
       rar
       socat
       talosctl
