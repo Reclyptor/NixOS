@@ -1,7 +1,6 @@
 _: {
   flake.modules.homeManager.base =
     {
-      lib,
       pkgs,
       ...
     }:
