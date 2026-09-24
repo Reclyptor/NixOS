@@ -30,14 +30,18 @@ _: {
         event="''${1:-}"
         payload="$(cat 2>/dev/null || true)"
 
+        # Agents disagree on spelling: Claude Code sends session_id, Codex
+        # sends sessionId. agentmemory's own hook reads both, so this does too
+        # rather than guessing which harness invoked it.
         field() {
-          printf '%s' "$payload" \
-            | ${pkgs.jq}/bin/jq -r --arg k "$1" '.[$k] // ""' 2>/dev/null || true
+          printf '%s' "$payload" | ${pkgs.jq}/bin/jq -r \
+            --arg a "$1" --arg b "''${2:-$1}" \
+            '.[$a] // .[$b] // ""' 2>/dev/null || true
         }
 
-        session="$(field session_id)"
-        cwd="$(field cwd)"
-        agent="$(field agent_type)"
+        session="$(field session_id sessionId)"
+        cwd="$(field cwd workdir)"
+        agent="$(field agent_type subagent_type)"
         [ -n "$session" ] || exit 0
 
         # "esp32/amoled" from a path, and the session id from a worktree name if
@@ -88,6 +92,23 @@ _: {
         PostToolUseFailure = mkHook "tool_failure";
         SessionStart = mkHook "session_start";
         SessionEnd = mkHook "session_end";
+      };
+
+      # Codex dispatches a smaller lifecycle set, and the difference is not
+      # cosmetic: it has no Notification, so a Codex session cannot tell the
+      # mascot it is waiting on you. What it can report is that it is working
+      # and that it has stopped. PostToolUse stands in for PreToolUse, which
+      # Codex does not dispatch either; it arrives a beat later but means the
+      # same thing here.
+      #
+      # It also has no SessionEnd, so Codex rows are collected by the 30 minute
+      # TTL rather than closed explicitly. That is exactly the case the TTL was
+      # put there for.
+      programs.codexCli.hooks = {
+        SessionStart = mkHook "session_start";
+        UserPromptSubmit = mkHook "working";
+        PostToolUse = mkHook "working";
+        Stop = mkHook "finished";
       };
     };
 }
