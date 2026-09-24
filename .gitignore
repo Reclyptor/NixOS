@@ -7,7 +7,11 @@ keys.txt
 .config/sops/age/
 
 # Specs are working documents, not configuration. This is a configuration-only
-# repo, so SPEC.md stays local and is never checked in.
+# repo, so they stay local and are never checked in. One spec per branch, at
+# SPEC/<branch-slug>.md: a single shared SPEC.md let concurrent agent sessions
+# silently overwrite each other's work. The bare SPEC.md rule is kept so a
+# stale one left by an older session still cannot be committed.
+SPEC/
 SPEC.md
 
 # Agent working directories — per-session local state, not configuration.

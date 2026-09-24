@@ -68,23 +68,36 @@ don't start building. Outline what you'd build and where it goes. Get
 approval first.
 
 ### Spec-Based Development (Always)
-Every task starts with a spec. No exceptions. The spec lives in `SPEC.md`
-at the project root - this is the single source of truth for what is being
-built and why. Before any work begins, read `SPEC.md` to ground yourself in
-the current contract. Even for one-line changes, state explicitly what
-you're changing, why, and what the expected behavior is before touching
-code. For anything beyond a trivial edit, enter plan mode with `/plan` and
-use the `ask_user_question` tool to interview the user about technical
-implementation, UX, concerns, and tradeoffs - then submit the finished plan
-through `exit_plan_mode` as the only and final tool call of that response.
-Write detailed specs upfront in `SPEC.md` to reduce ambiguity. The spec
+Every task starts with a spec. No exceptions. The spec lives in
+`SPEC/<branch-slug>.md`, where `<branch-slug>` is the working branch name
+with any agent prefix stripped - branch `claude/dpms-toggle-latch` gives
+`SPEC/dpms-toggle-latch.md`. One spec per branch, never one shared file:
+several agent sessions run at once on this machine, and a single `SPEC.md`
+at the project root means whoever writes last silently destroys the
+others' work. That has already cost two specs.
+
+The spec is the single source of truth for what is being built and why.
+Before any work begins, read your branch's spec to ground yourself in the
+current contract. Even for one-line changes, state explicitly what you're
+changing, why, and what the expected behavior is before touching code. For
+anything beyond a trivial edit, enter plan mode with `/plan` and use the
+`ask_user_question` tool to interview the user about technical
+implementation, UX, concerns, and tradeoffs - then submit the finished
+plan through `exit_plan_mode` as the only and final tool call of that
+response. Write detailed specs upfront to reduce ambiguity. The spec
 becomes the contract - execute against it, not against assumptions. Strip
 away all assumptions before touching code.
 
-If `SPEC.md` does not exist or does not cover the work in front of you,
-you MUST create or update it first and get explicit approval before
-implementation. "I think I understand what they want" is not a spec. A
-spec is written to `SPEC.md`, reviewed, and agreed upon. No spec, no code.
+`SPEC/` is gitignored, so it cannot live in a worktree - `git worktree
+remove` would delete it. It is therefore the one path a session writes to
+inside the source checkout, and the only exception to section 12.
+Everything else there is still read from, not written to.
+
+If your branch's spec does not exist or does not cover the work in front
+of you, you MUST create or update it first and get explicit approval
+before implementation. "I think I understand what they want" is not a
+spec. A spec is written to `SPEC/<branch-slug>.md`, reviewed, and agreed
+upon. No spec, no code.
 
 ---
 
@@ -473,6 +486,11 @@ moment it drifts onto a branch, every concurrent session is reading a lie.
 Every Claude, Codex, or dsh session that will modify a repo creates a git
 worktree first and does all of its work there. The source checkout is read
 from, not written to.
+
+The sole exception is `SPEC/`, which is gitignored and so cannot survive
+in a worktree - removing the worktree would delete it. A session's spec is
+therefore written to `SPEC/<branch-slug>.md` in the source checkout.
+Nothing else there is ever written to.
 
 ### Worktree Location and Naming
 All worktrees live in `~/Worktrees`, named:
