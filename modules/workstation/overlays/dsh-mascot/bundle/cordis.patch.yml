@@ -1,0 +1,10 @@
+# Insert the mascot reporter into the profile's layer stack. `dsh plugin add`
+# joins this bundle into `dsh.profile.bundles` and activates the row because
+# package.json declares `dsh.bundle.patch`. Override a value by patching the
+# same row id from the profile layer; last write wins per row.
+- insert:
+    - id: mascot-agent-state
+      name: '@reclyptor/mascot-agent-state'
+      config:
+        # The device's reserved address. Overridable per profile.
+        endpoint: 'http://192.168.1.7/event'

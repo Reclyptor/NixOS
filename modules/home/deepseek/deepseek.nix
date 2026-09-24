@@ -239,6 +239,18 @@ _: {
         };
       };
 
+      # dsh-mascot reports session state to the ESP32 desk mascot from the same
+      # harness events. It carries no patch row: the bundle's own
+      # cordis.patch.yml already inserts it with the device's address, and a
+      # second copy here would be a second place to edit when that address
+      # changes. The address does also appear in home/claude/mascot.nix, which
+      # reaches Claude Code and Codex through their hook seams — dsh has none,
+      # which is why it needs a bundle at all.
+      #
+      # Carried by every profile for the same reason herdr's is: the plugin is
+      # inert when the device does not answer, so a profile that never sees it
+      # simply posts into a 400 ms timeout and moves on.
+
       jsonFormat = pkgs.formats.json { };
       yamlFormat = pkgs.formats.yaml { };
 
@@ -545,14 +557,20 @@ _: {
             "@deepseek-ai/dsh-base"
             "@deepseek-ai/dsh-web-app"
           ];
-          web.plugins = lib.mkDefault [ pkgs.dsh-herdr ];
+          web.plugins = lib.mkDefault [
+            pkgs.dsh-herdr
+            pkgs.dsh-mascot
+          ];
           web.patch = lib.mkDefault [ herdrStateRow ];
 
           headless.bundles = lib.mkDefault [
             "@deepseek-ai/dsh-base"
             "@deepseek-ai/dsh-headless"
           ];
-          headless.plugins = lib.mkDefault [ pkgs.dsh-herdr ];
+          headless.plugins = lib.mkDefault [
+            pkgs.dsh-herdr
+            pkgs.dsh-mascot
+          ];
           headless.patch = lib.mkDefault [ herdrStateRow ];
 
           # The terminal front end, over dsh-base alone: dsh-tui replaces the
@@ -562,6 +580,7 @@ _: {
           tui.plugins = lib.mkDefault [
             pkgs.dsh-tui
             pkgs.dsh-herdr
+            pkgs.dsh-mascot
           ];
 
           tui.patch = lib.mkDefault [ herdrStateRow ];
