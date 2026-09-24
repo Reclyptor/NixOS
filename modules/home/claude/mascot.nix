@@ -81,10 +81,19 @@ _: {
       # lists concatenate across modules.
       #
       # PreToolUse is the only event agentmemory deliberately omits, and it is the
-      # one this needs most — it is both the "working" signal and the ordinary way
-      # a prompt clears.
+      # one this needs most: it is the "working" signal.
+      #
+      # Clearing a prompt is a separate problem, and assuming PreToolUse did it is
+      # what left the creature jumping after the user had already answered. Claude
+      # Code fires nothing when a permission prompt is answered — PermissionRequest
+      # runs *before* the prompt — so the device has to infer it from the next
+      # thing the session does. UserPromptSubmit is that signal for an idle
+      # notification, and PostToolUse for an approved tool; without them the only
+      # way out was the following PreToolUse, which can be minutes away.
       programs.claudeCode.hooks = {
         PreToolUse = mkHook "working";
+        PostToolUse = mkHook "working";
+        UserPromptSubmit = mkHook "working";
         Notification = mkHook "needs_input";
         Stop = mkHook "finished";
         SubagentStop = mkHook "subagent_finished";
