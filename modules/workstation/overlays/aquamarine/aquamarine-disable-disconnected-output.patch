@@ -1,33 +1,52 @@
 drm: let a disconnected output be disabled
 
-CDRMOutput::commitState refuses every commit once the connector reports
-disconnected, including a commit whose only purpose is to turn the output off.
-A compositor disables an output when it goes away -- Hyprland does it from
-CMonitor::onDisconnect -- and that disable is rejected with "Cannot commit a
-disconnected output".
+The commit path checks the connector's status twice, and both checks refuse a
+commit whose only purpose is to turn the output off.
 
-Nothing else brings the hardware down. recheckCRTCs drops our own crtc
-assignment and logs "is not connected, clearing stale crtc N", but that is
-bookkeeping, not an atomic commit: the CRTC stays active with the mode it was
-last driving. The next connect creates a fresh output and modesets onto a CRTC
-that was never torn down.
+CDRMOutput::commitState refuses with "Cannot commit a disconnected output".
+SDRMConnector::commitState -- its only caller -- repeats the same check and
+returns false silently, before impl->commit is reached. Relaxing one without
+the other changes nothing observable: the caller still logs "Disabling output
+N", applyCommit never runs, enabledState goes on reporting the output as live,
+and no error is logged anywhere.
+
+A compositor disables an output when it goes away; Hyprland does it from
+CMonitor::onDisconnect. Nothing else brings the hardware down. recheckCRTCs
+drops our own crtc assignment and logs "is not connected, clearing stale crtc
+N", but that is bookkeeping, not an atomic commit: the CRTC stays active with
+the mode it was last driving. The next connect creates a fresh output and
+modesets onto a CRTC that was never torn down.
 
 Observed on an NVIDIA-driven DP sink that powers its input down when the
 monitor is switched to another source. The connector bounces, the reconnect
 modeset reports success, and the panel stays dark. The only cure is a manual
 DPMS off/on, which works for exactly one reason: by then the connector is
-connected again, so the same guard lets the disable through.
+connected again, so both guards let the disable through.
 
-Split the two cases the guard was conflating. A commit from a stale output
-object is still refused unconditionally. A commit on a disconnected connector
-is refused only when it would leave the output enabled; one that disables it
-proceeds. The crtc is still attached at this point -- recheckCRTCs clears it
-later -- so the disable has somewhere to land, and every buffer, format and
-VRR path downstream is already gated on the enabled state.
+Split the case each guard was conflating. A commit from a stale output object,
+or one with no output at all, is still refused unconditionally. A commit on a
+disconnected connector is refused only when it would leave the output enabled;
+one that disables it proceeds. The crtc is still attached at this point --
+recheckCRTCs clears it later -- so the disable has somewhere to land, and every
+buffer, format and VRR path downstream is already gated on the enabled state.
 ---
 --- a/src/backend/drm/DRM.cpp
 +++ b/src/backend/drm/DRM.cpp
-@@ -2494,7 +2494,17 @@
+@@ -2141,7 +2141,12 @@
+ }
+ 
+ bool Aquamarine::SDRMConnector::commitState(SDRMConnectorCommitData& data) {
+-    if (status != DRM_MODE_CONNECTED || !output)
++    // The same rule as in CDRMOutput::commitState, which is the only caller: a
++    // disconnected connector can still be turned off, just not turned on. This guard
++    // refuses silently, so relaxing only the outer one is not enough and the failure is
++    // invisible -- the caller logs "Disabling output", impl->commit is never reached,
++    // applyCommit never runs, and enabledState goes on claiming the output is live.
++    if (!output || (status != DRM_MODE_CONNECTED && data.enabled))
+         return false;
+ 
+     const bool ok = backend->impl->commit(self.lock(), data);
+@@ -2494,7 +2499,17 @@
          return false;
      }
  
