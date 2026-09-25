@@ -1,0 +1,48 @@
+drm: let a disconnected output be disabled
+
+CDRMOutput::commitState refuses every commit once the connector reports
+disconnected, including a commit whose only purpose is to turn the output off.
+A compositor disables an output when it goes away -- Hyprland does it from
+CMonitor::onDisconnect -- and that disable is rejected with "Cannot commit a
+disconnected output".
+
+Nothing else brings the hardware down. recheckCRTCs drops our own crtc
+assignment and logs "is not connected, clearing stale crtc N", but that is
+bookkeeping, not an atomic commit: the CRTC stays active with the mode it was
+last driving. The next connect creates a fresh output and modesets onto a CRTC
+that was never torn down.
+
+Observed on an NVIDIA-driven DP sink that powers its input down when the
+monitor is switched to another source. The connector bounces, the reconnect
+modeset reports success, and the panel stays dark. The only cure is a manual
+DPMS off/on, which works for exactly one reason: by then the connector is
+connected again, so the same guard lets the disable through.
+
+Split the two cases the guard was conflating. A commit from a stale output
+object is still refused unconditionally. A commit on a disconnected connector
+is refused only when it would leave the output enabled; one that disables it
+proceeds. The crtc is still attached at this point -- recheckCRTCs clears it
+later -- so the disable has somewhere to land, and every buffer, format and
+VRR path downstream is already gated on the enabled state.
+---
+--- a/src/backend/drm/DRM.cpp
++++ b/src/backend/drm/DRM.cpp
+@@ -2494,7 +2494,17 @@
+         return false;
+     }
+ 
+-    if (connector->status != DRM_MODE_CONNECTED || connector->output != self.lock()) {
++    // A commit from a stale output object is always wrong. A disconnected connector,
++    // though, must still be able to be turned OFF. The compositor disables an output
++    // when it goes away, and refusing that commit leaves the CRTC active with the mode
++    // it was last driving: recheckCRTCs only drops our own crtc assignment, which is
++    // bookkeeping, not a commit, so nothing ever brings the hardware down. The next
++    // connect then modesets onto a CRTC that was never torn down, and on some sinks the
++    // picture does not come back until a disable is committed by hand.
++    //
++    // The crtc is still attached at this point -- it is cleared later, in recheckCRTCs --
++    // so the disable has somewhere to land.
++    if (connector->output != self.lock() || (connector->status != DRM_MODE_CONNECTED && state->state().enabled)) {
+         backend->backend->log(AQ_LOG_ERROR, "drm: Cannot commit a disconnected output");
+         return false;
+     }

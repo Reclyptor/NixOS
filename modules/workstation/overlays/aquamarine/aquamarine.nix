@@ -20,9 +20,24 @@ _: {
         # (amdgpu flip_done timeout), so this is offered upstream rather than kept
         # here indefinitely -- drop the override once it lands in a release.
         #
+        # A disconnected output cannot be turned off either. commitState refuses every
+        # commit once the connector reports disconnected, including the disable the
+        # compositor issues from onDisconnect when the output goes away -- so that
+        # disable never reaches the kernel and the CRTC stays active with the mode it
+        # was last driving. recheckCRTCs only drops our own crtc assignment, which is
+        # bookkeeping, not a commit. The next connect then modesets onto a CRTC that was
+        # never torn down and the panel stays dark, which is why a manual DPMS off/on is
+        # the only cure: by then the connector is back, so the same guard lets the
+        # disable through. Reproduced twice, 2026-09-23 and 2026-09-24, both times with
+        # zero rejected DPMS commits -- so this is a different fault from the toggle
+        # latch patched in the hyprland overlay, not a second symptom of it.
+        #
         # hyprland links aquamarine, so overriding it here rebuilds hyprland too.
         aquamarine = prev.aquamarine.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ [ ./aquamarine-reap-stalled-page-flips.patch ];
+          patches = (old.patches or [ ]) ++ [
+            ./aquamarine-reap-stalled-page-flips.patch
+            ./aquamarine-disable-disconnected-output.patch
+          ];
         });
       })
     ];
