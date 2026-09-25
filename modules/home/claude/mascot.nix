@@ -132,20 +132,38 @@ _: {
         SessionEnd = mkHook "session_end";
       };
 
-      # Codex dispatches a smaller lifecycle set, and the difference is not
-      # cosmetic: it has no Notification, so a Codex session cannot tell the
-      # mascot it is waiting on you. What it can report is that it is working
-      # and that it has stopped. PostToolUse stands in for PreToolUse, which
-      # Codex does not dispatch either; it arrives a beat later but means the
-      # same thing here.
+      # Codex dispatches the same lifecycle set as Claude Code. An earlier
+      # version of this comment claimed it had no Notification, no SessionEnd
+      # and no PreToolUse, and wired only four events on that basis. All three
+      # claims were wrong. The hook dispatch enum in codex 0.154.0 reads:
       #
-      # It also has no SessionEnd, so Codex rows are collected by the 30 minute
-      # TTL rather than closed explicitly. That is exactly the case the TTL was
-      # put there for.
+      #   UserPromptSubmit PreToolUse PermissionRequest PostToolUse
+      #   PreCompact PostCompact SessionStart SessionEnd
+      #   SubagentStart SubagentStop Interrupt Stop
+      #
+      # each with its own CommandOutputWire, and PermissionRequest carrying a
+      # HookSpecificOutputWire of permissionDecision/permissionDecisionReason.
+      #
+      # So Codex has the same exact blocked signal Claude Code does, and it is
+      # what needs_input hangs off here too. PreToolUse is deliberately left
+      # unwired: it fires just before PermissionRequest, and since every post is
+      # a detached curl the two race - on Claude Code a generic "working" landed
+      # after the "needs_input" and wiped it, leaving a live prompt displayed as
+      # working. UserPromptSubmit and PostToolUse carry working perfectly well.
+      #
+      # SessionEnd closes rows explicitly rather than leaving them to the 30
+      # minute TTL, which was only ever a fallback for a harness that could not
+      # say goodbye.
+      #
+      # The one real gap left: Codex has no PostToolUseFailure, so the
+      # tool_failure overlay cannot be wired for it.
       programs.codexCli.hooks = {
         SessionStart = mkHook "session_start";
+        SessionEnd = mkHook "session_end";
         UserPromptSubmit = mkHook "working";
         PostToolUse = mkHook "working";
+        PermissionRequest = mkHook "needs_input";
+        SubagentStop = mkHook "subagent_finished";
         Stop = mkHook "finished";
       };
     };
