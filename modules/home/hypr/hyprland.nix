@@ -176,6 +176,19 @@ _: {
             no_update_news = true;
           };
 
+          # TEMPORARY -- instrumentation for the DPMS black-screen bug, remove once the
+          # fix in modules/workstation/overlays/aquamarine/ is confirmed against a real
+          # occurrence. Removed once already, prematurely: without Hyprland's own lines
+          # the log carries no timestamps and no `dpms` dispatches, and the 2026-09-25
+          # cycle was misread as an unassisted recovery when the user had in fact pressed
+          # SUPER+D twice. Hyprland defaults disable_logs to true and its logger re-reads
+          # the value only on config reload, so hyprctl keyword cannot turn it on for a
+          # running session.
+          debug = {
+            disable_logs = false;
+            disable_time = false;
+          };
+
           # Key bindings
           "$mainMod" = "SUPER";
 
