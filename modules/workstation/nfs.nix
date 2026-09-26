@@ -33,9 +33,6 @@ _: {
         "/data/nfs/dxp4800/videos" = "192.168.1.3:/mnt/primary/videos";
         "/data/nfs/dxp4800/images" = "192.168.1.3:/mnt/primary/images";
 
-        "/data/nfs/flashstor/videos" = "192.168.1.4:/mnt/primary/videos";
-        "/data/nfs/flashstor/data" = "192.168.1.4:/mnt/primary/data";
-
         "/data/nfs/asustor" = "192.168.1.5:/volume1/data";
       };
 
