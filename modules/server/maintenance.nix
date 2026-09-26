@@ -27,5 +27,25 @@ _: {
       enable = true;
       interval = "monthly";
     };
+
+    # Every democratic-csi volume is an ext4 filesystem on an iSCSI zvol, and
+    # none of them mount with `discard`. Blocks freed inside ext4 are therefore
+    # never handed back to ZFS: the pool keeps accounting for data the guest
+    # deleted months ago. Measured on 2026-09-26, a single manual pass across
+    # 58 devices on these five nodes returned 144 GiB.
+    #
+    # Periodic rather than the `discard` mount option on purpose. Online
+    # discard issues an UNMAP on every delete, putting the round trip to the
+    # NAS on the deleting process's critical path; batching it weekly costs
+    # nothing in the steady state. Weekly also matches nix.gc above and keeps
+    # the I/O off etcd's fsync path on the control-plane nodes.
+    #
+    # This is the pool-level reclaim only. `zpool trim` / autotrim is a
+    # separate layer that passes UNMAP down to the physical NVMe and affects
+    # wear levelling, not pool free space — it lives on the NAS, not here.
+    services.fstrim = {
+      enable = true;
+      interval = "weekly";
+    };
   };
 }
