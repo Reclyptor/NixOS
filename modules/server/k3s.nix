@@ -93,6 +93,18 @@ in
               "--egress-selector-mode=cluster"
               "--disable=servicelb"
               "--disable=traefik"
+              # local-path is a landmine, not a feature. It ships as the DEFAULT
+              # StorageClass, so any PVC that forgets storageClassName silently
+              # lands on node-local disk: unreplicated, and pinned to one node so
+              # the pod can never be drained off it. Nothing uses it — every one of
+              # the 60 dynamic PVs is democratic-csi iSCSI, the rest static NFS —
+              # so disabling the addon removes the class and its provisioner
+              # outright rather than leaving a ghost to trip over. emptyDir covers
+              # genuine node-local scratch. The cluster default becomes
+              # iscsi-ephemeral-fs6712x, set in the Flux repo; exactly one class may
+              # hold that annotation, so this flag must land FIRST or the cluster
+              # briefly has two defaults and creation order picks the winner.
+              "--disable=local-storage"
               "--kubelet-arg=cluster-dns=${clusterDnsIP}"
             ]
             ++ capabilityFlags
