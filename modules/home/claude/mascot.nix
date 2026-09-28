@@ -61,9 +61,25 @@ _: {
           exit 0
         fi
 
-        # "esp32/amoled" from a path, and the session id from a worktree name if
-        # the directory is one, so every worktree of a repo reads distinctly.
-        repo="$(basename "$(dirname "$cwd")")/$(basename "$cwd")"
+        # "esp32/amoled" from a path: the last two components that actually
+        # exist, so a shallow directory degrades instead of sprouting slashes.
+        # basename/dirname gave "//data" for /data and "///" for /, because
+        # basename "/" is "/" and it got pasted in as though it were a name.
+        #
+        # Parameter expansion rather than awk: no second process per hook, and
+        # nothing here has to survive being quoted through Nix into shell into
+        # a foreign language, which is how the first attempt at this broke.
+        trimmed="''${cwd%/}"
+        base="''${trimmed##*/}"
+        parent="''${trimmed%/*}"
+        parent="''${parent##*/}"
+        if [ -z "$base" ]; then
+          repo="/"
+        elif [ -z "$parent" ]; then
+          repo="$base"
+        else
+          repo="$parent/$base"
+        fi
 
         body="$(${pkgs.jq}/bin/jq -nc \
           --arg event "$event" --arg session "$session" --arg agent "$agent" \
