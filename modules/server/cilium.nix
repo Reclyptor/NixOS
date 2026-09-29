@@ -78,11 +78,25 @@ in
           enabled: true
           type: wireguard
 
+        # Metrics for the monitoring stack (kubernetes repo, SPEC/monitoring-stack.md).
+        # These only open the endpoints; the scrape definitions live in the Flux
+        # repo. All three run in the host network namespace, so k3s.nix opens the
+        # matching ports in the node firewall — without that a scrape from a pod on
+        # another node is dropped at the destination's nftables.
+        prometheus:
+          enabled: true                  # cilium-agent :9962 — cilium_drop_count_total lives here
+
         operator:
           replicas: 2                    # 3 servers available
+          prometheus:
+            enabled: true                # cilium-operator :9963
 
         hubble:
           enabled: true
+          # :9965. Namespace-level context. `flow` and `port-distribution` are left
+          # out for cardinality; `httpV2` because it needs L7 policy (Envoy).
+          metrics:
+            enabled: [dns, drop, tcp]
           relay:
             enabled: true
           ui:
