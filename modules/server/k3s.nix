@@ -141,6 +141,10 @@ in
               3260
               4240
               4244
+              9100 # node-exporter          — hostNetwork; scraped cross-node
+              9962 # cilium-agent metrics   — hostNetwork; scraped cross-node
+              9963 # cilium-operator metrics
+              9965 # hubble metrics
             ] # 53=node-local-dns TCP fallback; etcd handled below
           else
             [
@@ -149,6 +153,10 @@ in
               3260
               4240
               4244
+              9100 # node-exporter          — hostNetwork; scraped cross-node
+              9962 # cilium-agent metrics   — hostNetwork; scraped cross-node
+              9963 # cilium-operator metrics
+              9965 # hubble metrics
             ]; # agents expose no apiserver/etcd
         allowedUDPPorts = [
           53
