@@ -482,6 +482,18 @@ confirm with `git worktree list` that no stale record remains. `~/Worktrees`
 holds active sessions only; a stale worktree is a ghost that will mislead
 the next agent that goes looking.
 
+### Only the Owner Removes a Worktree
+The session id in a worktree's path names its owner, and only the owner
+removes it. `git worktree list` shows commits, not dirtiness, so "six
+commits behind master" is not evidence of abandonment — it usually means
+the owner has not rebased yet. Before removing any worktree you did not
+create, even when the user asks you to clear it, run
+`git -C <path> status --porcelain`. Output means unsaved work: report it
+and let the user decide. If they still want it gone, commit the dirty
+state onto the worktree's own branch first so nothing is discarded, and
+message the owning session by the id in the path so it knows where its
+work went. Never remove another session's worktree unprompted.
+
 ---
 
 ## 13. GitHub Authentication: Always Use `GITHUB_TOKEN`
