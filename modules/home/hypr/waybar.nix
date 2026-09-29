@@ -337,9 +337,9 @@ _: {
             };
 
             "custom/audio-usbc" = sinkButton {
-              icon = "󰋎";
-              label = "USB-C Earbuds";
-              prefix = "alsa_output.usb-Synaptics_USB-C_HEADSET_00000000-00.analog-stereo";
+              icon = "󰋋";
+              label = "USB-C Headphones";
+              prefix = "alsa_output.usb-TTGK_Technology_Co._Ltd_Audiovance-00.analog-stereo";
             };
 
             "custom/gamemode" = {

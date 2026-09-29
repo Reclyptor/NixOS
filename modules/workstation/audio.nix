@@ -9,33 +9,36 @@ _: {
       audio.enable = true;
       pulse.enable = true;
 
-      # The USB-C earbuds use a Synaptics audio chip that reports Razer's
-      # vendor ID (1532:0504), so udev's hwdb resolves them to "Kraken 7.1
-      # Chroma" and WirePlumber prefers that over the descriptor's real
-      # ID_MODEL. Name the device for what it actually is.
-      wireplumber.extraConfig."51-usb-c-earbuds" = {
+      # The headphones publish themselves under their OEM's name ("Audiovance"
+      # by TTGK Technology), which says nothing about what the device is or
+      # where it plugs in. Name them for how they are actually used.
+      wireplumber.extraConfig."51-usb-c-headphones" = {
         "monitor.alsa.rules" = [
           {
-            matches = [ { "device.name" = "alsa_card.usb-Synaptics_USB-C_HEADSET_00000000-00"; } ];
+            matches = [
+              { "device.name" = "alsa_card.usb-TTGK_Technology_Co._Ltd_Audiovance-00"; }
+            ];
             actions.update-props = {
-              "device.description" = "USB-C Earbuds";
-              "device.nick" = "USB-C Earbuds";
+              "device.description" = "USB-C Headphones";
+              "device.nick" = "USB-C Headphones";
             };
           }
           {
             matches = [
-              { "node.name" = "alsa_output.usb-Synaptics_USB-C_HEADSET_00000000-00.analog-stereo"; }
+              { "node.name" = "alsa_output.usb-TTGK_Technology_Co._Ltd_Audiovance-00.analog-stereo"; }
             ];
             actions.update-props = {
-              "node.description" = "USB-C Earbuds";
-              "node.nick" = "USB-C Earbuds";
+              "node.description" = "USB-C Headphones";
+              "node.nick" = "USB-C Headphones";
             };
           }
           {
-            matches = [ { "node.name" = "alsa_input.usb-Synaptics_USB-C_HEADSET_00000000-00.mono-fallback"; } ];
+            matches = [
+              { "node.name" = "alsa_input.usb-TTGK_Technology_Co._Ltd_Audiovance-00.mono-fallback"; }
+            ];
             actions.update-props = {
-              "node.description" = "USB-C Earbuds Mic";
-              "node.nick" = "USB-C Earbuds Mic";
+              "node.description" = "USB-C Headphones Mic";
+              "node.nick" = "USB-C Headphones Mic";
             };
           }
         ];
