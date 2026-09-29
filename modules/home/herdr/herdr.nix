@@ -230,6 +230,35 @@
           ExecStop = "${pkgs.herdr}/bin/herdr server stop";
           Restart = "on-failure";
           RestartSec = 2;
+
+          # Panes are forked from this server, so they inherit exactly this
+          # environment — and without a display handle in it, a pane cannot reach
+          # the clipboard. Claude Code reads pasted images by shelling out to
+          # wl-paste or `xclip -selection clipboard -t image/png`; both need these
+          # variables, and neither arrives on its own. The service starts at
+          # default.target, which on this machine beat the compositor by five
+          # seconds, so it captured an environment that had no WAYLAND_DISPLAY at
+          # all. herdr does not compensate: every clipboard-image bridge in
+          # src/client/clipboard_images.rs is gated on is_remote_client, and
+          # upstream removed the local triggers on purpose (CHANGELOG #647, #986),
+          # so for a local pane the app is the only one who can read the clipboard.
+          #
+          # WAYLAND_DISPLAY is the alias from hypr/wayland-socket-alias.nix, not a
+          # wayland-N name: the comment above this unit is the reason. Staying out
+          # of graphical-session.target to survive a Hyprland restart means any
+          # socket number captured here would be stale after exactly the event the
+          # unit is built for, and a running process cannot be re-env'd. The alias
+          # is re-aimed on each compositor start, so this value can be constant —
+          # including for panes that predate the restart.
+          #
+          # DISPLAY is the X11 fallback and the one static assumption here.
+          # Xwayland's number is the compositor's choice; :0 is what Hyprland has
+          # taken every session. If it ever differs, xclip loses the fallback and
+          # image paste still rides the Wayland path above.
+          Environment = [
+            "WAYLAND_DISPLAY=wayland-current"
+            "DISPLAY=:0"
+          ];
         };
 
         Install.WantedBy = [ "default.target" ];
