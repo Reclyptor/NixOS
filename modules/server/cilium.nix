@@ -54,6 +54,13 @@ in
 
         l2announcements:
           enabled: true
+          # Chart defaults are 15s/5s/2s. On a node reboot every Service whose L2
+          # lease sat on that node blackholes until the lease expires; this halves
+          # that window. Invariant: leaseDuration > leaseRenewDeadline > leaseRetryPeriod.
+          # k8sClientRateLimit below was already raised for lease churn.
+          leaseDuration: 7s
+          leaseRenewDeadline: 3s
+          leaseRetryPeriod: 1s
         externalIPs:
           enabled: true
 
