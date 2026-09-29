@@ -22,12 +22,12 @@ in
       ...
     }:
     let
-      # Pinned to Cilium 1.19.5 (supports k8s 1.32–1.35; cluster is k3s v1.35.2).
+      # Pinned to Cilium 1.19.8 (supports k8s 1.32–1.35; cluster is k3s v1.35.6).
       # The pin is intentional — the CNI must not silently auto-update. Bump the
       # version and hash together to upgrade.
       chart = pkgs.fetchurl {
-        url = "https://helm.cilium.io/cilium-1.19.5.tgz";
-        hash = "sha256-VrYERaLGULOHzi7bE8/Y2DIZqdppOwUjkV26i+RRop4=";
+        url = "https://helm.cilium.io/cilium-1.19.8.tgz";
+        hash = "sha256-aXTnTcwB6rOThbi4hA30g64xQGLGCp4bKQ30zTgoH+A=";
       };
 
       values = pkgs.writeText "cilium-values.yaml" ''
@@ -95,7 +95,7 @@ in
       '';
 
       manifest =
-        pkgs.runCommand "cilium-1.19.5-manifest.yaml" { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
+        pkgs.runCommand "cilium-1.19.8-manifest.yaml" { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
           ''
             export HOME="$TMPDIR"
             helm template cilium ${chart} \
