@@ -122,6 +122,27 @@ _: {
 
       # The beta's product code. This changes when Forever leaves beta on
       # 2026-11-04 — it is isolated here so that is a one-line edit.
+      #
+      # Verified working on 2026-09-30 against client build 1.60.1.70124, at
+      # 5120x1440 fullscreen on GE-Proton11-5 + NVIDIA 595.99.02:
+      #
+      #   * The renderer is DX12 (Config.wtf carries GxApi "D3D12"), running on
+      #     vkd3d-proton. No DX11 fallback was needed. Worth knowing why that is
+      #     not a given: builds before 69977 hung entering the world on an
+      #     unbounded global-illumination compute shader, which trips whenever
+      #     giQuality >= 1 or graphicsLightMode >= 2. This client runs with
+      #     giQuality 3 and graphicsLightMode 2 and does not hang, so the fix is
+      #     in. If a future build regresses, the remedy is GxApi "D3D11" in
+      #     Config.wtf rather than anything in this module — sources disagree on
+      #     whether the launch flag is -dx11 or -d3d11, the config key does not.
+      #
+      #   * WoW's own voice chat does NOT work. It asserts six times at startup
+      #     on a null platform interface (ERROR #135, ASSERTSAFE in
+      #     VoiceSpeakManager.cpp:188) and then gives up. ASSERTSAFE logs and
+      #     continues, so this costs nothing but the dumps it leaves in the
+      #     game's Errors directory — the game itself is unaffected. Discord is
+      #     packaged natively in apps.nix and is the answer here; nothing in this
+      #     module can fix a subsystem that never initialises.
       wowProduct = "wow_classic_beta";
 
       battlenet = launch { name = "battlenet"; };
