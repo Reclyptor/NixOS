@@ -34,7 +34,16 @@ _: {
 
       # Where Battle.net puts itself inside the prefix. Its installer picks this,
       # not us; it is spelled out so the wrappers do not have to go looking.
-      launcher = "${root}/prefix/drive_c/Program Files (x86)/Battle.net/Battle.net Launcher.exe";
+      #
+      # Battle.net.exe, not the "Battle.net Launcher.exe" sitting beside it. The
+      # latter is a 217 KB bootstrapper whose job is to update and then start the
+      # 992 KB main application, and it does not take the --game= argument.
+      # Blizzard's own documented command line and Lutris's install script both
+      # address Battle.net.exe. Pointing at the launcher would have let
+      # wow-forever start Battle.net with its product selection silently dropped
+      # — the launcher opens either way, so the mistake would have looked like
+      # the flag simply not working.
+      launcher = "${root}/prefix/drive_c/Program Files (x86)/Battle.net/Battle.net.exe";
 
       # gamemoderun has to come from the configured package: gamemode.nix
       # rewrites it to preload libgamemode by absolute path, and pkgs.gamemode
