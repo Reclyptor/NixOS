@@ -18,7 +18,6 @@ _: {
       morse-linux
       mpv
       mpvx
-      obs-studio
       obsidian
       prismlauncher
       qbittorrent
