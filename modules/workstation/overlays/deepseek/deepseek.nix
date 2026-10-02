@@ -4,11 +4,11 @@ _: {
       (_final: prev: {
         dsh = prev.buildNpmPackage rec {
           pname = "dsh";
-          version = "0.1.0-rc.7";
+          version = "0.2.0-rc.2";
 
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-${version}.tgz";
-            hash = "sha256-L48Ldj1hGsU296lBHuQ8CvwGfBuHMsMQLATb45i8rMU=";
+            hash = "sha256-vSeEfERc1opWWsH5HAa7vMdjnvkwcfZ4u1nF66/ziFk=";
           };
 
           sourceRoot = "package";
@@ -25,7 +25,7 @@ _: {
             cp ${./package-lock.json} package-lock.json
           '';
 
-          npmDepsHash = "sha256-Y+Y1f1V7+1sXkezKAeqEOW8GZeScERo/+gWXU4Qjqho=";
+          npmDepsHash = "sha256-sx/nXrhS9U3NhEOEmcEpzDm06lSh9MQBDb6vqD0AG6o=";
 
           # lib/ is already built in the published tarball, and nothing in the
           # tree needs a native toolchain, so both hooks are dead weight.
@@ -35,9 +35,11 @@ _: {
           # Replaces the generated bin rather than wrapping it, because the fix
           # below is a node flag and has to reach the interpreter itself.
           #
-          # --expose-internals: cordis-plugin-hmr throws "--expose-internals is
-          # required for HMR service" on Node 24 and takes the whole boot down
-          # with it, on both the web and headless profiles. This is upstream,
+          # --expose-internals: the HMR service — @deepseek-ai/dsh-hmr, which
+          # was cordis-plugin-hmr before 0.2.0 — still throws "--expose-internals
+          # is required for HMR service" straight from its constructor on Node 24
+          # and takes the whole boot down with it, on both the web and headless
+          # profiles. This is upstream,
           # not a packaging artifact — a plain `npm i @deepseek-ai/dsh` fails
           # identically. The flag cannot go in NODE_OPTIONS ("not allowed"), so
           # it has to be on the argv. Revisit once the dev preview settles; the
