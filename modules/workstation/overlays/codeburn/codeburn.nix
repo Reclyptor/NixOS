@@ -4,7 +4,7 @@ _: {
       (_final: prev: {
         codeburn = prev.buildNpmPackage rec {
           pname = "codeburn";
-          version = "0.9.23";
+          version = "0.9.25";
 
           # The published tarball, not the git checkout. `npm run build` does
           # three things a sandbox cannot: scripts/bundle-litellm.mjs downloads
@@ -15,7 +15,7 @@ _: {
           # builds and nothing reaches the network.
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/codeburn/-/codeburn-${version}.tgz";
-            hash = "sha256-HX870+Ra9rvhZ+JUaLXPv1o9E3E5Mnp3Vk85cH4hSlA=";
+            hash = "sha256-ir7kJAlI4OT9/f3QDufnzoLNN1xXhz1QCwEVku6tK0s=";
           };
 
           sourceRoot = "package";
@@ -28,7 +28,7 @@ _: {
           #
           # devDependencies go first: playwright, vitest, typescript and tsup
           # are pure weight when nothing builds — dropping them takes the
-          # lockfile from several hundred packages to 162.
+          # lockfile from several hundred packages to 163.
           #
           # To refresh on a version bump, mirror this exact transform:
           #   tar xzf codeburn-<version>.tgz && cd package
@@ -44,7 +44,7 @@ _: {
             cp ${./package-lock.json} package-lock.json
           '';
 
-          npmDepsHash = "sha256-XKwT9q09+2hK6ktNKkA74GjhdO3ww/LJg8sA/G6uTbo=";
+          npmDepsHash = "sha256-t0x2xmKi0tmzlAz+mwcsIkQRbHBVEPfFxoGxnyCm6a0=";
 
           dontNpmBuild = true;
           npmFlags = [ "--ignore-scripts" ];
