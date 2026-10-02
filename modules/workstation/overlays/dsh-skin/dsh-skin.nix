@@ -23,7 +23,10 @@ _: {
             # bundle. Nothing here is imported at runtime today — the cordis
             # import is type-only and erases — but marking them external is the
             # contract: a require() the table cannot answer is a guaranteed
-            # throw at boot, so these must never be inlined.
+            # throw at boot, so these must never be inlined. Which means the
+            # list has to track the table: dsh 0.2.0 dropped
+            # dsh-client-web-react and dsh-client-schema-form, so naming them
+            # here would only externalise specifiers nothing can resolve.
             platformModules = [
               "react"
               "react/jsx-runtime"
@@ -31,9 +34,7 @@ _: {
               "react-dom/client"
               "@deepseek-ai/cordis"
               "@deepseek-ai/dsh-client-ui-slots"
-              "@deepseek-ai/dsh-client-web-react"
               "@deepseek-ai/dsh-client-ui-primitives"
-              "@deepseek-ai/dsh-client-schema-form"
             ];
 
             # Typography is a legibility policy for the harness, not a per-theme
