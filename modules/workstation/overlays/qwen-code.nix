@@ -4,11 +4,11 @@ _: {
       (_final: prev: {
         qwen-code = prev.stdenvNoCC.mkDerivation rec {
           pname = "qwen-code";
-          version = "0.17.0";
+          version = "0.24.7";
 
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/@qwen-code/qwen-code/-/qwen-code-${version}.tgz";
-            hash = "sha256-b/KPDWYQOKZ88ilNuHuSFHvFD1NuxVCzcq1D9BrkuqQ=";
+            hash = "sha256-ZEMCSKtumW/AxrmgeJNh+GjDuX+D0WIQ4EJOUd/8X6k=";
           };
 
           sourceRoot = "package";
