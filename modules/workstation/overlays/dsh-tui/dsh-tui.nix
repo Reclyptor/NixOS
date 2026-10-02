@@ -4,7 +4,7 @@ _: {
       (final: prev: {
         dsh-tui = prev.buildNpmPackage rec {
           pname = "dsh-tui";
-          version = "0.8.6";
+          version = "0.12.0";
 
           # The published tarball, not the git checkout. Both carry the same
           # code — npm's SLSA provenance attestation ties this artifact to the
@@ -14,7 +14,7 @@ _: {
           # submodule here.
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/@deepseek-harness-tui/dsh-tui/-/dsh-tui-${version}.tgz";
-            hash = "sha256-oo2fYtrEmrEsMF504eye7VOWg45zsoQGtGfjhBGS0cQ=";
+            hash = "sha256-uyPFD6A+5hOlw/PPe9deA2Xj2fFA2fyrkUtqJ3AYoXg=";
           };
 
           sourceRoot = "package";
@@ -27,42 +27,59 @@ _: {
           #                        weight — and the duplicate copy is worse than
           #                        weight, see the peer note below.
           #
-          #   @dsh-std/*           are `workspace:*` specs npm cannot parse. The
-          #                        packages themselves ship INSIDE the tarball at
-          #                        node_modules/@dsh-std, so they are stashed
-          #                        here and restored after npm prunes them as
-          #                        extraneous. `vendor/` is the same tree minus
-          #                        its manifests — a packing artifact, not a
-          #                        usable source root.
+          #   optionalDependencies name the bundled packages at pinned versions
+          #                        no registry carries: @dsh-std/* and, new in
+          #                        0.12.0, @dsh-tui-vendor/mathjax-tex-svg.
+          #                        `npm install` skips them in silence — an
+          #                        optional that will not resolve is not an error
+          #                        — so no lockfile entry is ever written, and
+          #                        then `npm ci` rejects the tree as out of sync
+          #                        ("Missing: @dsh-std/command@ from lock file").
+          #                        They are dropped by name, taken from
+          #                        bundledDependencies, so sharp — a real
+          #                        optional — survives. Through 0.8.x these were
+          #                        `workspace:*` specs in `dependencies` instead.
           #
-          #   bundledDependencies  names those same workspace packages; leaving
-          #                        it set makes `npm pack` try to re-bundle
-          #                        entries the lockfile no longer knows about.
+          #   bundledDependencies  names those same packages; leaving it set makes
+          #                        npm try to reconcile entries the lockfile
+          #                        cannot know about. It is read before deletion,
+          #                        since it is the list the optional filter uses.
+          #
+          # That bundled tree ships INSIDE the tarball under node_modules/, and is
+          # stashed whole rather than scope by scope: npm prunes it as extraneous
+          # — nothing in the lockfile claims it — and npmInstallHook copies
+          # node_modules only after that prune, so it goes back in postInstall.
+          # Moving the whole directory is what stops a newly vendored scope from
+          # vanishing silently, which is exactly how @dsh-tui-vendor would have
+          # been lost. `vendor/` is the same tree minus its manifests — a packing
+          # artifact, not a usable source root.
           #
           # To refresh on a version bump, mirror this exact transform:
           #   tar xzf dsh-tui-<version>.tgz && cd package
-          #   jq 'del(.devDependencies) | del(.bundledDependencies)
-          #       | .dependencies |= with_entries(
-          #           select(.value | startswith("workspace:") | not))' \
+          #   jq '(.bundledDependencies // []) as $bundled
+          #       | del(.devDependencies) | del(.bundledDependencies)
+          #       | .optionalDependencies |= with_entries(
+          #           select(.key as $k | $bundled | index($k) | not))' \
           #     package.json > p && mv p package.json
           #   rm -rf node_modules vendor
           #   npm install --package-lock-only --ignore-scripts --omit=dev --legacy-peer-deps
           # then re-run `prefetch-npm-deps package-lock.json` for npmDepsHash.
           postPatch = ''
-            ${prev.lib.getExe prev.jq} 'del(.devDependencies)
+            ${prev.lib.getExe prev.jq} '(.bundledDependencies // []) as $bundled
+              | del(.devDependencies)
               | del(.bundledDependencies)
-              | .dependencies |= with_entries(
-                  select(.value | startswith("workspace:") | not))' \
+              | .optionalDependencies |= with_entries(
+                  select(.key as $k | $bundled | index($k) | not))' \
               package.json > package.json.tmp
             mv package.json.tmp package.json
 
-            mv node_modules/@dsh-std dsh-std-bundled
-            rm -rf node_modules vendor
+            mv node_modules bundled-node-modules
+            rm -rf vendor
 
             cp ${./package-lock.json} package-lock.json
           '';
 
-          npmDepsHash = "sha256-CgBfIL476Oda2fstR7tonry/e+UyMWDXt8tnmD/Jg7c=";
+          npmDepsHash = "sha256-BBYD0Oq9yPaoi6vKBjeyE+2X7wimJ/H9wPawy+OWAEs=";
 
           # lib/ is prebuilt in the tarball and nothing needs a native
           # toolchain. --legacy-peer-deps because dsh-working-activity still
@@ -99,11 +116,10 @@ _: {
             ''
               ln -s ${harnessScope} ${packageRoot}/node_modules/@deepseek-ai
 
-              # npm prune drops the bundled workspace packages as extraneous
-              # (they are not in the lockfile), and npmInstallHook copies
-              # node_modules only after that prune — so they go back here.
-              mkdir -p ${packageRoot}/node_modules/@dsh-std
-              cp -r dsh-std-bundled/. ${packageRoot}/node_modules/@dsh-std/
+              # The bundled scopes npm pruned as extraneous (@dsh-std/* and
+              # @dsh-tui-vendor/mathjax-tex-svg, which lib/types/math/renderer.js
+              # imports by bare specifier) go back here.
+              cp -r bundled-node-modules/. ${packageRoot}/node_modules/
 
               # bin/dsh-tui.js is an imperative bootstrapper: on first run it
               # shells out to `dsh plugin add` to write $DSH_HOME/profiles/tui.
