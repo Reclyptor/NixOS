@@ -13,6 +13,10 @@ _: {
       firefox
       imv
       inkscape
+      # Browses and installs the itch.io library. Native Linux builds it runs
+      # itself; for a Windows-only title its own bundled Wine is the weak part on
+      # NixOS, so run those through `jpgame` (jpgames.nix) instead.
+      itch
       krita
       mkvtoolnix
       morse-linux
