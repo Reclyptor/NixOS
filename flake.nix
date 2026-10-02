@@ -34,7 +34,7 @@
     # point of running herdr. Its integration hook scripts are read out of this
     # source tree too, so they can never drift from the binary.
     herdr = {
-      url = "github:herdrdev/herdr/v0.9.1";
+      url = "github:herdrdev/herdr/v0.9.3";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
