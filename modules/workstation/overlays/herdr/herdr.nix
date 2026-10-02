@@ -13,7 +13,7 @@
         # an id the binary already knows. overrideAttrs keeps upstream's own
         # rustPlatform, zig cache and Cargo.lock — the patch adds no dependency,
         # so nothing re-vendors. Offered upstream; delete this once it ships.
-        herdr = inputs.herdr.packages.${final.system}.herdr.overrideAttrs (old: {
+        herdr = inputs.herdr.packages.${final.stdenv.hostPlatform.system}.herdr.overrideAttrs (old: {
           patches = (old.patches or [ ]) ++ [ ./deepseek-agent.patch ];
         });
       })
