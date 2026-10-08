@@ -33,6 +33,10 @@
   # Cargo features. Off by default upstream so distributors can choose; where
   # the official build turns one on, the app module says so.
   buildFeatures ? [ ],
+  # Compile-time environment. Only photocraft reads any (its build provenance);
+  # the other six carry no option_env! at all, so they pass nothing and this
+  # stays an empty attrset, which is what mkDerivation would default to anyway.
+  extraEnv ? { },
 }:
 
 let
@@ -75,6 +79,8 @@ pkgs.rustPlatform.buildRustPackage {
 
   nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraNativeBuildInputs;
   buildInputs = extraBuildInputs;
+
+  env = extraEnv;
 
   # What upstream's packaging/linux/package.sh builds. Deliberately not the
   # workspace default members: those also carry `<app>-web`, a wasm32 target,
