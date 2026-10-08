@@ -1,0 +1,44 @@
+--- a/src/i8dot.rs
++++ b/src/i8dot.rs
+@@ -251,8 +251,7 @@
+             b: <Self::Isa as Isa>::I8,
+             acc: <Self::Isa as Isa>::I32,
+         ) -> <Self::Isa as Isa>::I32 {
+-            use std::arch::x86_64::_mm512_dpbusd_epi32;
+-
++            #[target_feature(enable = "avx512f")]
+             #[target_feature(enable = "avx512vnni")]
+             #[inline]
+             unsafe fn dot(
+@@ -260,7 +259,30 @@
+                 b: <Avx512Isa as Isa>::I8,
+                 acc: <Avx512Isa as Isa>::I32,
+             ) -> <Avx512Isa as Isa>::I32 {
+-                _mm512_dpbusd_epi32(acc.0, a.0, b.0).into()
++                // Use inline asm rather than `_mm512_dpbusd_epi32`, which rustc
++                // 1.97.1 cannot codegen: its own stdarch declares the LLVM
++                // intrinsic as taking <64 x i8> vectors where LLVM expects
++                // <16 x i32>, so reaching this call fails the build outright.
++                //
++                // This is the same instruction, emitted the same way this crate
++                // already emits it in
++                // `kernels::x86_64::avx512_vnni_u8i8i32_dot_product`, and the
++                // same workaround the aarch64 arm above uses for `sdot`.
++                // Operand order follows the intrinsic: `acc` accumulates, `a`
++                // is read as unsigned and `b` as signed.
++                use std::arch::asm;
++
++                let mut acc = acc.0;
++                unsafe {
++                    asm! {
++                        "vpdpbusd {result}, {a}, {b}",
++                        result = inout(zmm_reg) acc,
++                        a = in(zmm_reg) a.0,
++                        b = in(zmm_reg) b.0,
++                        options(nostack)
++                    }
++                }
++                acc.into()
+             }
+             // Safety: Constructor checks "avx512vnni" feature is supported.
+             unsafe { dot(a, b, acc) }
