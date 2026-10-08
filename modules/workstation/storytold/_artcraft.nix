@@ -37,10 +37,68 @@
   # the other six carry no option_env! at all, so they pass nothing and this
   # stays an empty attrset, which is what mkDerivation would default to anyway.
   extraEnv ? { },
+  # Patches applied to a dependency's vendored sources, as
+  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only printcraft needs
+  # one, to get past a rustc codegen bug in a transitive dependency — see
+  # SPEC/storytold-artcraft-suite.md. Empty for the other six, which then take
+  # the vendor tree buildRustPackage builds for itself, untouched.
+  vendorPatches ? [ ],
 }:
 
 let
   appId = "ai.storyteller.${pname}";
+
+  src = pkgs.fetchFromGitHub {
+    owner = "storytold";
+    repo = pname;
+    inherit rev hash;
+  };
+
+  # The same vendored dependency tree buildRustPackage would build from
+  # cargoHash, named here so a dependency inside it can be patched: the fetch is
+  # a fixed-output derivation, so its result cannot be modified in place and the
+  # patch has to land in a copy. Only reached when vendorPatches is non-empty.
+  vendor = pkgs.rustPlatform.fetchCargoVendor {
+    inherit pname version src;
+    hash = cargoHash;
+  };
+
+  patchedVendor =
+    pkgs.runCommand "${pname}-${version}-vendor-patched"
+      {
+        nativeBuildInputs = [ pkgs.jq ];
+      }
+      (
+        ''
+          cp -R --no-preserve=mode,ownership ${vendor} $out
+        ''
+        + lib.concatMapStrings (p: ''
+          # fetchCargoVendor groups sources by where they came from — registry
+          # crates land under source-registry-<n>/ — so resolve the crate by
+          # name instead of assuming a layout, and refuse to guess if that is
+          # not exactly one directory.
+          crate=$(find $out -mindepth 2 -maxdepth 2 -type d -name '${p.crate}')
+          if [ "$(printf '%s' "$crate" | grep -c .)" -ne 1 ]; then
+            echo "vendorPatches: ${p.crate} is not one directory in the vendor tree" >&2
+            exit 1
+          fi
+
+          # Cargo verifies a vendored crate against the checksums it ships, but
+          # fetchCargoVendor lists none of its files — it writes `"files": {}`,
+          # leaving only the package hash — so a patched file needs no
+          # re-hashing. Assert that rather than assume it: if nixpkgs starts
+          # listing them, the entry for every patched file has to be recomputed
+          # here or cargo will reject the tree.
+          if [ "$(jq '.files | length' "$crate/.cargo-checksum.json")" != 0 ]; then
+            echo "vendorPatches: ${p.crate} ships per-file checksums, which this does not update" >&2
+            exit 1
+          fi
+
+          # --fuzz=0: a patch that no longer applies exactly, because the pin
+          # moved under it, should fail rather than land somewhere plausible.
+          patch -p1 --fuzz=0 -d "$crate" < ${p.patch}
+        '') vendorPatches
+      );
 
   # winit and wgpu dlopen their windowing and GPU libraries, so none of these is
   # an ELF NEEDED entry and nothing in the closure refers to them — the wrapper
@@ -67,15 +125,16 @@ pkgs.rustPlatform.buildRustPackage {
   inherit
     pname
     version
+    src
     cargoHash
     buildFeatures
     ;
 
-  src = pkgs.fetchFromGitHub {
-    owner = "storytold";
-    repo = pname;
-    inherit rev hash;
-  };
+  # Null leaves buildRustPackage to build the vendor tree from cargoHash, which
+  # is what the six unpatched apps want: passing one explicitly changes the
+  # derivation even when the contents are identical, and would rebuild all of
+  # them to no purpose.
+  cargoDeps = if vendorPatches == [ ] then null else patchedVendor;
 
   nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraNativeBuildInputs;
   buildInputs = extraBuildInputs;
