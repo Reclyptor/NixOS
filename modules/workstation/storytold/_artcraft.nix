@@ -1,8 +1,12 @@
-# Shared build for the Storytold ArtCraft suite (github.com/storytold): seven
-# clean-room, Apache-2.0/MIT Rust rewrites of the Adobe applications, each a
-# cargo workspace of the same shape — `crates/*` plus `apps/<name>`,
-# `apps/<name>-cli` and `apps/<name>-web`, with a validated freedesktop set
-# under `packaging/linux/`.
+# Shared build for the Storytold craft suite (github.com/storytold): twelve
+# clean-room, Apache-2.0/MIT Rust rewrites of the Adobe, Microsoft Office and
+# Pro Tools applications, each a cargo workspace of the same shape — `crates/*`
+# plus `apps/<name>`, `apps/<name>-cli` and `apps/<name>-web`, with a validated
+# freedesktop set under `packaging/linux/`.
+#
+# ArtCraft is the shared engine the seven Adobe equivalents are built on and the
+# name the whole suite shipped under first; the five office and audio apps that
+# followed are the same workspace shape and build identically.
 #
 # The leading underscore keeps import-tree from importing this file: it is a
 # plain function, not a flake-parts module. Same mechanism that lets
@@ -26,21 +30,23 @@
   # Freedesktop Name= / Comment=, for the module's own `meta`.
   description,
   # Build scripts that need more than rustc. Kept per-app rather than given to
-  # all seven: only effectcraft and filmcraft pull alsa-sys, and only printcraft
-  # builds aws-lc-sys.
+  # all twelve: four pull alsa-sys (deckcraft, effectcraft, filmcraft,
+  # soundcraft) and only pdfcraft builds aws-lc-sys.
   extraNativeBuildInputs ? [ ],
   extraBuildInputs ? [ ],
   # Cargo features. Off by default upstream so distributors can choose; where
   # the official build turns one on, the app module says so.
   buildFeatures ? [ ],
-  # Compile-time environment. Only photocraft reads any (its build provenance);
-  # the other six carry no option_env! at all, so they pass nothing and this
-  # stays an empty attrset, which is what mkDerivation would default to anyway.
+  # Compile-time environment. Four apps read a build provenance through
+  # option_env! — photocraft, wordcraft, deckcraft and cadcraft — and are given
+  # only the variables they actually read. The other eight carry no option_env!
+  # at all, so they pass nothing and this stays an empty attrset, which is what
+  # mkDerivation would default to anyway.
   extraEnv ? { },
   # Patches applied to a dependency's vendored sources, as
-  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only printcraft needs
+  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only pdfcraft needs
   # one, to get past a rustc codegen bug in a transitive dependency — see
-  # SPEC/storytold-artcraft-suite.md. Empty for the other six, which then take
+  # SPEC/storytold-artcraft-suite.md. Empty for the other eleven, which then take
   # the vendor tree buildRustPackage builds for itself, untouched.
   vendorPatches ? [ ],
 }:
@@ -103,13 +109,14 @@ let
   # winit and wgpu dlopen their windowing and GPU libraries, so none of these is
   # an ELF NEEDED entry and nothing in the closure refers to them — the wrapper
   # below is what makes them resolvable at all. The set is upstream's own, from
-  # packaging/linux/nfpm.yaml and re-checked at start-up in
-  # apps/<app>/src/linux_libs.rs.
+  # packaging/linux/nfpm.yaml and, in the seven ArtCraft apps, re-checked at
+  # start-up in apps/<app>/src/linux_libs.rs.
   #
   # That start-up check is explicitly inconclusive on NixOS (it reads an
-  # ldconfig cache we do not have, then warns and continues), so a library
-  # missing here does not produce its friendly "install this package" message —
-  # it panics inside xkbcommon-dl before the window opens.
+  # ldconfig cache we do not have, then warns and continues), and the five office
+  # and audio apps ship no equivalent at all, so a library missing here does not
+  # produce a friendly "install this package" message — it panics inside
+  # xkbcommon-dl before the window opens.
   runtimeLibraries = [
     pkgs.libxkbcommon # libxkbcommon.so.0 and libxkbcommon-x11.so.0
     pkgs.libx11 # libX11.so.6 and libX11-xcb.so.1
@@ -131,7 +138,7 @@ pkgs.rustPlatform.buildRustPackage {
     ;
 
   # Null leaves buildRustPackage to build the vendor tree from cargoHash, which
-  # is what the six unpatched apps want: passing one explicitly changes the
+  # is what the eleven unpatched apps want: passing one explicitly changes the
   # derivation even when the contents are identical, and would rebuild all of
   # them to no purpose.
   cargoDeps = if vendorPatches == [ ] then null else patchedVendor;
