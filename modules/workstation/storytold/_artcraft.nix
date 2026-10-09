@@ -1,8 +1,13 @@
-# Shared build for the Storytold ArtCraft suite (github.com/storytold): seven
-# clean-room, Apache-2.0/MIT Rust rewrites of the Adobe applications, each a
-# cargo workspace of the same shape — `crates/*` plus `apps/<name>`,
-# `apps/<name>-cli` and `apps/<name>-web`, with a validated freedesktop set
-# under `packaging/linux/`.
+# Shared build for the Storytold craft suite (github.com/storytold): thirteen
+# clean-room, Apache-2.0/MIT Rust rewrites of Adobe, Microsoft Office, Avid,
+# Autodesk and Figma applications, each a cargo workspace of the same shape —
+# `crates/*` plus `apps/<name>`, `apps/<name>-cli` and `apps/<name>-web`, with a
+# validated freedesktop set under `packaging/linux/`.
+#
+# ArtCraft is upstream's name for the whole suite and for the engine its first
+# seven apps, the Adobe equivalents, are built on; the six office, audio, CAD and
+# interface-design apps that followed are the same workspace shape and build
+# identically.
 #
 # The leading underscore keeps import-tree from importing this file: it is a
 # plain function, not a flake-parts module. Same mechanism that lets
@@ -26,8 +31,8 @@
   # Freedesktop Name= / Comment=, for the module's own `meta`.
   description,
   # Build scripts that need more than rustc. Kept per-app rather than given to
-  # all seven: only effectcraft and filmcraft pull alsa-sys, and only printcraft
-  # builds aws-lc-sys.
+  # all thirteen: four pull alsa-sys (deckcraft, effectcraft, filmcraft,
+  # soundcraft) and only pdfcraft builds aws-lc-sys.
   extraNativeBuildInputs ? [ ],
   extraBuildInputs ? [ ],
   # Test-runner flags, for skipping a test that fails for reasons unrelated to
@@ -36,14 +41,18 @@
   # Cargo features. Off by default upstream so distributors can choose; where
   # the official build turns one on, the app module says so.
   buildFeatures ? [ ],
-  # Compile-time environment. Only photocraft reads any (its build provenance);
-  # the other six carry no option_env! at all, so they pass nothing and this
-  # stays an empty attrset, which is what mkDerivation would default to anyway.
+  # Compile-time environment. Five apps read a build provenance through
+  # option_env! — photocraft, wordcraft, deckcraft, cadcraft and figcraft — and
+  # are given only the variables they actually read. The other option_env! reads
+  # in the suite are ones upstream's own release builds leave unset (pdfcraft's
+  # local build label, figcraft's collaboration server), so those apps pass
+  # nothing, and this stays an empty attrset, which is what mkDerivation would
+  # default to anyway.
   extraEnv ? { },
   # Patches applied to a dependency's vendored sources, as
-  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only printcraft needs
+  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only pdfcraft needs
   # one, to get past a rustc codegen bug in a transitive dependency — see
-  # SPEC/storytold-artcraft-suite.md. Empty for the other six, which then take
+  # SPEC/storytold-artcraft-suite.md. Empty for the other twelve, which then take
   # the vendor tree buildRustPackage builds for itself, untouched.
   vendorPatches ? [ ],
 }:
@@ -106,13 +115,23 @@ let
   # winit and wgpu dlopen their windowing and GPU libraries, so none of these is
   # an ELF NEEDED entry and nothing in the closure refers to them — the wrapper
   # below is what makes them resolvable at all. The set is upstream's own, from
-  # packaging/linux/nfpm.yaml and re-checked at start-up in
-  # apps/<app>/src/linux_libs.rs.
+  # packaging/linux/nfpm.yaml, and photocraft re-checks it at start-up in
+  # apps/photocraft/src/linux_libs.rs.
   #
   # That start-up check is explicitly inconclusive on NixOS (it reads an
-  # ldconfig cache we do not have, then warns and continues), so a library
-  # missing here does not produce its friendly "install this package" message —
-  # it panics inside xkbcommon-dl before the window opens.
+  # ldconfig cache we do not have, then warns and continues), and the other
+  # twelve apps ship no equivalent at all, so a library missing here does not
+  # produce a friendly "install this package" message — it panics inside
+  # xkbcommon-dl before the window opens. vectorcraft borrows the same probe in
+  # apps/vectorcraft/src/xwayland.rs, but only to decide whether a pen may open
+  # the window through Xwayland; it also searches LD_LIBRARY_PATH, so this
+  # wrapper satisfies it.
+  #
+  # Printing, in every app that offers it (craft-libs' craft-print, and
+  # pdfcraft's own print crate), runs CUPS's lp, lpstat and lpoptions from PATH;
+  # without them the Print dialog still offers Save as PDF. They are not wrapped
+  # in: this host runs no CUPS daemon for them to talk to, and enabling
+  # services.printing puts them on PATH.
   runtimeLibraries = [
     pkgs.libxkbcommon # libxkbcommon.so.0 and libxkbcommon-x11.so.0
     pkgs.libx11 # libX11.so.6 and libX11-xcb.so.1
@@ -134,7 +153,7 @@ pkgs.rustPlatform.buildRustPackage {
     ;
 
   # Null leaves buildRustPackage to build the vendor tree from cargoHash, which
-  # is what the six unpatched apps want: passing one explicitly changes the
+  # is what the twelve unpatched apps want: passing one explicitly changes the
   # derivation even when the contents are identical, and would rebuild all of
   # them to no purpose.
   cargoDeps = if vendorPatches == [ ] then null else patchedVendor;
