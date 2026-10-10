@@ -1,0 +1,30 @@
+Teach the desktop install classifier about package-managed installs.
+
+FLUXDOWN_INSTALL_SOURCE is upstream's own env var for "this came from a
+container or NAS package" (detect.rs:16), and classify_server already maps it to
+UpdateManualReason::ManagedPackage. classify_desktop ignores it, so a desktop
+build installed by a package manager still classifies as LinuxPortable and the
+in-place updater tries to replace the executable. In the Nix store that write
+cannot succeed: linux_package_owner() only inspects /opt/fluxdown via dpkg/pacman,
+and APPIMAGE is unset.
+
+This honours the existing variable on the desktop path too. No new enum variant:
+ManagedPackage already exists. `kind` stays LinuxPortable and asset_keys stays
+populated, so update checks still tell the user a new version is out — only the
+self-replacement is withheld, which is correct for a read-only store.
+
+--- a/native/agent/src/update/install/detect.rs
++++ b/native/agent/src/update/install/detect.rs
+@@ -138,6 +138,12 @@
+     };
+     let manual_reason = if !facts.official_build {
+         Some(UpdateManualReason::UnofficialBuild)
++    } else if facts
++        .install_source
++        .as_deref()
++        .is_some_and(|source| !source.trim().is_empty())
++    {
++        Some(UpdateManualReason::ManagedPackage)
+     } else if matches!(
+         kind,
+         UpdateInstallKind::Docker
