@@ -247,8 +247,9 @@ _: {
               "memory"
               "temperature"
               "disk"
-              "custom/audio-soundcore"
-              "custom/audio-usbc"
+              "custom/audio-audiovance"
+              "custom/audio-beats-1"
+              "custom/audio-beats-2"
               "pulseaudio"
               "tray"
             ];
@@ -327,19 +328,28 @@ _: {
               tooltip = false;
             };
 
-            "custom/audio-soundcore" = sinkButton {
+            "custom/audio-audiovance" = sinkButton {
               icon = "󰋋";
-              label = "soundcore Liberty 5 Pro";
-              # No profile index: a2dp and hsp publish different node names off
-              # the same address, and either one is still "the earbuds".
-              prefix = "bluez_output.7C_E9_13_B0_E7_2C.";
-              address = "7C:E9:13:B0:E7:2C";
+              label = "Audiovance";
+              prefix = "alsa_output.usb-TTGK_Technology_Co._Ltd_Audiovance-00.analog-stereo";
             };
 
-            "custom/audio-usbc" = sinkButton {
+            # Two identical sets under one product name, told apart only by
+            # their position in the bar.
+            "custom/audio-beats-1" = sinkButton {
               icon = "󰋋";
-              label = "USB-C Headphones";
-              prefix = "alsa_output.usb-TTGK_Technology_Co._Ltd_Audiovance-00.analog-stereo";
+              label = "Beats Studio Buds +";
+              # No profile index: a2dp and hsp publish different node names off
+              # the same address, and either one is still "the earbuds".
+              prefix = "bluez_output.20_91_DF_64_FA_B8.";
+              address = "20:91:DF:64:FA:B8";
+            };
+
+            "custom/audio-beats-2" = sinkButton {
+              icon = "󰋋";
+              label = "Beats Studio Buds +";
+              prefix = "bluez_output.20_91_DF_66_FF_68.";
+              address = "20:91:DF:66:FF:68";
             };
 
             "custom/gamemode" = {
@@ -473,8 +483,9 @@ _: {
           #memory,
           #temperature,
           #disk,
-          #custom-audio-soundcore,
-          #custom-audio-usbc,
+          #custom-audio-audiovance,
+          #custom-audio-beats-1,
+          #custom-audio-beats-2,
           #bluetooth,
           #clock,
           #network,
@@ -519,8 +530,9 @@ _: {
           #memory,
           #temperature,
           #disk,
-          #custom-audio-soundcore,
-          #custom-audio-usbc,
+          #custom-audio-audiovance,
+          #custom-audio-beats-1,
+          #custom-audio-beats-2,
           #bluetooth,
           #network,
           #pulseaudio,
@@ -536,8 +548,9 @@ _: {
           #memory:hover,
           #temperature:hover,
           #disk:hover,
-          #custom-audio-soundcore:hover,
-          #custom-audio-usbc:hover,
+          #custom-audio-audiovance:hover,
+          #custom-audio-beats-1:hover,
+          #custom-audio-beats-2:hover,
           #bluetooth:hover,
           #network:hover,
           #pulseaudio:hover,
@@ -568,8 +581,9 @@ _: {
           #memory:hover,
           #temperature:hover,
           #disk:hover,
-          #custom-audio-soundcore:hover,
-          #custom-audio-usbc:hover,
+          #custom-audio-audiovance:hover,
+          #custom-audio-beats-1:hover,
+          #custom-audio-beats-2:hover,
           #bluetooth:hover,
           #clock:hover,
           #network:hover,
@@ -598,8 +612,9 @@ _: {
           #custom-media-play.off,
           #custom-media-loop.none,
           #custom-gamemode.off,
-          #custom-audio-soundcore.unavailable,
-          #custom-audio-usbc.unavailable,
+          #custom-audio-audiovance.unavailable,
+          #custom-audio-beats-1.unavailable,
+          #custom-audio-beats-2.unavailable,
           #custom-claude-usage.unavailable,
           #custom-codex-usage.unavailable {
             color: #${palette.muted};
@@ -608,8 +623,9 @@ _: {
 
           /* The sink that owns the audio is filled rather than outlined — the
              same "this one is current" language as the active workspace. */
-          #custom-audio-soundcore.active,
-          #custom-audio-usbc.active {
+          #custom-audio-audiovance.active,
+          #custom-audio-beats-1.active,
+          #custom-audio-beats-2.active {
             background: #${palette.accent};
             color: #${palette.background};
           }
@@ -617,8 +633,9 @@ _: {
           /* A device that is not in the graph keeps its dimmed identity on
              hover. The pill still responds, because clicking the earbuds
              connects them, but it must not read as "ready to switch". */
-          #custom-audio-soundcore.unavailable:hover,
-          #custom-audio-usbc.unavailable:hover {
+          #custom-audio-audiovance.unavailable:hover,
+          #custom-audio-beats-1.unavailable:hover,
+          #custom-audio-beats-2.unavailable:hover {
             background: #${palette.muted};
             color: #${palette.background};
           }
@@ -691,8 +708,9 @@ _: {
           #memory,
           #temperature,
           #disk,
-          #custom-audio-soundcore,
-          #custom-audio-usbc,
+          #custom-audio-audiovance,
+          #custom-audio-beats-1,
+          #custom-audio-beats-2,
           #bluetooth,
           #network,
           #pulseaudio {
@@ -700,9 +718,10 @@ _: {
           }
 
           /* Icon-only pills on the right, sized like the gamemode toggle so the
-             two of them read as one control rather than two odd-width buttons. */
-          #custom-audio-soundcore,
-          #custom-audio-usbc {
+             row reads as one control rather than a run of odd-width buttons. */
+          #custom-audio-audiovance,
+          #custom-audio-beats-1,
+          #custom-audio-beats-2 {
             padding-left: 12px;
             padding-right: 12px;
             min-width: 36px;
