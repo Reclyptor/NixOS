@@ -21,6 +21,7 @@ _: {
       natscli
       nodejs
       opencode
+      prime-agent
       python3
       qwen-code
       rcon-cli
