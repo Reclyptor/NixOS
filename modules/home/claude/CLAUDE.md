@@ -443,9 +443,9 @@ like right now?" — for building, planning, or cross-repo reference. The
 moment it drifts onto a branch, every concurrent session is reading a lie.
 
 ### Sessions Work in Worktrees, Never in the Repo
-Every Claude, Codex, or dsh session that will modify a repo creates a git
-worktree first and does all of its work there. The source checkout is read
-from, not written to.
+Every Claude, Codex, dsh, or Prime Agent session that will modify a repo
+creates a git worktree first and does all of its work there. The source
+checkout is read from, not written to.
 
 The sole exception is `SPEC/`, which is gitignored and so cannot survive
 in a worktree - removing the worktree would delete it. A session's spec is
@@ -459,10 +459,10 @@ All worktrees live in `~/Worktrees`, named:
 ~/Worktrees/<repo>-<agent>-<session-id>
 ```
 
-where `<agent>` is `claude`, `codex`, or `dsh` and `<session-id>` is the
-session's own id. Deterministic naming is the point: later, either the user or
-another agent can map any session to its worktree — and any worktree back
-to the session that owns it — without guessing.
+where `<agent>` is `claude`, `codex`, `dsh`, or `prime` and `<session-id>`
+is the session's own id. Deterministic naming is the point: later, either
+the user or another agent can map any session to its worktree — and any
+worktree back to the session that owns it — without guessing.
 
 ### Integrate by Rebase
 When the work is done, rebase the worktree branch onto `master` and land it

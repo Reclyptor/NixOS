@@ -483,9 +483,9 @@ like right now?" — for building, planning, or cross-repo reference. The
 moment it drifts onto a branch, every concurrent session is reading a lie.
 
 ### Sessions Work in Worktrees, Never in the Repo
-Every Claude, Codex, or dsh session that will modify a repo creates a git
-worktree first and does all of its work there. The source checkout is read
-from, not written to.
+Every Claude, Codex, dsh, or Prime Agent session that will modify a repo
+creates a git worktree first and does all of its work there. The source
+checkout is read from, not written to.
 
 The sole exception is `SPEC/`, which is gitignored and so cannot survive
 in a worktree - removing the worktree would delete it. A session's spec is
@@ -499,8 +499,8 @@ All worktrees live in `~/Worktrees`, named:
 ~/Worktrees/<repo>-<agent>-<session-id>
 ```
 
-where `<agent>` is `claude`, `codex`, or `dsh` and `<session-id>` is the
-session's own id. Yours is exported into every shell call as
+where `<agent>` is `claude`, `codex`, `dsh`, or `prime` and `<session-id>`
+is the session's own id. Yours is exported into every shell call as
 `$DSH_SESSION_ID` — use it rather than inventing a name. Deterministic
 naming is the point: later, either the user or another agent can map any
 session to its worktree — and any worktree back to the session that owns
@@ -523,6 +523,19 @@ remove the worktree with `git worktree remove` and delete its branch. Then
 confirm with `git worktree list` that no stale record remains. `~/Worktrees`
 holds active sessions only; a stale worktree is a ghost that will mislead
 the next agent that goes looking.
+
+### Only the Owner Removes a Worktree
+The session id in a worktree's path names its owner, and only the owner
+removes it. `git worktree list` shows commits, not dirtiness, so "six
+commits behind master" is not evidence of abandonment — it usually means
+the owner has not rebased yet. Before removing any worktree you did not
+create, even when the user asks you to clear it, run
+`git -C <path> status --porcelain`. Output means unsaved work: report it
+and let the user decide. If they still want it gone, commit the dirty
+state onto the worktree's own branch first so nothing is discarded, and
+make sure the owning session — named by the id in the path — learns where
+its work went: message it if you can reach it, otherwise tell the user.
+Never remove another session's worktree unprompted.
 
 ---
 
