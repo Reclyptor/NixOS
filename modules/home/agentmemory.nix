@@ -44,6 +44,8 @@ _: {
       opencodeProg =
         bin:
         ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["${bin}"], enabled: true}'';
+      # Prime Agent's mcpServers entries are internally tagged by `type`.
+      primeAgentProg = bin: ''.mcpServers.agentmemory = {type: "stdio", command: "${bin}", args: []}'';
 
       # --- Lifecycle hooks + skills (Claude Code & Codex) -----------------------
 
@@ -274,6 +276,7 @@ _: {
         am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg mcpBin)}
         am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg mcpBin)}
         am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg mcpBin)}
+        am_merge "$HOME/.prime/agent/settings.json"     ${lib.escapeShellArg (primeAgentProg mcpBin)}
 
         # Codex (TOML): append the agentmemory block onto the base config that
         # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
