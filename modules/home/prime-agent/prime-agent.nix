@@ -16,6 +16,14 @@ _: {
       '';
     in
     {
+      # Global Prime Agent directives, installed read-only as
+      # ~/.prime/agent/AGENTS.md. Prime Agent loads the agent-dir AGENTS.md as
+      # its global context file, layered over its own system prompt rather than
+      # replacing it — that is SYSTEM.md, which stays absent on purpose. /refine
+      # writes only to its harness-state dir, so nothing contests the link.
+      # Edit ./AGENTS.md next to this module.
+      home.file.".prime/agent/AGENTS.md".source = ./AGENTS.md;
+
       home.activation.primeAgentSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="$HOME/.prime/agent/settings.json"
         $DRY_RUN_CMD mkdir -p "$(dirname "$settings")"
