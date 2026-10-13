@@ -225,13 +225,17 @@ _: {
       # timeout and moves on.
 
       jsonFormat = pkgs.formats.json { };
-      yamlFormat = pkgs.formats.yaml { };
 
-      # A dsh profile is a directory of four files, three of which are static
-      # and are therefore owned here. Upstream's initProfile() writes each of
-      # them only when it is absent and documents that "existing files are never
-      # touched", so pre-placing them makes the harness's own scaffolding a
-      # no-op rather than a competitor.
+      # A dsh profile is a directory of four files. package.json and
+      # pnpm-workspace.yaml are static and owned here outright. Upstream's
+      # initProfile() writes each only when it is absent and documents that
+      # "existing files are never touched", so pre-placing them makes the
+      # harness's own scaffolding a no-op rather than a competitor.
+      #
+      # cordis.patch.yml is shared: dsh 0.2.0 persists settings-page and
+      # /model edits into it, so it is a real file rendered at activation (see
+      # profilePatchRender) rather than a store symlink an edit would replace
+      # and the next activation would silently revert.
       #
       # Two things in that directory are deliberately NOT managed:
       #
@@ -307,9 +311,47 @@ _: {
         config = { inherit (route) provider model; };
       };
 
-      patchFor =
-        profile:
-        [ defaultRouteRow ] ++ lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
+      # The rows Nix owns outright in a profile's patch, replaced on every
+      # activation. defaultRouteRow is not among them: it is only seeded.
+      ownedRowsFor = profile: lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
+
+      # Merges the Nix rows into a profile's cordis.patch.yml without taking
+      # the file away from dsh, which writes in-app edits into it:
+      #
+      #   - rows whose id a profile declares in `patch`, and the MCP insert
+      #     row (recognised by its mcp-* ids), are replaced every time;
+      #   - agent-default-model is written only when no such row exists, so a
+      #     /model choice outlives a rebuild — a seed, not a pin;
+      #   - every other row is dsh's or the user's and is carried through.
+      #
+      # yq-go rather than a JSON round trip because the file holds what dsh's
+      # config editor writes back, `!!js` expressions and comments included.
+      # A store symlink left by the old home.file entry counts as no content.
+      # Written by atomic rename, and never empty: an empty patch fails boot.
+      profilePatchRender = pkgs.writeShellScript "dsh-profile-patch-render" ''
+        set -eu
+        file="$1"
+        if [ -f "$file" ] && [ ! -L "$file" ]; then base="$(cat "$file")"; else base="[]"; fi
+        [ -n "$base" ] || base="[]"
+        mkdir -p "$(dirname "$file")"
+        if printf '%s\n' "$base" | ${lib.getExe pkgs.yq-go} '
+          (. // []) as $cur |
+          (strenv(DSH_OWNED_IDS) | from_json) as $owned |
+          ([$cur[] | select(.id == "agent-default-model")] | length) as $seeded |
+          (([strenv(DSH_DEFAULT_ROW) | from_json | select($seeded == 0)]
+            + (strenv(DSH_NIX_ROWS) | from_json)) | ... style="")
+          + [$cur[]
+              | select((.id as $i | $owned | any_c(. == $i)) | not)
+              | select((has("insert") and (.insert | all_c((.id // "") | test("^mcp-")))) | not)]
+        ' > "$file.tmp"; then
+          mv -f "$file.tmp" "$file"
+        else
+          # A patch the merge cannot read is left exactly as it is: failing
+          # activation over it would block every unrelated home change.
+          rm -f "$file.tmp"
+          echo "deepseek: could not merge $file (left unchanged)" >&2
+        fi
+      '';
 
       manifestFor =
         name: profile:
@@ -329,10 +371,6 @@ _: {
         {
           "${profilePath name}/package.json" = {
             source = manifestFor name profile;
-            force = true;
-          };
-          "${profilePath name}/cordis.patch.yml" = {
-            source = yamlFormat.generate "dsh-profile-${name}-cordis.patch.yml" (patchFor profile);
             force = true;
           };
           "${profilePath name}/pnpm-workspace.yaml" = {
@@ -401,8 +439,11 @@ _: {
           model = "deepseek-v4-flash";
         };
         description = ''
-          Route a new session starts on, written as the `agent-default-model`
-          row at the head of every profile's `cordis.patch.yml`.
+          Route a new session starts on, seeded as the `agent-default-model`
+          row of every profile's `cordis.patch.yml` when the file has none. It
+          is a seed, not a pin: the web composer's `/model` picker writes that
+          row, and activation leaves an existing one alone so the choice
+          survives a rebuild.
 
           One submodule rather than two options because the harness resolves a
           route atomically — a provider without its model is discarded rather
@@ -458,11 +499,12 @@ _: {
                 type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
                 default = [ ];
                 description = ''
-                  The profile's `cordis.patch.yml` user layer, applied after
-                  every bundle layer: id-targeted config overrides, disables and
-                  insert lists. Upstream also allows `!!js` expressions in this
-                  file; those are not expressible as Nix values and so are not
-                  supported here.
+                  Rows Nix owns in the profile's `cordis.patch.yml`, applied
+                  after every bundle layer. Each row must carry an `id`: that is
+                  how activation finds and replaces its own rows while keeping
+                  the ones dsh writes into the same file. Upstream also allows
+                  `!!js` expressions in this file; those are not expressible as
+                  Nix values and so are not supported here.
                 '';
               };
             };
@@ -509,15 +551,25 @@ _: {
       };
 
       config = {
-        assertions = lib.mapAttrsToList (name: _: {
-          assertion = false;
-          message = ''
-            deepseek.profiles.${name}.bundles is the superseded tuple that dsh
-            normalizes by rewriting package.json in place, which cannot work
-            against a Nix-managed store symlink. Drop
-            "@deepseek-ai/dsh-web-app" from the list.
-          '';
-        }) superseded;
+        assertions =
+          lib.mapAttrsToList (name: _: {
+            assertion = false;
+            message = ''
+              deepseek.profiles.${name}.bundles is the superseded tuple that dsh
+              normalizes by rewriting package.json in place, which cannot work
+              against a Nix-managed store symlink. Drop
+              "@deepseek-ai/dsh-web-app" from the list.
+            '';
+          }) superseded
+          ++ lib.mapAttrsToList (name: profile: {
+            assertion = lib.all (row: row ? id) profile.patch;
+            message = ''
+              Every row in deepseek.profiles.${name}.patch needs an `id`.
+              Activation shares cordis.patch.yml with dsh's own config editor
+              and finds the rows it owns by id; a row without one could never
+              be replaced, so it would pile up on every rebuild.
+            '';
+          }) profiles;
 
         # Global dsh directives. The loader's user-global scope is the fixed
         # path $DSH_HOME/AGENTS.md — dshHome is configurable, the file name is
@@ -528,6 +580,21 @@ _: {
           ".dsh/AGENTS.md".source = ./AGENTS.md;
         }
         // lib.concatMapAttrs filesFor profiles;
+
+        # After linkGeneration, which is what removes the store symlink an
+        # older generation placed here, so the render starts from a real file
+        # or from nothing. No secrets are involved, so unlike the vllm route
+        # this belongs in activation.
+        home.activation.dshProfilePatches = lib.hm.dag.entryAfter [ "linkGeneration" ] (
+          lib.concatStrings (
+            lib.mapAttrsToList (name: profile: ''
+              DSH_DEFAULT_ROW=${lib.escapeShellArg (builtins.toJSON defaultRouteRow)} \
+              DSH_NIX_ROWS=${lib.escapeShellArg (builtins.toJSON (ownedRowsFor profile))} \
+              DSH_OWNED_IDS=${lib.escapeShellArg (builtins.toJSON (map (row: row.id) profile.patch))} \
+                $DRY_RUN_CMD ${profilePatchRender} "$HOME/${profilePath name}/cordis.patch.yml"
+            '') profiles
+          )
+        );
 
         # The two profiles the harness ships templates for. mkDefault so another
         # module can retune a bundle list without mkForce, and separate
