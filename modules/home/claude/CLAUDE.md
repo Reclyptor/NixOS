@@ -57,7 +57,10 @@ restructuring, delete anything now unused. No ghosts in the project.
 ### Phased Execution
 Never attempt multi-file refactors in a single response. Break work into
 explicit phases. Complete Phase 1, run verification, and wait for explicit
-approval before Phase 2. Each phase must touch no more than 5 files.
+approval before Phase 2. A phase you work through alone touches no more
+than 5 files. A phase fanned out to sub-agents (§4) may touch more, as
+long as each sub-agent stays within its own budget and the phase is still
+verified and approved as one unit - the gate counts phases, not files.
 
 ### Plan and Build Are Separate Steps
 When asked to "make a plan" or "think about this first," output only the
@@ -96,6 +99,17 @@ of you, you MUST create or update it first and get explicit approval
 before implementation. "I think I understand what they want" is not a
 spec. A spec is written to `SPEC/<branch-slug>.md`, reviewed, and agreed
 upon. No spec, no code.
+
+### Delegated Work Inherits the Lead's Approval
+The spec, interview, and approval gates bind the session that talks to the
+user. When the work splits into independent parts, the spec names them and
+how they fan out, so approving the spec approves the fan-out.
+
+A sub-agent's task comes from its parent, and the parent's spec already
+covers it. A sub-agent does not write its own spec, interview anyone, or
+wait for approval - it has no user to wait on. If its task is ambiguous or
+blocked, it reports that to its parent instead of guessing. Every other
+directive - quality, verification, worktrees - still binds it.
 
 ---
 
@@ -163,11 +177,21 @@ before presenting it.
 ## 4. Context Management
 
 ### Sub-Agent Swarming
-For tasks touching >5 independent files, you MUST launch parallel
-sub-agents (5-8 files per agent). Each agent gets its own context window
-(~167K tokens). This is not optional. One agent processing 20 files
-sequentially guarantees context decay. Five agents = 835K tokens of working
-memory.
+At any depth, size the task before starting it. If it has two or more
+independent parts that each need real context - separate research threads,
+disjoint code slices, files or services to audit on their own - you MUST
+act as a lead: launch one sub-agent per part, run them in parallel, and do
+not do those parts yourself. This is not optional. Do the work yourself
+only when it is one lookup, one edit, or a few tightly coupled files, or
+when you have no way to spawn at your depth. One agent processing 20 files
+sequentially guarantees context decay, so keep each sub-agent to about 5-8
+files. Each agent gets its own context window (~167K tokens). Five agents =
+835K tokens of working memory.
+
+Brief each sub-agent with its goal, its scope (for a writer, the one
+worktree it may write in), an output file path, and the reply format you
+want back. Merge their results and verify the merged whole before
+reporting up.
 
 Use the appropriate execution model:
 - **Fork**: inherits parent context, cache-optimized, for related subtasks
@@ -178,10 +202,11 @@ Use the appropriate execution model:
 
 One task per sub-agent for focused execution. Offload research,
 exploration, and parallel analysis to sub-agents to keep the main context
-window clean. Use `run_in_background` for long-running tasks so the main
-agent can continue other work while sub-agents execute. Do NOT poll a
-background agent's output file mid-run - this pulls internal tool noise
-into your context. Wait for the completion notification.
+window clean, and ask them to return conclusions, not dumps. Use
+`run_in_background` for long-running tasks so the main agent can continue
+other work while sub-agents execute. Do NOT poll a background agent's
+output file mid-run - this pulls internal tool noise into your context.
+Wait for the completion notification.
 
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before

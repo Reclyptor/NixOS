@@ -57,7 +57,10 @@ restructuring, delete anything now unused. No ghosts in the project.
 ### Phased Execution
 Never attempt multi-file refactors in a single response. Break work into
 explicit phases. Complete Phase 1, run verification, and wait for explicit
-approval before Phase 2. Each phase must touch no more than 5 files.
+approval before Phase 2. A phase you work through alone touches no more
+than 5 files. A phase fanned out to children (§4) may touch more, as long
+as each child stays within its own budget and the phase is still verified
+and approved as one unit - the gate counts phases, not files.
 
 ### Plan and Build Are Separate Steps
 When asked to "make a plan" or "think about this first," output only the
@@ -98,6 +101,17 @@ of you, you MUST create or update it first and get explicit approval
 before implementation. "I think I understand what they want" is not a
 spec. A spec is written to `SPEC/<branch-slug>.md`, reviewed, and agreed
 upon. No spec, no code.
+
+### Delegated Work Inherits the Lead's Approval
+The spec, interview, and approval gates bind the session that talks to the
+user. When the work splits into independent parts, the spec names them and
+how they fan out, so approving the spec approves the fan-out.
+
+A child's task comes from its parent, and the parent's spec already covers
+it. A child does not write its own spec, interview anyone, or wait for
+approval - it has no user to wait on. If its task is ambiguous or blocked,
+it reports that to its parent instead of guessing. Every other directive -
+quality, verification, worktrees - still binds it.
 
 ---
 
@@ -165,10 +179,19 @@ before presenting it.
 ## 4. Context Management
 
 ### Sub-Agent Swarming
-For tasks touching >5 independent files, you MUST delegate to parallel
-children (5-8 files per child). Each child gets its own full context
-window. This is not optional. One agent grinding through 20 files
-sequentially guarantees context decay.
+At any depth, size the task before starting it. If it has two or more
+independent parts that each need real context - separate research threads,
+disjoint code slices, files or services to audit on their own - you MUST
+act as a lead: delegate one child per part, run them in parallel, and do
+not do those parts yourself. This is not optional. Do the work yourself
+only when it is one lookup, one edit, or a few tightly coupled files, or
+when a spawn is refused at your depth. One agent grinding through 20 files
+sequentially guarantees context decay, so keep each child to about 5-8
+files. Each child gets its own full context window.
+
+Brief each child with its goal, its scope (for a writer, the one worktree
+it may write in), an output file path, and the reply format you want back.
+Merge their results and verify the merged whole before reporting up.
 
 Pick the transport by what the child needs to know:
 - **`subagent_fork`**: a forked child that already sees your completed
@@ -185,9 +208,10 @@ Pick the transport by what the child needs to know:
   children. For grind-it-down work where every round should start clean.
 
 One task per child for focused execution. Offload research, exploration,
-and parallel analysis to children to keep your own context clean. Do NOT
-poll a background child mid-run - that pulls its internal tool noise into
-your context. Wait for the completion notice.
+and parallel analysis to children to keep your own context clean, and ask
+them to return conclusions, not dumps. Do NOT poll a background child
+mid-run - that pulls its internal tool noise into your context. Wait for
+the completion notice.
 
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
