@@ -11,11 +11,12 @@ _: {
 
       # The home-level patch layer: composed after every bundle layer and after
       # each profile's own cordis.patch.yml, so it reaches every profile. It is
-      # where the vllm route lives because it is the one patch file Nix does
-      # NOT own — the route's models are discovered at runtime and an outage
-      # must leave the last good ones in place, so the render has to read the
-      # file back and rewrite it, which a store symlink cannot be. dsh 0.2.0
-      # dropped settings.yaml, which used to hold this route; its one-shot
+      # where the vllm routes live because it is the one patch file Nix does
+      # NOT own — their models are discovered at runtime and an outage must
+      # leave the last good ones in place, so the render has to read the file
+      # back and rewrite it, which a store symlink cannot be; and the remote
+      # route carries a secret that only exists once sops has run. dsh 0.2.0
+      # dropped settings.yaml, which used to hold the vllm route; its one-shot
       # import could only write the read-only profile patch, so the route was
       # silently lost.
       homePatchFile = "${config.home.homeDirectory}/.dsh/cordis.patch.yml";
@@ -29,81 +30,117 @@ _: {
       # to let the UI replace — and it would only ever reach interactive shells.
       envFile = "${config.home.homeDirectory}/.dsh/.env";
 
-      # BOOTSTRAP ONLY. What the endpoint serves is the endpoint's fact, not
-      # this module's: `vllm` is a hand-declared pi-ai route, so unlike the
-      # official route — a catalog route that picks up new models on its own —
-      # its models have to be spelled somewhere, and anything spelled here is a
-      # COPY that drifts. It already did: this list named one model at a
-      # 1048576 window long after the deployment had moved to two at 600000,
-      # which is the dangerous half, since an over-declared window sizes
-      # compaction against a ceiling the server enforces and fails only deep
-      # into a long session.
+      # BOOTSTRAP ONLY. What an endpoint serves is the endpoint's fact, not
+      # this module's: both vLLM routes are hand-declared pi-ai routes, so
+      # unlike the official route — a catalog route that picks up new models
+      # on its own — their models have to be spelled somewhere, and anything
+      # spelled here is a COPY that drifts. It already did: this list once
+      # named one model at a 1048576 window long after the deployment had
+      # moved to two at 600000, which is the dangerous half, since an
+      # over-declared window sizes compaction against a ceiling the server
+      # enforces and fails only deep into a long session.
       #
-      # So the catalog is discovered by dsh-harness-sync (see below) and this
-      # list is only what a first render writes when the endpoint cannot be
-      # reached. It is seeded, never forced — a failed discovery must
-      # leave the last GOOD catalog in place, not overwrite it with this copy.
-      seedModels = [
-        "deepseek-v4-flash-0731"
-        "DeepSeek-v4.1-Flash-EXL3"
-      ];
+      # So each catalog is discovered by dsh-harness-sync (see below) and the
+      # seed is only what a first render writes when that route's endpoint
+      # cannot be reached. It is seeded, never forced — a failed discovery
+      # must leave the last GOOD catalog in place, not overwrite it with this
+      # copy.
+      #
+      # contextWindow is the route-level backstop, consulted only for a model
+      # carrying no window of its own — which, after any successful discovery,
+      # is none of them. Keep it at or below the smallest window that endpoint
+      # serves: too low only wastes context, too high silently overruns the
+      # server.
+      lan = {
+        seedModels = [ "Qwen3.8-27B-FP8" ];
+        contextWindow = 262144;
+      };
+
+      remote = {
+        seedModels = [
+          "deepseek-v4-flash-0731"
+          "DeepSeek-v4.1-Flash-EXL3"
+        ];
+        contextWindow = 600000;
+      };
 
       # The route seeded as the default for a new session.
       model = "deepseek-v4-flash-0731";
 
-      # Route-level backstop, consulted only for a model carrying no window of
-      # its own — which, after any successful discovery, is none of them. Keep
-      # it at or below the smallest window the deployment serves: too low only
-      # wastes context, too high silently overruns the server.
-      contextWindow = 600000;
+      seedFor = r: builtins.toJSON (map (id: { inherit id; }) r.seedModels);
 
       # pi-ai's OpenAI-compatible transport will not build a request without
-      # either a credential or an Authorization header, but this endpoint is
-      # keyless. Upstream sanctions exactly this: "a keyless local server needs
-      # a placeholder credential referenced by apiKeyEnv or an Authorization
-      # entry in headers". Not a secret, so it is inlined rather than sops'd,
-      # which also keeps it clear of llm-pi-ai's known limitation that headers
-      # are never redacted — a redacted describe() and the Models page both
-      # show them verbatim.
+      # either a credential or an Authorization header, and neither endpoint
+      # checks one: the LAN vLLM is keyless, and Cloudflare Access does the
+      # authenticating in front of the remote one. Upstream sanctions exactly
+      # this: "a keyless local server needs a placeholder credential
+      # referenced by apiKeyEnv or an Authorization entry in headers". Not a
+      # secret, so it is inlined rather than sops'd.
       #
-      # Both are the catalog fetcher's, so the route and the fetch can never
-      # point at different endpoints.
+      # Both are the catalog fetcher's, so the LAN route and its fetch can
+      # never point at different endpoints. The remote route's URL is a sops
+      # secret, read at render time like its credentials.
       inherit (pkgs.vllm-catalog) baseUrl placeholderKey;
 
       route = config.deepseek.defaultRoute;
 
-      # The vllm route as one id-targeted row of the home patch, which replaces
-      # the llm-pi-ai entry's whole config — the bundle gives it none, so
-      # nothing is lost by restating. Every other row in the file is the
-      # user's and is carried through, so the render is safe to re-run.
+      # Both vLLM routes as one id-targeted row of the home patch, which
+      # replaces the llm-pi-ai entry's whole config — the bundle gives it
+      # none, so nothing is lost by restating. Every other row in the file is
+      # the user's and is carried through, so the render is safe to re-run.
       #
-      # models is replaced only by a catalog pkgs.vllm-catalog fetched and
-      # validated — the endpoint's own answer, with each model's max_model_len,
-      # so no window here can be wrong. When the fetch fails the row's existing
-      # models stay, and only a row that has none yet gets the seed list: this
-      # route goes down, and a render during the outage must not be the thing
-      # that erases the catalog describing it.
+      # A route's models are replaced only by a catalog pkgs.vllm-catalog
+      # fetched and validated — the endpoint's own answer, with each model's
+      # max_model_len, so no window here can be wrong. When the fetch fails
+      # the route's existing models stay, and only a route that has none yet
+      # gets its seed list: these endpoints go down, and a render during an
+      # outage must not be the thing that erases the catalog describing it.
+      # Each route keeps its own, so one endpoint being down never touches
+      # the other's.
       #
-      # No `compat.thinkingFormat` and no `reasoningEfforts`: the endpoint
-      # ignores DeepSeek's `thinking: {type: disabled}` and only responds to
-      # `chat_template_kwargs`, which dsh's SUPPORTED_THINKING_FORMATS does not
-      # expose. Declaring a format would render an effort toggle that silently
-      # does nothing. Reasoning output still surfaces — pi-ai's response parser
-      # scans reasoning_content/reasoning/reasoning_text regardless of format.
+      # vllm-remote is rendered only when its sops secrets are present
+      # (DSH_REMOTE_URL is set); until then whatever the file already holds
+      # for it is carried through as it is. The Cloudflare Access headers go
+      # on that route alone: the LAN route is plain HTTP and must never be
+      # handed the service token.
+      #
+      # No `compat.thinkingFormat` and no `reasoningEfforts`: both endpoints
+      # ignore DeepSeek's `thinking: {type: disabled}` and only respond to
+      # `chat_template_kwargs`, which dsh's SUPPORTED_THINKING_FORMATS does
+      # not expose. Declaring a format would render an effort toggle that
+      # silently does nothing. Reasoning output still surfaces — pi-ai's
+      # response parser scans reasoning_content/reasoning/reasoning_text
+      # regardless of format.
       program = ''
-        ([.[] | select(.id == "llm-pi-ai") | .config.providers.vllm.models][0] // ${
-          builtins.toJSON (map (id: { inherit id; }) seedModels)
-        }) as $kept |
+        ([.[] | select(.id == "llm-pi-ai") | .config.providers][0] // {}) as $prev |
         [.[] | select(.id != "llm-pi-ai")] + [{
           "id": "llm-pi-ai",
-          "config": {"providers": {"vllm": {
-            "api": "openai-completions",
-            "displayName": "vLLM (self-hosted)",
-            "baseURL": "${baseUrl}",
-            "defaultContextWindow": ${toString contextWindow},
-            "headers": {"Authorization": "Bearer ${placeholderKey}"},
-            "models": ((strenv(DSH_VLLM_CATALOG) | select(. != "") | from_json) // $kept)
-          }}}
+          "config": {"providers": ({
+            "vllm": {
+              "api": "openai-completions",
+              "displayName": "vLLM (LAN)",
+              "baseURL": "${baseUrl}",
+              "defaultContextWindow": ${toString lan.contextWindow},
+              "headers": {"Authorization": "Bearer ${placeholderKey}"},
+              "models": ((strenv(DSH_VLLM_CATALOG) | select(. != "") | from_json) // $prev.vllm.models // ${seedFor lan})
+            }
+          } + (
+            ({
+              "vllm-remote": {
+                "api": "openai-completions",
+                "displayName": "vLLM (remote)",
+                "baseURL": strenv(DSH_REMOTE_URL),
+                "defaultContextWindow": ${toString remote.contextWindow},
+                "headers": {
+                  "Authorization": "Bearer ${placeholderKey}",
+                  "CF-Access-Client-Id": strenv(DSH_CF_ID),
+                  "CF-Access-Client-Secret": strenv(DSH_CF_SECRET)
+                },
+                "models": ((strenv(DSH_REMOTE_CATALOG) | select(. != "") | from_json) // $prev["vllm-remote"].models // ${seedFor remote})
+              }
+            } | select(strenv(DSH_REMOTE_URL) != "")) //
+            ($prev | with_entries(select(.key == "vllm-remote")))
+          ))}
         }]
       '';
 
@@ -118,20 +155,55 @@ _: {
       # introduces it. `entryAfter [ "sops-nix" ]` does not help: that DAG entry
       # is not what installs them. Ordering the work after the unit is the only
       # spelling that is actually true, and it costs nothing — a boot runs it
-      # too, so the discovered catalog refreshes without waiting for a rebuild,
+      # too, so the discovered catalogs refresh without waiting for a rebuild,
       # and no activation ever stalls on an endpoint that is down.
       harnessSync = pkgs.writeShellScript "dsh-harness-sync" ''
         set -eu
         umask 077
 
         yq=${lib.getExe pkgs.yq-go}
+        vllm_catalog=${lib.getExe pkgs.vllm-catalog}
 
-        if catalog="$(${lib.getExe pkgs.vllm-catalog})"; then
-          echo "deepseek: vllm catalog fetched —" \
-            "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
+        describe() {
+          printf '%s' "$1" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")'
+        }
+
+        if lan_catalog="$("$vllm_catalog")"; then
+          echo "deepseek: vllm catalog fetched — $(describe "$lan_catalog")" >&2
         else
           echo "deepseek: keeping the vllm catalog already in ${homePatchFile}" >&2
-          catalog=""
+          lan_catalog=""
+        fi
+
+        # The remote route's Cloudflare Access client secret lands in the home
+        # patch in cleartext: dsh types `headers` as a plain string dict, and
+        # only `apiKeyEnv` gets credential indirection, so home.file would
+        # publish it to the world-readable Nix store. Written here instead,
+        # mode 0600 via the umask and an atomic rename, with the values passed
+        # through the environment (strenv) so they never appear in argv where
+        # /proc/*/cmdline would expose them.
+        #
+        # Upstream caveat worth knowing: a credential in `headers` is returned
+        # verbatim by a redacted describe() and rendered by the Models page.
+        # That is a known limitation in llm-pi-ai, not something this config
+        # can avoid.
+        remote_url_file="${secretsDir}/vllm-base-url"
+        cf_id_file="${secretsDir}/cf-access-client-id"
+        cf_secret_file="${secretsDir}/cf-access-client-secret"
+        remote_url="" cf_id="" cf_secret="" remote_catalog=""
+
+        if [ -f "$remote_url_file" ] && [ -f "$cf_id_file" ] && [ -f "$cf_secret_file" ]; then
+          if remote_catalog="$("$vllm_catalog" "$remote_url_file" "$cf_id_file" "$cf_secret_file")"; then
+            echo "deepseek: vllm-remote catalog fetched — $(describe "$remote_catalog")" >&2
+          else
+            echo "deepseek: keeping the vllm-remote catalog already in ${homePatchFile}" >&2
+            remote_catalog=""
+          fi
+          remote_url="$(cat "$remote_url_file")"
+          cf_id="$(cat "$cf_id_file")"
+          cf_secret="$(cat "$cf_secret_file")"
+        else
+          echo "deepseek: vllm-remote secrets not present yet, keeping that route as it is in ${homePatchFile}" >&2
         fi
 
         mkdir -p "$(dirname "${homePatchFile}")"
@@ -142,7 +214,11 @@ _: {
         # Swapped in by an atomic rename, so dsh never boots from a half-written
         # patch.
         if printf '%s\n' "$base" |
-          DSH_VLLM_CATALOG="$catalog" \
+          DSH_VLLM_CATALOG="$lan_catalog" \
+          DSH_REMOTE_CATALOG="$remote_catalog" \
+          DSH_REMOTE_URL="$remote_url" \
+          DSH_CF_ID="$cf_id" \
+          DSH_CF_SECRET="$cf_secret" \
           "$yq" '${program}' > "${homePatchFile}.tmp"; then
           mv -f "${homePatchFile}.tmp" "${homePatchFile}"
         else
@@ -155,8 +231,8 @@ _: {
         # `deepseek-official` route and defaults its endpoint, its catalog and
         # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
         # whole of the configuration, and it is what makes that route a working
-        # fallback when the vLLM endpoint is unreachable: /model in either front
-        # end switches to it without a rebuild.
+        # fallback when the vLLM endpoints are unreachable: /model in either
+        # front end switches to it without a rebuild.
         #
         # umask above makes the temp file 0600 and the rename preserves it, so
         # no reader ever sees the key mode-0644 or half-written.
@@ -284,7 +360,7 @@ _: {
         };
       }) config.deepseek.mcpServers;
 
-      # The default route is fixed at build time, so unlike the vllm route it
+      # The default route is fixed at build time, so unlike the vllm routes it
       # is built here, in the profile layer. Not in the home patch: that layer
       # outranks the profile's, so a default placed there would override
       # anything the profile layer sets. It goes first so a profile's own rows
@@ -567,7 +643,7 @@ _: {
         # After linkGeneration, which is what removes the store symlink an
         # older generation placed here, so the render starts from a real file
         # or from nothing. No secrets or network are involved, so unlike the
-        # vllm route this belongs in activation.
+        # vllm routes this belongs in activation.
         home.activation.dshProfilePatches = lib.hm.dag.entryAfter [ "linkGeneration" ] (
           lib.concatStrings (
             lib.mapAttrsToList (name: profile: ''
@@ -625,11 +701,11 @@ _: {
         # the activation that introduces it, and no DAG dependency fixes that,
         # because the entry named "sops-nix" is not the thing doing the work.
         #
-        # WantedBy default.target so a login runs it too: the vllm catalog it
-        # discovers then refreshes on boot rather than only on rebuild.
+        # WantedBy default.target so a login runs it too: the vllm catalogs it
+        # discovers then refresh on boot rather than only on rebuild.
         systemd.user.services.dsh-harness-sync = {
           Unit = {
-            Description = "Render dsh's vllm route and DeepSeek credentials";
+            Description = "Render dsh's vllm routes and DeepSeek credentials from sops secrets";
             Wants = [ "sops-nix.service" ];
             After = [ "sops-nix.service" ];
           };
