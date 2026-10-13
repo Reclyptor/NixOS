@@ -75,6 +75,14 @@
         # Detection manifests are data, not code, and keep updating.
         version_check = false
 
+        [ui.toast]
+        # Background agent notifications as herdr's own toasts rather than the
+        # desktop's. An in-app toast is what open_notification_target (prefix+tab
+        # below) jumps to: focus_visible_notification in
+        # src/client/shell/actions.rs focuses the pane behind the visible toast,
+        # so with any other delivery the binding has nothing to act on.
+        delivery = "herdr"
+
         [session]
         # Resume agent panes into their native conversations after a server
         # restart. This is what the Claude/Codex SessionStart hooks above feed.
@@ -88,7 +96,8 @@
         prefix = "ctrl+b"
 
         # Session and client. tmux spends t on clock-mode and leaves Tab
-        # unbound, which is where settings and the notification jump land.
+        # unbound, which is where settings and the notification jump land:
+        # prefix+tab jumps to the agent behind the visible herdr toast.
         detach = "prefix+d"
         help = "prefix+?"
         settings = "prefix+t"
