@@ -53,8 +53,9 @@ _: {
       # Upstream sanctions exactly this: "a keyless local server needs a
       # placeholder credential referenced by apiKeyEnv or an Authorization
       # entry in headers". Not a secret, so it is inlined rather than sops'd,
-      # and it is safe from the headers-are-never-redacted caveat below.
-      placeholderKey = "unused-cloudflare-access-fronts-this";
+      # and it is safe from the headers-are-never-redacted caveat below. It is
+      # the catalog fetcher's, so the two never send different placeholders.
+      inherit (pkgs.vllm-catalog) placeholderKey;
 
       route = config.deepseek.defaultRoute;
 
@@ -62,46 +63,25 @@ _: {
       # so the one fact this module cannot own is read from its owner instead of
       # copied. Each model carries its own max_model_len, which means the window
       # can no longer be wrong even if the deployment serves models that differ.
+      # The fetch and its validation are pkgs.vllm-catalog's, shared with every
+      # other harness that routes to this endpoint; this is only dsh's sink.
       #
-      # Non-destructive by construction: every failure path — unreachable
-      # endpoint, HTTP error, unparseable body, empty list, an entry missing an
-      # id or a positive window — warns and exits 0, leaving whatever catalog is
-      # already in settings.yaml. That matters more than freshness: this route
-      # goes down, and an activation during the outage must not be the thing
-      # that erases the catalog describing it.
+      # Non-destructive by construction: every failure the fetcher reports —
+      # unreachable endpoint, HTTP error, unparseable body, empty list, an entry
+      # missing an id or a positive window — warns and exits 0, leaving whatever
+      # catalog is already in settings.yaml. That matters more than freshness:
+      # this route goes down, and an activation during the outage must not be
+      # the thing that erases the catalog describing it.
       vllmCatalogSync = pkgs.writeShellScript "dsh-sync-vllm-catalog" ''
         set -eu
         settings="$1"
-        id_file="$2"
-        secret_file="$3"
-        url_file="$4"
 
         yq=${lib.getExe pkgs.yq-go}
 
-        keep() {
-          echo "deepseek: $1; keeping the vllm catalog already in $settings" >&2
+        if ! catalog="$(${lib.getExe pkgs.vllm-catalog} "$2" "$3" "$4")"; then
+          echo "deepseek: keeping the vllm catalog already in $settings" >&2
           exit 0
-        }
-
-        if ! body="$(${lib.getExe pkgs.curl} -sS --fail --max-time 8 \
-          -H "CF-Access-Client-Id: $(cat "$id_file")" \
-          -H "CF-Access-Client-Secret: $(cat "$secret_file")" \
-          -H "Authorization: Bearer ${placeholderKey}" \
-          "$(cat "$url_file")/models" 2>/dev/null)"; then
-          keep "vllm endpoint unreachable"
         fi
-
-        if ! catalog="$(printf '%s' "$body" | "$yq" -p=json -o=json \
-          '[.data[] | {"id": .id, "contextWindow": .max_model_len}]' 2>/dev/null)"; then
-          keep "vllm /models returned a body this cannot read"
-        fi
-
-        total="$(printf '%s' "$catalog" | "$yq" -p=json 'length')"
-        usable="$(printf '%s' "$catalog" | "$yq" -p=json \
-          '[.[] | select((.id // "" | length) > 0 and (.contextWindow // 0) > 0)] | length')"
-
-        [ "$total" -gt 0 ] || keep "vllm /models listed no models"
-        [ "$total" = "$usable" ] || keep "vllm /models listed an entry with no id or no positive max_model_len"
 
         DSH_VLLM_CATALOG="$catalog" "$yq" -i \
           '.["llm-pi-ai"].providers.vllm.models = (strenv(DSH_VLLM_CATALOG) | from_json)' \
