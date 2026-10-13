@@ -6,16 +6,13 @@ _: {
         (final: prev: {
           # A dsh bundle that reports session state to the ESP32 desk mascot.
           #
-          # dsh has no lifecycle-hook seam — unlike Claude Code and Codex, which
-          # the mascot reaches through home/claude/mascot.nix — so the only
-          # supported way in is a Cordis plugin using dsh's documented extension
-          # points. That is the same path dsh-herdr takes, and it is dsh's
-          # sanctioned answer rather than a workaround.
-          #
-          # The waterfalls are why this is worth building: approval/request and
-          # user-questions/request give a real "waiting on you" signal. Codex
-          # cannot produce one at all, so of the three harnesses dsh is second
-          # only to Claude in what it can tell the device.
+          # Claude Code and Codex reach the device through their hook seams
+          # (home/claude/mascot.nix). dsh does have a Claude Code hook bridge
+          # since 0.2.0, but it does not dispatch PermissionRequest or
+          # SessionEnd, so through it dsh could never say "waiting on you" and
+          # its rows could only ever time out. The approval and user-question
+          # waterfalls carry exactly that, so this is a native Cordis plugin on
+          # dsh's own extension points instead.
           #
           # Every waterfall subscription is an observer: it delegates with
           # `await next()` and never alters the downstream decision, so
@@ -30,7 +27,7 @@ _: {
             let
               self = prev.stdenvNoCC.mkDerivation {
                 pname = "dsh-mascot-agent-state";
-                version = "0.1.0";
+                version = "0.2.0";
 
                 src = ./bundle;
 
@@ -52,8 +49,7 @@ _: {
                   # node caches modules by resolved filename, so the plugin and
                   # the harness share one schemastery instance rather than two
                   # that fail each other's schema checks. The guard turns a dsh
-                  # layout change into a build failure instead of a runtime one,
-                  # exactly as the dsh-herdr overlay does.
+                  # layout change into a build failure instead of a runtime one.
                   peer=${final.dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery
                   if [ ! -d "$peer" ]; then
                     echo "dsh-mascot: schemastery is no longer at $peer;" \

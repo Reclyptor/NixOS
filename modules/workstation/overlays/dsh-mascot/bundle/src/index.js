@@ -1,30 +1,37 @@
 /**
  * Desk-mascot session reporter for any dsh frontend.
  *
- * A Cordis function plugin that reports the session's semantic state to the
- * ESP32 mascot over HTTP. It uses only documented dsh extension points — the
- * agent lifecycle events, and the approval / user-question / tool-dispatch
- * waterfalls — so it works in TUI, web and headless profiles alike.
+ * A Cordis function plugin that reports each session's state to the ESP32
+ * mascot over HTTP, from dsh's own extension points: the agent lifecycle
+ * events and the approval / user-question / tool waterfalls. Those are dsh's
+ * native seam - its Claude Code hook bridge does not dispatch
+ * PermissionRequest, and "waiting on you" is the signal the device exists for.
  *
- * The waterfalls are what make dsh worth wiring at all: they give a real
- * "waiting on you" signal, which Codex cannot produce and which is the whole
- * point of the device. Claude Code has the same signal via its Notification
- * hook; dsh has no hooks, which is why this exists as a bundle instead.
+ * One process can host many agents (the web and headless frontends serve
+ * several sessions, and every subagent is an agent too), so nothing here is a
+ * process-wide singleton. Every event is attributed through the agent it
+ * carries. A subagent reports against the root session that spawned it: the
+ * human sees one conversation, and the device shows one row for it.
  *
- * Every subscription that participates in a waterfall is an observer: it
- * delegates with `await next()` and never alters the downstream decision, so
- * approvals, questions and tool dispatch behave exactly as they would without
- * it. Transport failures are swallowed whole — the mascot being absent must not
- * disturb the harness.
+ * Every waterfall subscription is an observer: it delegates with
+ * `await next()` and never alters the downstream decision. Transport failures
+ * are swallowed whole - the mascot being absent must not disturb the harness.
  *
- * Ships as plain ESM (no build step) so `dsh plugin add` loads it directly.
+ * The event names subscribed below are checked against the installed dsh at
+ * build time (see dsh-mascot.nix), so a dsh release that renames one fails the
+ * build instead of silently taking the mascot dark.
  *
  * @module @reclyptor/mascot-agent-state
  */
 
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
 import z from '@deepseek-ai/schemastery'
 
 import { send } from './transport.js'
+
+const sendDetached = fileURLToPath(new URL('./send-detached.js', import.meta.url))
 
 export const name = 'mascot-agent-state'
 
@@ -34,119 +41,160 @@ export const inject = []
 export const Config = z.object({
   /** Absolute URL of the device's event endpoint. */
   endpoint: z.string().default('http://192.168.1.7/event'),
-  /**
-   * Stable identity for this harness in the device's session table. The device
-   * keys rows by session id, so this only labels which agent produced them.
-   */
+  /** Label for this harness in the device's session table. */
   agent: z.string().default('dsh'),
   /** Set false to load the plugin inert, for debugging without the device. */
   enabled: z.boolean().default(true),
 })
 
 /**
- * Derive the repo label the device displays, from the session's working
- * directory. Done here rather than on the device, which has no idea what a
- * worktree is.
+ * Derive the repo label the device displays from a working directory: the
+ * last two components, matching the Claude and Codex hook. Done here rather
+ * than on the device, which has no idea what a worktree is.
  */
-function repoLabel(cwd) {
+export function repoLabel(cwd) {
   if (typeof cwd !== 'string' || cwd === '') return ''
-  const parts = cwd.replace(/\/+$/, '').split('/').filter(Boolean)
-  if (parts.length === 0) return ''
-  return parts.length === 1 ? parts[0] : `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
+  const parts = cwd.split('/').filter(Boolean)
+  if (parts.length === 0) return '/'
+  return parts.slice(-2).join('/')
 }
 
 export function apply(ctx, config) {
   if (!config.enabled) return
 
-  // One row per dsh session. Until a session-start arrives there is nothing
-  // meaningful to key on, so events before it are dropped rather than
-  // attributed to a made-up id.
-  let sessionId
-  let repo = repoLabel(process.cwd())
+  // Root session id per live agent id. A root maps to itself; a subagent maps
+  // to its parent's root, which is registered first because a parent always
+  // exists before the child it spawns.
+  const roots = new Map()
 
-  // How many tool calls are in flight. `working` is reported on the first and
-  // the state is left alone until the last one drains, so a burst of parallel
-  // calls is one transition rather than a stutter.
-  let inFlight = 0
+  // Per root session: what was last reported, tool calls in flight, and the
+  // tail of its post chain.
+  const sessions = new Map()
 
-  // The device debounces `working` itself, but sending one POST per tool call
-  // would still put avoidable traffic on a radio that shares a USB rail with
-  // the host's input devices. Report only on change.
-  let lastReported
-
-  const post = (event, force = false) => {
-    if (sessionId === undefined) return
-    if (!force && event === lastReported) return
-    lastReported = event
-    // Deliberately not awaited: the harness must never wait on the device.
-    void send(config.endpoint, {
-      event,
-      session: sessionId,
-      agent: config.agent,
-      host: process.env.HOSTNAME ?? '',
-      repo,
-      cwd: process.cwd(),
-      ts: Math.floor(Date.now() / 1000),
-    })
+  const sessionOf = (root) => {
+    let s = sessions.get(root)
+    if (s === undefined) {
+      s = { cwd: process.cwd(), last: undefined, inFlight: 0, tail: Promise.resolve() }
+      sessions.set(root, s)
+    }
+    return s
   }
 
-  ctx.on('agent/session-start', (payload) => {
-    const session = payload?.agent?.session
-    const id = session?.header?.id
-    if (typeof id === 'string' && id !== '') {
-      sessionId = id
-      repo = repoLabel(process.cwd())
-      lastReported = undefined
-      post('session_start', true)
+  const rootOf = (agent) => {
+    const id = agent?.id
+    if (typeof id !== 'string' || id === '') return undefined
+    return roots.get(id) ?? id
+  }
+
+  const bodyFor = (root, event) => {
+    const s = sessionOf(root)
+    return {
+      event,
+      session: root,
+      agent: config.agent,
+      host: process.env.HOSTNAME ?? '',
+      repo: repoLabel(s.cwd),
+      cwd: s.cwd,
+      ts: Math.floor(Date.now() / 1000),
     }
+  }
+
+  // Posts for one session are chained, each waiting for the previous to
+  // settle. Detached concurrent requests can land out of order, and the device
+  // is last-write-wins: a `working` overtaking a `needs_input` hides a prompt
+  // that is on screen. Chaining costs nothing the harness can feel - the chain
+  // is never awaited, and every link is bounded by the transport timeout.
+  const post = (root, event, { force = false } = {}) => {
+    if (root === undefined) return
+    const s = sessionOf(root)
+    if (!force && event === s.last) return
+    s.last = event
+    const body = bodyFor(root, event)
+    s.tail = s.tail.then(() => send(config.endpoint, body))
+  }
+
+  // The TUI never disposes its agents on quit: it tears down the plugin tree
+  // and exits a few milliseconds later, so agent/disposed never arrives for
+  // the sessions still open. This plugin's own teardown is the last signal,
+  // and it is the right one anyway - once the reporter is gone, every session
+  // it was reporting is unobservable. The process is about to exit and will
+  // not wait on a socket, so each session_end is handed to a detached process.
+  // Without this a quit session lingers on the device until its 30 minute TTL.
+  ctx.effect(() => () => {
+    for (const root of sessions.keys()) {
+      spawn(process.execPath, [sendDetached, config.endpoint, JSON.stringify(bodyFor(root, 'session_end'))], {
+        detached: true,
+        stdio: 'ignore',
+      }).unref()
+    }
+    sessions.clear()
+    roots.clear()
   })
 
-  ctx.on('agent/status', (payload) => {
-    // A run ending is the closest thing dsh has to Claude's Stop.
-    if (payload?.status === 'running') post('working')
-    else post('finished', true)
+  ctx.on('agent/created', ({ agent }) => {
+    const id = agent?.id
+    if (typeof id !== 'string' || id === '') return
+    const header = agent.session?.header
+    const parent = header?.parentSession
+    if (typeof parent === 'string' && parent !== '') {
+      roots.set(id, roots.get(parent) ?? parent)
+      return
+    }
+    roots.set(id, id)
+    const s = sessionOf(id)
+    if (typeof header?.cwd === 'string' && header.cwd !== '') s.cwd = header.cwd
+    post(id, 'session_start', { force: true })
   })
 
-  ctx.on('agent/disposed', () => {
-    post('session_end', true)
-    sessionId = undefined
+  ctx.on('agent/status', ({ agent, status }) => {
+    // A subagent going idle is not the conversation ending; only the root's
+    // own run boundary is the equivalent of Claude's Stop.
+    const root = rootOf(agent)
+    if (root === undefined || root !== agent.id) return
+    if (status === 'running') post(root, 'working')
+    else post(root, 'finished', { force: true })
   })
 
-  // Blocked on a human: the two waterfalls that mean "waiting on you".
-  ctx.on('approval/request', async (req, next) => {
-    post('needs_input', true)
+  ctx.on('agent/disposed', ({ agent }) => {
+    const root = rootOf(agent)
+    if (root === undefined) return
+    roots.delete(agent.id)
+    if (root !== agent.id) {
+      post(root, 'subagent_finished', { force: true })
+      return
+    }
+    post(root, 'session_end', { force: true })
+    sessions.delete(root)
+  })
+
+  // Blocked on a human: the two waterfalls that mean "waiting on you". A
+  // subagent's prompt blocks the same human, so it lands on the root's row.
+  const blocking = async (agent, next) => {
+    const root = rootOf(agent)
+    post(root, 'needs_input', { force: true })
     try {
       return await next()
     } finally {
-      // Answered. Back to working; the device clears the prompt on any of
-      // several signals, and this is the ordinary one.
-      post('working', true)
+      post(root, 'working', { force: true })
     }
-  })
+  }
 
-  ctx.on('user-questions/request', async (request, next) => {
-    post('needs_input', true)
-    try {
-      return await next()
-    } finally {
-      post('working', true)
-    }
-  })
+  ctx.on('approval/request', (req, next) => blocking(req?.agent, next))
+  ctx.on('user-questions/request', (req, next) => blocking(req?.agent, next))
 
+  // A burst of parallel calls is one transition rather than a stutter.
   ctx.on('tools/execute', async (exec, next) => {
-    if (inFlight === 0) post('working')
-    inFlight += 1
+    const root = rootOf(exec?.agent)
+    const s = root === undefined ? undefined : sessionOf(root)
+    if (s !== undefined && s.inFlight++ === 0) post(root, 'working')
     try {
       return await next()
     } finally {
-      inFlight = Math.max(0, inFlight - 1)
+      if (s !== undefined) s.inFlight = Math.max(0, s.inFlight - 1)
     }
   })
 
-  ctx.on('tools/result', (exec) => {
-    // dsh surfaces a failed call as a result carrying an error rather than by
-    // throwing, so this is the only place a tool failure is observable.
-    const failed = exec?.isError === true || exec?.error !== undefined
-    if (failed) post('tool_failure', true)
+  ctx.on('tools/result', (exec, result) => {
+    if (result?.isError === true) post(rootOf(exec?.agent), 'tool_failure', { force: true })
   })
 }

@@ -239,17 +239,17 @@ _: {
         };
       };
 
-      # dsh-mascot reports session state to the ESP32 desk mascot from the same
-      # harness events. It carries no patch row: the bundle's own
-      # cordis.patch.yml already inserts it with the device's address, and a
-      # second copy here would be a second place to edit when that address
-      # changes. The address does also appear in home/claude/mascot.nix, which
-      # reaches Claude Code and Codex through their hook seams — dsh has none,
-      # which is why it needs a bundle at all.
+      # dsh-mascot reports session state to the ESP32 desk mascot from dsh's own
+      # agent, approval and question events. It carries no patch row: the
+      # bundle's own cordis.patch.yml already inserts it with the device's
+      # address, and a second copy here would be a second place to edit when
+      # that address changes. The address does also appear in
+      # home/claude/mascot.nix, which reaches Claude Code and Codex through
+      # their hook seams.
       #
-      # Carried by every profile for the same reason herdr's is: the plugin is
-      # inert when the device does not answer, so a profile that never sees it
-      # simply posts into a 400 ms timeout and moves on.
+      # Every profile carries it. The plugin is inert when the device does not
+      # answer, so a profile that never sees it simply posts into a 400 ms
+      # timeout and moves on.
 
       jsonFormat = pkgs.formats.json { };
       yamlFormat = pkgs.formats.yaml { };
