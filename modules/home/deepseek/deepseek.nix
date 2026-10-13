@@ -64,9 +64,6 @@ _: {
         contextWindow = 600000;
       };
 
-      # The route seeded as the default for a new session.
-      model = "deepseek-v4-flash-0731";
-
       seedFor = r: builtins.toJSON (map (id: { inherit id; }) r.seedModels);
 
       # pi-ai's OpenAI-compatible transport will not build a request without
@@ -230,9 +227,9 @@ _: {
         # dsh-base already mounts llm-deepseek, which owns the
         # `deepseek-official` route and defaults its endpoint, its catalog and
         # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
-        # whole of the configuration, and it is what makes that route a working
-        # fallback when the vLLM endpoints are unreachable: /model in either
-        # front end switches to it without a rebuild.
+        # whole of the configuration. It is the route a new session starts on
+        # (see deepseek.defaultRoute), and /model in either front end switches
+        # between it and the vLLM routes without a rebuild.
         #
         # umask above makes the temp file 0600 and the rename preserves it, so
         # no reader ever sees the key mode-0644 or half-written.
@@ -490,12 +487,12 @@ _: {
           };
         };
         default = {
-          provider = "vllm";
-          inherit model;
+          provider = "deepseek-official";
+          model = "deepseek-v4-pro";
         };
         example = {
-          provider = "deepseek-official";
-          model = "deepseek-v4-flash";
+          provider = "vllm";
+          model = "Qwen3.8-27B-FP8";
         };
         description = ''
           Route a new session starts on, seeded as the `agent-default-model`
