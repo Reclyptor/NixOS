@@ -59,6 +59,26 @@ _: {
                   mkdir -p $out/node_modules/@deepseek-ai
                   ln -s "$peer" $out/node_modules/@deepseek-ai/schemastery
 
+                  # Every event the plugin subscribes to must still be declared
+                  # by the dsh it runs against. Cordis accepts a listener for
+                  # an event nobody emits without complaint, which is how the
+                  # 0.2.0 rename of agent/session-start to agent/created took
+                  # the mascot dark with no error anywhere. The names are read
+                  # from the source itself so this list cannot drift from it.
+                  dshlib=${final.dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai
+                  events=$(grep -oE "ctx\.on\('[^']+'" src/index.js | cut -d"'" -f2 | sort -u)
+                  if [ -z "$events" ]; then
+                    echo "dsh-mascot: found no ctx.on subscriptions in src/index.js" >&2
+                    exit 1
+                  fi
+                  for event in $events; do
+                    if ! grep -rqF --include='*.d.ts' "'$event'(" "$dshlib"; then
+                      echo "dsh-mascot: dsh ${final.dsh.version} declares no '$event' event;" \
+                           "find what replaced it and update src/index.js" >&2
+                      exit 1
+                    fi
+                  done
+
                   runHook postInstall
                 '';
 
