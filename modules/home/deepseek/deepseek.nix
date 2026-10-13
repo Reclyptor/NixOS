@@ -12,10 +12,12 @@ _: {
       # The home-level patch layer: composed after every bundle layer and after
       # each profile's own cordis.patch.yml, so it reaches every profile. It is
       # where the vllm route lives because it is the one patch file Nix does
-      # NOT own — the route carries a secret, and the profile patches are
-      # world-readable store symlinks. dsh 0.2.0 dropped settings.yaml, which
-      # used to hold this route; its one-shot import could only write the
-      # read-only profile patch, so the route was silently lost.
+      # NOT own — the route's models are discovered at runtime and an outage
+      # must leave the last good ones in place, so the render has to read the
+      # file back and rewrite it, which a store symlink cannot be. dsh 0.2.0
+      # dropped settings.yaml, which used to hold this route; its one-shot
+      # import could only write the read-only profile patch, so the route was
+      # silently lost.
       homePatchFile = "${config.home.homeDirectory}/.dsh/cordis.patch.yml";
 
       # The harness home's own environment layer. dsh reads it as the LOWEST
@@ -57,13 +59,16 @@ _: {
 
       # pi-ai's OpenAI-compatible transport will not build a request without
       # either a credential or an Authorization header, but this endpoint is
-      # keyless — Cloudflare Access in front of it does the authenticating.
-      # Upstream sanctions exactly this: "a keyless local server needs a
-      # placeholder credential referenced by apiKeyEnv or an Authorization
+      # keyless. Upstream sanctions exactly this: "a keyless local server needs
+      # a placeholder credential referenced by apiKeyEnv or an Authorization
       # entry in headers". Not a secret, so it is inlined rather than sops'd,
-      # and it is safe from the headers-are-never-redacted caveat below. It is
-      # the catalog fetcher's, so the two never send different placeholders.
-      inherit (pkgs.vllm-catalog) placeholderKey;
+      # which also keeps it clear of llm-pi-ai's known limitation that headers
+      # are never redacted — a redacted describe() and the Models page both
+      # show them verbatim.
+      #
+      # Both are the catalog fetcher's, so the route and the fetch can never
+      # point at different endpoints.
+      inherit (pkgs.vllm-catalog) baseUrl placeholderKey;
 
       route = config.deepseek.defaultRoute;
 
@@ -94,19 +99,16 @@ _: {
           "config": {"providers": {"vllm": {
             "api": "openai-completions",
             "displayName": "vLLM (self-hosted)",
-            "baseURL": strenv(DSH_VLLM_URL),
+            "baseURL": "${baseUrl}",
             "defaultContextWindow": ${toString contextWindow},
-            "headers": {
-              "Authorization": "Bearer ${placeholderKey}",
-              "CF-Access-Client-Id": strenv(DSH_CF_ID),
-              "CF-Access-Client-Secret": strenv(DSH_CF_SECRET)
-            },
+            "headers": {"Authorization": "Bearer ${placeholderKey}"},
             "models": ((strenv(DSH_VLLM_CATALOG) | select(. != "") | from_json) // $kept)
           }}}
         }]
       '';
 
-      # Everything in this module that consumes a sops secret, in one place.
+      # Everything in this module that consumes a sops secret or the network,
+      # in one place.
       #
       # It does NOT live in home.activation, and that is the whole point: the
       # secrets are installed by sops-nix.service, which home-manager starts
@@ -116,55 +118,36 @@ _: {
       # introduces it. `entryAfter [ "sops-nix" ]` does not help: that DAG entry
       # is not what installs them. Ordering the work after the unit is the only
       # spelling that is actually true, and it costs nothing — a boot runs it
-      # too, so the discovered catalog refreshes without waiting for a rebuild.
+      # too, so the discovered catalog refreshes without waiting for a rebuild,
+      # and no activation ever stalls on an endpoint that is down.
       harnessSync = pkgs.writeShellScript "dsh-harness-sync" ''
         set -eu
         umask 077
 
         yq=${lib.getExe pkgs.yq-go}
 
-        # The home patch carries the Cloudflare Access client secret in
-        # cleartext: dsh types `headers` as a plain string dict, and only
-        # `apiKeyEnv` gets credential indirection, so home.file would publish it
-        # to the world-readable Nix store. Written here instead, mode 0600 via
-        # the umask and an atomic rename, with the values passed through the
-        # environment (strenv) so they never appear in argv where
-        # /proc/*/cmdline would expose them.
-        #
-        # Upstream caveat worth knowing: a credential in `headers` is returned
-        # verbatim by a redacted describe() and rendered by the Models page. That
-        # is a known limitation in llm-pi-ai, not something this config can avoid.
-        dsh_id="${secretsDir}/cf-access-client-id"
-        dsh_secret="${secretsDir}/cf-access-client-secret"
-        dsh_url="${secretsDir}/vllm-base-url"
-
-        if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
-          if catalog="$(${lib.getExe pkgs.vllm-catalog} "$dsh_id" "$dsh_secret" "$dsh_url")"; then
-            echo "deepseek: vllm catalog fetched —" \
-              "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
-          else
-            echo "deepseek: keeping the vllm catalog already in ${homePatchFile}" >&2
-            catalog=""
-          fi
-
-          mkdir -p "$(dirname "${homePatchFile}")"
-          # An empty patch file fails boot, so the render always starts from a
-          # list — an absent file is the empty one.
-          if [ -s "${homePatchFile}" ]; then base="$(cat "${homePatchFile}")"; else base="[]"; fi
-
-          if printf '%s\n' "$base" |
-            DSH_CF_ID="$(cat "$dsh_id")" \
-            DSH_CF_SECRET="$(cat "$dsh_secret")" \
-            DSH_VLLM_URL="$(cat "$dsh_url")" \
-            DSH_VLLM_CATALOG="$catalog" \
-            "$yq" '${program}' > "${homePatchFile}.tmp"; then
-            mv -f "${homePatchFile}.tmp" "${homePatchFile}"
-          else
-            rm -f "${homePatchFile}.tmp"
-            echo "deepseek: yq merge failed for ${homePatchFile} (left unchanged)" >&2
-          fi
+        if catalog="$(${lib.getExe pkgs.vllm-catalog})"; then
+          echo "deepseek: vllm catalog fetched —" \
+            "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
         else
-          echo "deepseek: sops secrets not present yet, skipping ${homePatchFile}" >&2
+          echo "deepseek: keeping the vllm catalog already in ${homePatchFile}" >&2
+          catalog=""
+        fi
+
+        mkdir -p "$(dirname "${homePatchFile}")"
+        # An empty patch file fails boot, so the render always starts from a
+        # list — an absent file is the empty one.
+        if [ -s "${homePatchFile}" ]; then base="$(cat "${homePatchFile}")"; else base="[]"; fi
+
+        # Swapped in by an atomic rename, so dsh never boots from a half-written
+        # patch.
+        if printf '%s\n' "$base" |
+          DSH_VLLM_CATALOG="$catalog" \
+          "$yq" '${program}' > "${homePatchFile}.tmp"; then
+          mv -f "${homePatchFile}.tmp" "${homePatchFile}"
+        else
+          rm -f "${homePatchFile}.tmp"
+          echo "deepseek: yq merge failed for ${homePatchFile} (left unchanged)" >&2
         fi
 
         # The official api.deepseek.com route needs no patch row at all —
@@ -301,11 +284,11 @@ _: {
         };
       }) config.deepseek.mcpServers;
 
-      # The default route is no secret, so unlike the vllm route it is built
-      # here, in the profile layer. Not in the home patch: that layer outranks
-      # the profile's, so a default placed there would override anything the
-      # profile layer sets. It goes first so a profile's own rows can still
-      # retarget it.
+      # The default route is fixed at build time, so unlike the vllm route it
+      # is built here, in the profile layer. Not in the home patch: that layer
+      # outranks the profile's, so a default placed there would override
+      # anything the profile layer sets. It goes first so a profile's own rows
+      # can still retarget it.
       defaultRouteRow = {
         id = "agent-default-model";
         config = { inherit (route) provider model; };
@@ -583,8 +566,8 @@ _: {
 
         # After linkGeneration, which is what removes the store symlink an
         # older generation placed here, so the render starts from a real file
-        # or from nothing. No secrets are involved, so unlike the vllm route
-        # this belongs in activation.
+        # or from nothing. No secrets or network are involved, so unlike the
+        # vllm route this belongs in activation.
         home.activation.dshProfilePatches = lib.hm.dag.entryAfter [ "linkGeneration" ] (
           lib.concatStrings (
             lib.mapAttrsToList (name: profile: ''
@@ -646,7 +629,7 @@ _: {
         # discovers then refreshes on boot rather than only on rebuild.
         systemd.user.services.dsh-harness-sync = {
           Unit = {
-            Description = "Render dsh's vllm route and credentials from sops secrets";
+            Description = "Render dsh's vllm route and DeepSeek credentials";
             Wants = [ "sops-nix.service" ];
             After = [ "sops-nix.service" ];
           };

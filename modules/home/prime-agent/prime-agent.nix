@@ -35,16 +35,18 @@ _: {
       # the file — including anything else inside these two entries, such as
       # modelOverrides — is carried through.
       #
-      # vllm: headers and baseUrl are sent literally (only apiKey gets `!cmd` or
-      # env indirection), so the Cloudflare Access secret has to be in the file
-      # itself. That is why the file is rendered here at 0600 from sops at
-      # runtime rather than through the world-readable store. No compat and no
-      # `reasoning`: the endpoint thinks by default and only honors
-      # `chat_template_kwargs.thinking`, which none of Prime Agent's thinking
-      # formats send — declaring one would add a toggle that does nothing.
-      # Reasoning still surfaces; the transport reads reasoning_content for
-      # every model. models is only replaced by a validated catalog, so an
-      # outage keeps the one already there.
+      # vllm: the endpoint is keyless, but the validator rejects a provider
+      # that defines models without an apiKey, so it gets the catalog
+      # fetcher's placeholder. headers is deleted rather than carried through:
+      # it held the Cloudflare Access credential back when Access fronted the
+      # endpoint, and nothing should send that to a plain-HTTP LAN host. No
+      # compat and no `reasoning`: the endpoint thinks by default and only
+      # honors `chat_template_kwargs.thinking`, which none of Prime Agent's
+      # thinking formats send — declaring one would add a toggle that does
+      # nothing. Reasoning still surfaces; the transport reads
+      # reasoning_content for every model. models is only replaced by a
+      # validated catalog, so an outage keeps the one already there, which is
+      # why the file is rendered at runtime rather than through the store.
       #
       # deepseek: the built-in provider, so only its key is supplied — as a
       # command Prime Agent runs when it needs it, which keeps the key itself
@@ -52,15 +54,11 @@ _: {
       # rejects a provider entry that carries only a key, and one invalid entry
       # discards the whole file.
       providersProg = ''
-        .providers.vllm = ((.providers.vllm // {}) + {
+        .providers.vllm = ((.providers.vllm // {} | del(.headers)) + {
           name: "vLLM (self-hosted)",
           api: "openai-completions",
-          baseUrl: env.PA_VLLM_URL,
-          apiKey: "${pkgs.vllm-catalog.placeholderKey}",
-          headers: {
-            "CF-Access-Client-Id": env.PA_CF_ID,
-            "CF-Access-Client-Secret": env.PA_CF_SECRET
-          }
+          baseUrl: "${pkgs.vllm-catalog.baseUrl}",
+          apiKey: "${pkgs.vllm-catalog.placeholderKey}"
         }) |
         if env.PA_VLLM_CATALOG != "" then .providers.vllm.models = (env.PA_VLLM_CATALOG | fromjson) else . end |
         .providers.deepseek = ((.providers.deepseek // {}) + {
@@ -69,29 +67,18 @@ _: {
         })
       '';
 
-      # In a user unit rather than home.activation for the reason dsh's sync is:
-      # sops-nix.service installs the secrets after every activation entry has
-      # already run. umask makes the temp file 0600 and the rename keeps it, so
-      # no reader ever sees the file half-written or world-readable.
+      # In a user unit rather than home.activation so no activation stalls on
+      # the catalog fetch when the endpoint is down, and so a login refreshes
+      # the catalog without waiting for a rebuild. Nothing here waits on sops:
+      # the deepseek key is read by Prime Agent itself on use, so its absence
+      # just leaves that provider unauthenticated until sops installs it.
+      # umask makes the temp file 0600 and the rename keeps it, so no reader
+      # ever sees the file half-written or world-readable.
       providersSync = pkgs.writeShellScript "prime-agent-providers-sync" ''
         set -eu
         umask 077
 
-        id_file="${secretsDir}/cf-access-client-id"
-        secret_file="${secretsDir}/cf-access-client-secret"
-        url_file="${secretsDir}/vllm-base-url"
-
-        # Only the vllm secrets gate the render: the deepseek key is read by
-        # Prime Agent itself on use, so its absence just leaves that provider
-        # unauthenticated until sops installs it.
-        for f in "$id_file" "$secret_file" "$url_file"; do
-          if [ ! -f "$f" ]; then
-            echo "prime-agent: $f not present yet, skipping ${modelsFile}" >&2
-            exit 0
-          fi
-        done
-
-        if ! catalog="$(${lib.getExe pkgs.vllm-catalog} "$id_file" "$secret_file" "$url_file")"; then
+        if ! catalog="$(${lib.getExe pkgs.vllm-catalog})"; then
           echo "prime-agent: keeping the vllm models already in ${modelsFile}" >&2
           catalog=""
         fi
@@ -100,9 +87,6 @@ _: {
         if [ -f "${modelsFile}" ]; then base="$(cat "${modelsFile}")"; else base="{}"; fi
 
         if printf '%s' "$base" |
-          PA_CF_ID="$(cat "$id_file")" \
-          PA_CF_SECRET="$(cat "$secret_file")" \
-          PA_VLLM_URL="$(cat "$url_file")" \
           PA_VLLM_CATALOG="$catalog" \
           ${lib.getExe pkgs.jq} ${lib.escapeShellArg providersProg} > "${modelsFile}.tmp"; then
           mv -f "${modelsFile}.tmp" "${modelsFile}"
@@ -135,9 +119,7 @@ _: {
 
       systemd.user.services.prime-agent-providers-sync = {
         Unit = {
-          Description = "Render Prime Agent's DeepSeek providers from sops secrets";
-          Wants = [ "sops-nix.service" ];
-          After = [ "sops-nix.service" ];
+          Description = "Render Prime Agent's DeepSeek providers and vllm catalog";
         };
 
         Service = {
