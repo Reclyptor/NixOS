@@ -10,17 +10,23 @@ _: {
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       modelsFile = "${config.home.homeDirectory}/.prime/agent/models.json";
 
-      # Prime Agent owns ~/.prime/agent/settings.json — /model, /login and the
-      # settings menu all write it — so Nix only fills in a default provider
-      # when none is chosen yet and never overrides a choice made in-app. Both
-      # keys travel together: a model id is only meaningful for its provider.
-      # The pin matters because Prime Agent's own anthropic default lags the
-      # current Opus.
+      # Prime Agent owns ~/.prime/agent/settings.json — /model, /login, /factory
+      # and the settings menu all write it — so Nix only fills in defaults that
+      # are still unset and never overrides a choice made in-app.
+      #
+      # Provider and model travel together: a model id is only meaningful for
+      # its provider. The pin matters because Prime Agent's own anthropic
+      # default lags the current Opus.
+      #
+      # The factory (rlm.factory) ships off; here it defaults on. /factory off
+      # writes an explicit false, which `== null` leaves alone where `//` would
+      # not. Prime Agent reads it at client start.
       defaultsProg = ''
-        if .defaultProvider == null
-        then .defaultProvider = "anthropic" | .defaultModel = "claude-opus-5-5"
-        else .
-        end
+        (if .defaultProvider == null
+         then .defaultProvider = "anthropic" | .defaultModel = "claude-opus-5-5"
+         else .
+         end) |
+        if .factory.enabled == null then .factory.enabled = true else . end
       '';
 
       # The two DeepSeek routes dsh has, as Prime Agent providers. models.json is
