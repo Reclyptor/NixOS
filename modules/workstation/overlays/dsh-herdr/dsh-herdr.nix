@@ -22,19 +22,18 @@ _: {
           # pane id, and its transport fails open (500ms timeout, one retry,
           # never rejects into dsh). No child_process, no HTTP, no disk writes.
           #
-          # schemastery is a peer dependency, and a store-linked plugin cannot
-          # reach it the way a profile-installed one would: node resolves from
-          # the realpath of the importing file, which is this store path, so the
-          # walk up never passes ~/.dsh/profiles/node_modules where dsh's own
-          # healProfilesModuleFallback keeps it. dsh-tui does not hit this
-          # because buildNpmPackage vendors its dependencies.
-          #
-          # So the peer is linked to the very copy the harness imports. Sharing
-          # one realpath is the point: node caches modules by resolved filename,
-          # so the plugin and the harness get the same schemastery instance
-          # rather than two that fail each other's schema checks. Coupled to
-          # dsh's internal layout on purpose — the guard below turns a layout
-          # change into a build failure instead of a runtime one.
+          # Patched for dsh 0.2.0, which renamed agent/session-start to
+          # agent/created. 0.3.0 (the latest release) still listens for the old
+          # name, so it never reported the session id and herdr had no resume
+          # command for a dsh pane: every server restart brought dsh panes back
+          # as bare shells, silently. The payload kept the same shape
+          # ({agent, source}), so the handler body is unchanged; it only skips
+          # subagents, which 0.2.0 announces through the same event and which
+          # would otherwise overwrite the pane's session with their own.
+          # --replace-fail makes an upstream change to the line a build
+          # failure; drop the patch once upstream subscribes to agent/created.
+          # The shared install step links dsh's schemastery and checks every
+          # subscribed event against dsh, which is what caught this one.
           dsh-herdr =
             let
               version = "0.3.0";
@@ -48,6 +47,14 @@ _: {
                 };
 
                 sourceRoot = "package";
+
+                postPatch = ''
+                  substituteInPlace src/index.js --replace-fail \
+                    "ctx.on('agent/session-start', (payload) => {" \
+                    "ctx.on('agent/created', (payload) => {
+                      if (payload.agent?.session?.header?.parentSession) return"
+                '';
+
                 dontBuild = true;
                 dontFixup = true;
 
@@ -56,14 +63,7 @@ _: {
                   mkdir -p $out
                   cp -r . $out/
 
-                  peer=${final.dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/schemastery
-                  if [ ! -d "$peer" ]; then
-                    echo "dsh-herdr: schemastery is no longer at $peer;" \
-                         "find where the dsh package keeps it and update this path" >&2
-                    exit 1
-                  fi
-                  mkdir -p $out/node_modules/@deepseek-ai
-                  ln -s "$peer" $out/node_modules/@deepseek-ai/schemastery
+                  ${final.dsh-plugin-install} dsh-herdr src/index.js
 
                   runHook postInstall
                 '';
