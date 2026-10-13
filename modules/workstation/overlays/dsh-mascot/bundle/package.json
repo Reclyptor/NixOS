@@ -1,6 +1,6 @@
 {
   "name": "@reclyptor/mascot-agent-state",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "dsh bundle reporting session state to the ESP32 desk mascot",
   "type": "module",
   "main": "src/index.js",
