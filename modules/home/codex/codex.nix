@@ -1,17 +1,45 @@
 _: {
+  # Codex runs a hook from the user layer (~/.codex/hooks.json) only after the
+  # user trusts it, and trust is pinned to a hash of the hook's normalized
+  # definition, command string included. Every hook here invokes a Nix store
+  # path, so any rebuild that touches a hook script changes its hash, and Codex
+  # silently stops running it until someone notices and re-trusts. That is how
+  # the mascot went dark for Codex after a routine rebuild.
+  #
+  # Hooks in the System layer (/etc/codex, beside /etc/codex/config.toml) are
+  # managed: Codex reports them as HookTrustStatus::Managed and runs them
+  # without a trust record, because whoever can write /etc already decided.
+  # Here that decision is this repository, so the merged hooks are rendered
+  # there. Source: codex-rs/hooks/src/engine/discovery.rs at rust-v0.160.0,
+  # hook_metadata_for_config_layer_source and the per-layer hooks.json load.
+  #
+  # The system layer is machine-wide, so every Home Manager user's hooks are
+  # concatenated into it. This host has one.
+  flake.modules.nixos.workstation =
+    { config, lib, ... }:
+    let
+      users = lib.attrValues (lib.attrByPath [ "home-manager" "users" ] { } config);
+      hooks = lib.zipAttrsWith (_: lib.concatLists) (map (u: u.programs.codexCli.hooks) users);
+    in
+    {
+      environment.etc."codex/hooks.json" = lib.mkIf (hooks != { }) {
+        text = builtins.toJSON { inherit hooks; };
+      };
+    };
+
   flake.modules.homeManager.base =
     {
-      config,
       lib,
       pkgs,
       ...
     }:
     {
-      # Per-event Codex hook lists, merged across modules and serialized to
-      # ~/.codex/hooks.json. The twin of programs.claudeCode.hooks in
-      # home/claude/claude.nix, and for the same reason: attrsOf (listOf ...)
-      # CONCATENATES, so agentmemory's lifecycle hooks and herdr's session-identity
-      # hook can each contribute to SessionStart without knowing about each other.
+      # Per-event Codex hook lists, merged across modules and rendered by the
+      # NixOS module above into /etc/codex/hooks.json. The twin of
+      # programs.claudeCode.hooks in home/claude/claude.nix, and for the same
+      # reason: attrsOf (listOf ...) CONCATENATES, so agentmemory's lifecycle
+      # hooks and herdr's session-identity hook can each contribute to
+      # SessionStart without knowing about each other.
       #
       # This replaces a runtime jq merge that appended on every activation and
       # matched its own prior entries by script name. The name it matched missed
@@ -21,7 +49,7 @@ _: {
       options.programs.codexCli.hooks = lib.mkOption {
         type = lib.types.attrsOf (lib.types.listOf lib.types.anything);
         default = { };
-        description = "Per-event Codex hook lists, merged across modules and serialized to ~/.codex/hooks.json.";
+        description = "Per-event Codex hook lists, merged across modules and rendered to the managed /etc/codex/hooks.json.";
       };
 
       config = {
@@ -59,9 +87,8 @@ _: {
           # agentmemory (MCP) is the exclusive memory path — native memories off.
           memories = false
           # Required by herdr's codex integration (home/herdr/herdr.nix), which
-          # reports session identity through a SessionStart hook. It also switches
-          # on agentmemory's codex lifecycle hooks, which have been sitting in
-          # ~/.codex/hooks.json without this flag to dispatch them.
+          # reports session identity through a SessionStart hook, and by every
+          # other hook in the managed /etc/codex/hooks.json.
           hooks = true
           BASE_EOF
                 if [ -n "$PRESERVED" ]; then
@@ -72,18 +99,6 @@ _: {
               $DRY_RUN_CMD mv "$CODEX_CFG.tmp" "$CODEX_CFG"
               $DRY_RUN_CMD chmod 600 "$CODEX_CFG"
         '';
-
-        # Serialize the merged hook lists to ~/.codex/hooks.json as a read-only
-        # store file, the same contract as ~/.claude/settings.json. Codex only ever
-        # reads this file — nothing in the binary writes it, and hook trust is
-        # persisted elsewhere — so nothing is fighting us for ownership. If that
-        # ever changes, the symptom is a failed write from codex, and the fallback
-        # is a runtime merge with a predicate matching every agentmemory script.
-        home.file.".codex/hooks.json" = lib.mkIf (config.programs.codexCli.hooks != { }) {
-          source = (pkgs.formats.json { }).generate "codex-hooks.json" {
-            hooks = config.programs.codexCli.hooks;
-          };
-        };
       };
     };
 }
