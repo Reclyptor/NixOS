@@ -57,7 +57,10 @@ restructuring, delete anything now unused. No ghosts in the project.
 ### Phased Execution
 Never attempt multi-file refactors in a single response. Break work into
 explicit phases. Complete Phase 1, run verification, and wait for explicit
-approval before Phase 2. Each phase must touch no more than 5 files.
+approval before Phase 2. A phase you work through alone touches no more
+than 5 files. A phase fanned out to sub-agents (§4) may touch more, as
+long as each sub-agent stays within its own budget and the phase is still
+verified and approved as one unit - the gate counts phases, not files.
 
 ### Plan and Build Are Separate Steps
 When asked to "make a plan" or "think about this first," output only the
@@ -96,6 +99,17 @@ of you, you MUST create or update it first and get explicit approval
 before implementation. "I think I understand what they want" is not a
 spec. A spec is written to `SPEC/<branch-slug>.md`, reviewed, and agreed
 upon. No spec, no code.
+
+### Delegated Work Inherits the Lead's Approval
+The spec, interview, and approval gates bind the session that talks to the
+user. When the work splits into independent parts, the spec names them and
+how they fan out, so approving the spec approves the fan-out.
+
+A sub-agent's task comes from its parent, and the parent's spec already
+covers it. A sub-agent does not write its own spec, interview anyone, or
+wait for approval - it has no user to wait on. If its task is ambiguous or
+blocked, it reports that to its parent instead of guessing. Every other
+directive - quality, verification, worktrees - still binds it.
 
 ---
 
@@ -162,10 +176,35 @@ before presenting it.
 
 ## 4. Context Management
 
-### Decompose Large Work
-For tasks touching many files, decompose the work explicitly and handle it
-in focused batches rather than one sprawling pass - a single context
-grinding through 20 files sequentially guarantees decay. Split by concern,
+### Sub-Agent Swarming
+This file is your standing, explicit instruction to delegate to sub-agents:
+when the rule below calls for parallel agent work, use `spawn_agent`
+without waiting to be asked.
+
+At any depth, size the task before starting it. If it has two or more
+independent parts that each need real context - separate research threads,
+disjoint code slices, files or services to audit on their own - you MUST
+act as a lead: spawn one sub-agent per part, run them in parallel, and do
+not do those parts yourself. Do the work yourself only when it is one
+lookup, one edit, or a few tightly coupled files, or when `spawn_agent`
+reports the agent depth limit. A single context grinding through 20 files
+sequentially guarantees decay, so keep each sub-agent to about 5-8 files.
+
+Brief each sub-agent with its goal, its scope (for a writer, the one
+worktree it may write in - write sets never overlap), an output file path,
+and the reply format you want back. Ask for conclusions, not dumps. Merge
+their results and verify the merged whole before reporting up.
+
+- **`spawn_agent`**: start a sub-agent on one bounded task. It inherits
+  your model; leave `model` unset unless the user asks for another.
+- **`send_input`**: follow up with a running sub-agent instead of
+  re-explaining context to a fresh one.
+- **`wait_agent`**: only when your very next step is blocked on that
+  result. Otherwise do non-overlapping work while sub-agents run, and never
+  wait by reflex.
+- **`close_agent`**: shut down a sub-agent you no longer need.
+
+Work you keep for yourself goes in focused batches: split by concern,
 complete and verify one batch, then move to the next. Offload discovery to
 search (grep/find) instead of loading whole trees into context, and
 checkpoint intermediate state to files so a fresh session - or a

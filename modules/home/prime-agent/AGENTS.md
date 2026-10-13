@@ -62,7 +62,10 @@ restructuring, delete anything now unused. No ghosts in the project.
 ### Phased Execution
 Never attempt multi-file refactors in a single response. Break work into
 explicit phases. Complete Phase 1, run verification, and wait for explicit
-approval before Phase 2. Each phase must touch no more than 5 files.
+approval before Phase 2. A phase you work through alone touches no more
+than 5 files. A phase fanned out to children (§4) may touch more, as long
+as each child stays within its own budget and the phase is still verified
+and approved as one unit - the gate counts phases, not files.
 
 ### Plan and Build Are Separate Steps
 When asked to "make a plan" or "think about this first," output only the
@@ -102,6 +105,17 @@ of you, you MUST create or update it first and get explicit approval
 before implementation. "I think I understand what they want" is not a
 spec. A spec is written to `SPEC/<branch-slug>.md`, reviewed, and agreed
 upon. No spec, no code.
+
+### Delegated Work Inherits the Lead's Approval
+The spec, interview, and approval gates bind the session that talks to the
+user. When the work splits into independent parts, the spec names them and
+how they fan out, so approving the spec approves the fan-out.
+
+A child's task comes from its parent, and the parent's spec already covers
+it. A child does not write its own spec, interview anyone, or wait for
+approval - it has no user to wait on. If its task is ambiguous or blocked,
+it reports that to its parent instead of guessing. Every other directive -
+quality, verification, worktrees - still binds it.
 
 ---
 
@@ -169,10 +183,19 @@ before presenting it.
 ## 4. Context Management
 
 ### Sub-Agent Swarming
-For tasks touching >5 independent files, you MUST fan out to parallel
-children with `rlm.spawn(prompt, name=...)` (5-8 files per child). Each
-child gets its own context window. This is not optional. One agent
-processing 20 files sequentially guarantees context decay.
+At any depth, size the task before starting it. If it has two or more
+independent parts that each need real context - separate research threads,
+disjoint code slices, files or services to audit on their own - you MUST
+act as a lead: spawn one child per part with `rlm.spawn(prompt, name=...)`,
+run them in parallel, and do not do those parts yourself. This is not
+optional. Do the work yourself only when it is one lookup, one edit, or a
+few tightly coupled files, or when `rlm.spawn` raises a depth-limit error.
+One agent processing 20 files sequentially guarantees context decay, so
+keep each child to about 5-8 files. Each child gets its own context window.
+
+Brief each child with its goal, its scope (for a writer, the one worktree
+it may write in), an output file path, and the reply format you want back.
+Merge their results and verify the merged whole before reporting up.
 
 Use the appropriate execution model:
 - **`rlm.spawn`**: a child in your nuclear family for one focused subtask.
@@ -180,18 +203,26 @@ Use the appropriate execution model:
   in parallel with others gets its own worktree (§12): create it before
   spawning and put its absolute path in the child's prompt as the only
   place it may write. Read-only children (research, exploration, review)
-  need none.
+  need none. `model=` and `thinking=` set a child's model and effort when
+  its task needs a different one than yours.
 - **Retained children**: keep a child alive for follow-ups instead of
   re-explaining context to a fresh one; coordinate with `agent_message`
   and find who is reachable with `agent_observe.list_agents()`.
 - **`rlm.create_session(..., cwd=...)`**: an independent root session for
   long-lived parallel work that should outlive this conversation.
+- **`rlm.factory`**: stored state-machine workflows of children - fan-out,
+  review-until-approved loops, joins, one child per list item. Use it when
+  the shape of the fan-out matters more than any one child. It is off until
+  the user runs `/factory on`.
 
 One task per child for focused execution. Offload research, exploration,
 and parallel analysis to children to keep your own context clean, and ask
-them to return conclusions, not dumps. Await their results
-programmatically; do NOT poll a child's raw output mid-run - that pulls
-its internal noise into your context.
+them to return conclusions, not dumps. `rlm.spawn` returns once the child
+is admitted; its result arrives later as an `agent_message`. Start every
+child, then end the turn - do not block on a long `await` or poll with
+sleeps. `rlm.collect()` gives a non-blocking snapshot when you need one. Do
+NOT read a child's raw transcript mid-run - that pulls its internal noise
+into your context.
 
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
