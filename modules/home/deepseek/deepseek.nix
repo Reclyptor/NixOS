@@ -8,7 +8,15 @@ _: {
     }:
     let
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
-      settingsFile = "${config.home.homeDirectory}/.dsh/settings.yaml";
+
+      # The home-level patch layer: composed after every bundle layer and after
+      # each profile's own cordis.patch.yml, so it reaches every profile. It is
+      # where the vllm route lives because it is the one patch file Nix does
+      # NOT own — the route carries a secret, and the profile patches are
+      # world-readable store symlinks. dsh 0.2.0 dropped settings.yaml, which
+      # used to hold this route; its one-shot import could only write the
+      # read-only profile patch, so the route was silently lost.
+      homePatchFile = "${config.home.homeDirectory}/.dsh/cordis.patch.yml";
 
       # The harness home's own environment layer. dsh reads it as the LOWEST
       # credential layer, under the managed .credentials.yaml the web Models
@@ -29,9 +37,9 @@ _: {
       # compaction against a ceiling the server enforces and fails only deep
       # into a long session.
       #
-      # So the catalog is discovered at activation (see vllmCatalogSync below)
-      # and this list is only what a first activation writes when the endpoint
-      # cannot be reached. It is seeded, never forced — a failed discovery must
+      # So the catalog is discovered by dsh-harness-sync (see below) and this
+      # list is only what a first render writes when the endpoint cannot be
+      # reached. It is seeded, never forced — a failed discovery must
       # leave the last GOOD catalog in place, not overwrite it with this copy.
       seedModels = [
         "deepseek-v4-flash-0731"
@@ -59,41 +67,17 @@ _: {
 
       route = config.deepseek.defaultRoute;
 
-      # Replaces the vllm route's model catalog with what the endpoint reports,
-      # so the one fact this module cannot own is read from its owner instead of
-      # copied. Each model carries its own max_model_len, which means the window
-      # can no longer be wrong even if the deployment serves models that differ.
-      # The fetch and its validation are pkgs.vllm-catalog's, shared with every
-      # other harness that routes to this endpoint; this is only dsh's sink.
+      # The vllm route as one id-targeted row of the home patch, which replaces
+      # the llm-pi-ai entry's whole config — the bundle gives it none, so
+      # nothing is lost by restating. Every other row in the file is the
+      # user's and is carried through, so the render is safe to re-run.
       #
-      # Non-destructive by construction: every failure the fetcher reports —
-      # unreachable endpoint, HTTP error, unparseable body, empty list, an entry
-      # missing an id or a positive window — warns and exits 0, leaving whatever
-      # catalog is already in settings.yaml. That matters more than freshness:
-      # this route goes down, and an activation during the outage must not be
-      # the thing that erases the catalog describing it.
-      vllmCatalogSync = pkgs.writeShellScript "dsh-sync-vllm-catalog" ''
-        set -eu
-        settings="$1"
-
-        yq=${lib.getExe pkgs.yq-go}
-
-        if ! catalog="$(${lib.getExe pkgs.vllm-catalog} "$2" "$3" "$4")"; then
-          echo "deepseek: keeping the vllm catalog already in $settings" >&2
-          exit 0
-        fi
-
-        DSH_VLLM_CATALOG="$catalog" "$yq" -i \
-          '.["llm-pi-ai"].providers.vllm.models = (strenv(DSH_VLLM_CATALOG) | from_json)' \
-          "$settings"
-
-        echo "deepseek: vllm catalog synced —" \
-          "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
-      '';
-
-      # Owned keys only. Everything else in settings.yaml — including anything
-      # the web Models page writes — is left untouched, so this merge is safe to
-      # re-run and does not fight the UI for ownership of the document.
+      # models is replaced only by a catalog pkgs.vllm-catalog fetched and
+      # validated — the endpoint's own answer, with each model's max_model_len,
+      # so no window here can be wrong. When the fetch fails the row's existing
+      # models stay, and only a row that has none yet gets the seed list: this
+      # route goes down, and a render during the outage must not be the thing
+      # that erases the catalog describing it.
       #
       # No `compat.thinkingFormat` and no `reasoningEfforts`: the endpoint
       # ignores DeepSeek's `thinking: {type: disabled}` and only responds to
@@ -101,26 +85,25 @@ _: {
       # expose. Declaring a format would render an effort toggle that silently
       # does nothing. Reasoning output still surfaces — pi-ai's response parser
       # scans reasoning_content/reasoning/reasoning_text regardless of format.
-      #
-      # agent-default-model is the one key SEEDED rather than forced: the
-      # composer's /model picker records its choice there, and forcing it would
-      # revert that on the next activation — exactly when the endpoint is down
-      # and the switch matters. Assigned as a whole section, never field by
-      # field, because the harness treats provider+model as one atomic route and
-      # ignores a half-pinned one rather than merging it with a default.
       program = ''
-        .["llm-pi-ai"].providers.vllm.api = "openai-completions" |
-        .["llm-pi-ai"].providers.vllm.displayName = "vLLM (self-hosted)" |
-        .["llm-pi-ai"].providers.vllm.baseURL = strenv(DSH_VLLM_URL) |
-        del(.["llm-pi-ai"].providers.vllm.apiKeyEnv) |
-        .["llm-pi-ai"].providers.vllm.defaultContextWindow = ${toString contextWindow} |
-        .["llm-pi-ai"].providers.vllm.headers.Authorization = "Bearer ${placeholderKey}" |
-        .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Id"] = strenv(DSH_CF_ID) |
-        .["llm-pi-ai"].providers.vllm.headers["CF-Access-Client-Secret"] = strenv(DSH_CF_SECRET) |
-        .["llm-pi-ai"].providers.vllm.models = (.["llm-pi-ai"].providers.vllm.models // ${
+        ([.[] | select(.id == "llm-pi-ai") | .config.providers.vllm.models][0] // ${
           builtins.toJSON (map (id: { inherit id; }) seedModels)
-        }) |
-        .["agent-default-model"] = (.["agent-default-model"] // {"provider": "${route.provider}", "model": "${route.model}"})
+        }) as $kept |
+        [.[] | select(.id != "llm-pi-ai")] + [{
+          "id": "llm-pi-ai",
+          "config": {"providers": {"vllm": {
+            "api": "openai-completions",
+            "displayName": "vLLM (self-hosted)",
+            "baseURL": strenv(DSH_VLLM_URL),
+            "defaultContextWindow": ${toString contextWindow},
+            "headers": {
+              "Authorization": "Bearer ${placeholderKey}",
+              "CF-Access-Client-Id": strenv(DSH_CF_ID),
+              "CF-Access-Client-Secret": strenv(DSH_CF_SECRET)
+            },
+            "models": ((strenv(DSH_VLLM_CATALOG) | select(. != "") | from_json) // $kept)
+          }}}
+        }]
       '';
 
       # Everything in this module that consumes a sops secret, in one place.
@@ -140,12 +123,13 @@ _: {
 
         yq=${lib.getExe pkgs.yq-go}
 
-        # settings.yaml carries the Cloudflare Access client secret in cleartext:
-        # dsh types `headers` as a plain string dict, and only `apiKeyEnv` gets
-        # credential indirection, so home.file would publish it to the
-        # world-readable Nix store. Written here instead, mode 0600, with the
-        # values passed through the environment (strenv) so they never appear in
-        # argv where /proc/*/cmdline would expose them.
+        # The home patch carries the Cloudflare Access client secret in
+        # cleartext: dsh types `headers` as a plain string dict, and only
+        # `apiKeyEnv` gets credential indirection, so home.file would publish it
+        # to the world-readable Nix store. Written here instead, mode 0600 via
+        # the umask and an atomic rename, with the values passed through the
+        # environment (strenv) so they never appear in argv where
+        # /proc/*/cmdline would expose them.
         #
         # Upstream caveat worth knowing: a credential in `headers` is returned
         # verbatim by a redacted describe() and rendered by the Models page. That
@@ -155,26 +139,35 @@ _: {
         dsh_url="${secretsDir}/vllm-base-url"
 
         if [ -f "$dsh_id" ] && [ -f "$dsh_secret" ] && [ -f "$dsh_url" ]; then
-          mkdir -p "$(dirname "${settingsFile}")"
-          [ -f "${settingsFile}" ] || : > "${settingsFile}"
-          chmod 600 "${settingsFile}"
-
-          if DSH_CF_ID="$(cat "$dsh_id")" \
-             DSH_CF_SECRET="$(cat "$dsh_secret")" \
-             DSH_VLLM_URL="$(cat "$dsh_url")" \
-             "$yq" -i '${program}' "${settingsFile}"; then
-            # A separate process on purpose: it reports every failure by exiting
-            # 0, which as an inlined function would abort this script and skip
-            # the .env write below.
-            ${vllmCatalogSync} "${settingsFile}" "$dsh_id" "$dsh_secret" "$dsh_url"
+          if catalog="$(${lib.getExe pkgs.vllm-catalog} "$dsh_id" "$dsh_secret" "$dsh_url")"; then
+            echo "deepseek: vllm catalog fetched —" \
+              "$(printf '%s' "$catalog" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")')" >&2
           else
-            echo "deepseek: yq merge failed for ${settingsFile} (left unchanged)" >&2
+            echo "deepseek: keeping the vllm catalog already in ${homePatchFile}" >&2
+            catalog=""
+          fi
+
+          mkdir -p "$(dirname "${homePatchFile}")"
+          # An empty patch file fails boot, so the render always starts from a
+          # list — an absent file is the empty one.
+          if [ -s "${homePatchFile}" ]; then base="$(cat "${homePatchFile}")"; else base="[]"; fi
+
+          if printf '%s\n' "$base" |
+            DSH_CF_ID="$(cat "$dsh_id")" \
+            DSH_CF_SECRET="$(cat "$dsh_secret")" \
+            DSH_VLLM_URL="$(cat "$dsh_url")" \
+            DSH_VLLM_CATALOG="$catalog" \
+            "$yq" '${program}' > "${homePatchFile}.tmp"; then
+            mv -f "${homePatchFile}.tmp" "${homePatchFile}"
+          else
+            rm -f "${homePatchFile}.tmp"
+            echo "deepseek: yq merge failed for ${homePatchFile} (left unchanged)" >&2
           fi
         else
-          echo "deepseek: sops secrets not present yet, skipping ${settingsFile}" >&2
+          echo "deepseek: sops secrets not present yet, skipping ${homePatchFile}" >&2
         fi
 
-        # The official api.deepseek.com route needs no settings section at all —
+        # The official api.deepseek.com route needs no patch row at all —
         # dsh-base already mounts llm-deepseek, which owns the
         # `deepseek-official` route and defaults its endpoint, its catalog and
         # its DEEPSEEK_API_KEY credential reference. Supplying the key is the
@@ -304,7 +297,19 @@ _: {
         };
       }) config.deepseek.mcpServers;
 
-      patchFor = profile: lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
+      # The default route is no secret, so unlike the vllm route it is built
+      # here, in the profile layer. Not in the home patch: that layer outranks
+      # the profile's, so a default placed there would override anything the
+      # profile layer sets. It goes first so a profile's own rows can still
+      # retarget it.
+      defaultRouteRow = {
+        id = "agent-default-model";
+        config = { inherit (route) provider model; };
+      };
+
+      patchFor =
+        profile:
+        [ defaultRouteRow ] ++ lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
 
       manifestFor =
         name: profile:
@@ -396,11 +401,8 @@ _: {
           model = "deepseek-v4-flash";
         };
         description = ''
-          Route a new session starts on, seeded into `agent-default-model` the
-          first time settings.yaml has no such section. It is a seed, not a
-          pin: the composer's `/model` picker writes that section, and this
-          module leaves an existing one alone so a runtime switch survives
-          activation.
+          Route a new session starts on, written as the `agent-default-model`
+          row at the head of every profile's `cordis.patch.yml`.
 
           One submodule rather than two options because the harness resolves a
           route atomically — a provider without its model is discarded rather
@@ -577,7 +579,7 @@ _: {
         # discovers then refreshes on boot rather than only on rebuild.
         systemd.user.services.dsh-harness-sync = {
           Unit = {
-            Description = "Render dsh settings.yaml and credentials from sops secrets";
+            Description = "Render dsh's vllm route and credentials from sops secrets";
             Wants = [ "sops-nix.service" ];
             After = [ "sops-nix.service" ];
           };
