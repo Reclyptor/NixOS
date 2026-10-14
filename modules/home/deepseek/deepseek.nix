@@ -30,116 +30,143 @@ _: {
       # to let the UI replace — and it would only ever reach interactive shells.
       envFile = "${config.home.homeDirectory}/.dsh/.env";
 
-      # BOOTSTRAP ONLY. What an endpoint serves is the endpoint's fact, not
-      # this module's: both vLLM routes are hand-declared pi-ai routes, so
-      # unlike the official route — a catalog route that picks up new models
-      # on its own — their models have to be spelled somewhere, and anything
-      # spelled here is a COPY that drifts. It already did: this list once
-      # named one model at a 1048576 window long after the deployment had
-      # moved to two at 600000, which is the dangerous half, since an
-      # over-declared window sizes compaction against a ceiling the server
-      # enforces and fails only deep into a long session.
-      #
-      # So each catalog is discovered by dsh-harness-sync (see below) and the
-      # seed is only what a first render writes when that route's endpoint
-      # cannot be reached. It is seeded, never forced — a failed discovery
-      # must leave the last GOOD catalog in place, not overwrite it with this
-      # copy.
-      #
-      # contextWindow is the route-level backstop, consulted only for a model
-      # carrying no window of its own — which, after any successful discovery,
-      # is none of them. Keep it at or below the smallest window that endpoint
-      # serves: too low only wastes context, too high silently overruns the
-      # server.
-      lan = {
-        seedModels = [ "Qwen3.8-27B-FP8" ];
-        contextWindow = 262144;
-      };
-
-      remote = {
-        seedModels = [
-          "deepseek-v4-flash-0731"
-          "DeepSeek-v4.1-Flash-EXL3"
-        ];
-        contextWindow = 600000;
-      };
+      # The vLLM routes, declared once in ../vllm-routes.nix and shared with
+      # Prime Agent. What an endpoint serves is the endpoint's fact, not this
+      # module's: these are hand-declared pi-ai routes, so unlike the official
+      # route — a catalog route that picks up new models on its own — their
+      # models have to be spelled somewhere, and anything spelled here is a
+      # COPY that drifts. So each catalog is discovered by dsh-harness-sync
+      # (see below), and a route's seedModels are only what a first render
+      # writes when its endpoint cannot be reached.
+      routes = config.vllm.routes;
 
       seedFor = r: builtins.toJSON (map (id: { inherit id; }) r.seedModels);
 
       # pi-ai's OpenAI-compatible transport will not build a request without
-      # either a credential or an Authorization header, and neither endpoint
-      # checks one: the LAN vLLM is keyless, and Cloudflare Access does the
-      # authenticating in front of the remote one. Upstream sanctions exactly
-      # this: "a keyless local server needs a placeholder credential
-      # referenced by apiKeyEnv or an Authorization entry in headers". Not a
-      # secret, so it is inlined rather than sops'd.
-      #
-      # Both are the catalog fetcher's, so the LAN route and its fetch can
-      # never point at different endpoints. The remote route's URL is a sops
-      # secret, read at render time like its credentials.
-      inherit (pkgs.vllm-catalog) baseUrl placeholderKey;
+      # either a credential or an Authorization header, and no endpoint checks
+      # one: Cloudflare Access does the authenticating in front of each.
+      # Upstream sanctions exactly this: "a keyless local server needs a
+      # placeholder credential referenced by apiKeyEnv or an Authorization
+      # entry in headers". Not a secret, so it is inlined rather than sops'd.
+      inherit (pkgs.vllm-catalog) placeholderKey;
+
+      # A shell variable's expansion, double-quoted.
+      shellRef = name: "\"\$${name}\"";
 
       route = config.deepseek.defaultRoute;
 
-      # Both vLLM routes as one id-targeted row of the home patch, which
+      # Every vLLM route as one id-targeted row of the home patch, which
       # replaces the llm-pi-ai entry's whole config — the bundle gives it
       # none, so nothing is lost by restating. Every other row in the file is
       # the user's and is carried through, so the render is safe to re-run.
       #
-      # A route's models are replaced only by a catalog pkgs.vllm-catalog
-      # fetched and validated — the endpoint's own answer, with each model's
-      # max_model_len, so no window here can be wrong. When the fetch fails
-      # the route's existing models stay, and only a route that has none yet
-      # gets its seed list: these endpoints go down, and a render during an
-      # outage must not be the thing that erases the catalog describing it.
-      # Each route keeps its own, so one endpoint being down never touches
-      # the other's.
+      # A route is rendered only when its secret files are all present (its
+      # URL variable is set); until then whatever the file already holds for
+      # it is carried through as it is. Its models are replaced only by a
+      # catalog pkgs.vllm-catalog fetched and validated — the endpoint's own
+      # answer, with each model's max_model_len, so no window here can be
+      # wrong. When the fetch fails the route's existing models stay, and only
+      # a route that has none yet gets its seed list: these endpoints go down,
+      # and a render during an outage must not be the thing that erases the
+      # catalog describing it. Each route keeps its own, so one endpoint being
+      # down never touches another's.
       #
-      # vllm-remote is rendered only when its sops secrets are present
-      # (DSH_REMOTE_URL is set); until then whatever the file already holds
-      # for it is carried through as it is. The Cloudflare Access headers go
-      # on that route alone: the LAN route is plain HTTP and must never be
-      # handed the service token.
-      #
-      # No `compat.thinkingFormat` and no `reasoningEfforts`: both endpoints
+      # No `compat.thinkingFormat` and no `reasoningEfforts`: the endpoints
       # ignore DeepSeek's `thinking: {type: disabled}` and only respond to
       # `chat_template_kwargs`, which dsh's SUPPORTED_THINKING_FORMATS does
       # not expose. Declaring a format would render an effort toggle that
       # silently does nothing. Reasoning output still surfaces — pi-ai's
       # response parser scans reasoning_content/reasoning/reasoning_text
       # regardless of format.
+      routeProgram =
+        id: r:
+        let
+          key = builtins.toJSON id;
+          env = "DSH_${r.envName}";
+        in
+        ''
+          (({${key}: {
+            "api": "openai-completions",
+            "displayName": ${builtins.toJSON r.displayName},
+            "baseURL": strenv(${env}_URL),
+            "defaultContextWindow": ${toString r.contextWindow},
+            "headers": {
+              "Authorization": "Bearer ${placeholderKey}",
+              "CF-Access-Client-Id": strenv(${env}_ACCESS_ID),
+              "CF-Access-Client-Secret": strenv(${env}_ACCESS_SECRET)
+            },
+            "models": ((strenv(${env}_CATALOG) | select(. != "") | from_json) // $prev[${key}].models // ${seedFor r})
+          }} | select(strenv(${env}_URL) != "")) //
+          ($prev | with_entries(select(.key == ${key}))))
+        '';
+
       program = ''
         ([.[] | select(.id == "llm-pi-ai") | .config.providers][0] // {}) as $prev |
         [.[] | select(.id != "llm-pi-ai")] + [{
           "id": "llm-pi-ai",
-          "config": {"providers": ({
-            "vllm": {
-              "api": "openai-completions",
-              "displayName": "vLLM (LAN)",
-              "baseURL": "${baseUrl}",
-              "defaultContextWindow": ${toString lan.contextWindow},
-              "headers": {"Authorization": "Bearer ${placeholderKey}"},
-              "models": ((strenv(DSH_VLLM_CATALOG) | select(. != "") | from_json) // $prev.vllm.models // ${seedFor lan})
-            }
-          } + (
-            ({
-              "vllm-remote": {
-                "api": "openai-completions",
-                "displayName": "vLLM (remote)",
-                "baseURL": strenv(DSH_REMOTE_URL),
-                "defaultContextWindow": ${toString remote.contextWindow},
-                "headers": {
-                  "Authorization": "Bearer ${placeholderKey}",
-                  "CF-Access-Client-Id": strenv(DSH_CF_ID),
-                  "CF-Access-Client-Secret": strenv(DSH_CF_SECRET)
-                },
-                "models": ((strenv(DSH_REMOTE_CATALOG) | select(. != "") | from_json) // $prev["vllm-remote"].models // ${seedFor remote})
-              }
-            } | select(strenv(DSH_REMOTE_URL) != "")) //
-            ($prev | with_entries(select(.key == "vllm-remote")))
-          ))}
+          "config": {"providers": ({} + ${lib.concatStringsSep " + " (lib.mapAttrsToList routeProgram routes)})}
         }]
       '';
+
+      # Discovers one route's catalog and reads its URL and Access credentials
+      # into route_<id>_* shell variables, kept apart from the script's own
+      # names (route vllm would otherwise clobber $vllm_catalog), for the render
+      # below.
+      #
+      # The Access client secret lands in the home patch in cleartext: dsh
+      # types `headers` as a plain string dict, and only `apiKeyEnv` gets
+      # credential indirection, so home.file would publish it to the
+      # world-readable Nix store. Written by the sync instead, mode 0600 via
+      # the umask and an atomic rename, with the values passed through the
+      # environment (strenv) so they never appear in argv where
+      # /proc/*/cmdline would expose them.
+      #
+      # Upstream caveat worth knowing: a credential in `headers` is returned
+      # verbatim by a redacted describe() and rendered by the Models page.
+      # That is a known limitation in llm-pi-ai, not something this config
+      # can avoid.
+      fetchRoute =
+        id: r:
+        let
+          v = "route_${lib.toLower r.envName}";
+          files = lib.escapeShellArgs [
+            r.baseUrlFile
+            r.accessClientIdFile
+            r.accessClientSecretFile
+          ];
+        in
+        ''
+          ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
+
+          if [ -f ${lib.escapeShellArg r.baseUrlFile} ] &&
+            [ -f ${lib.escapeShellArg r.accessClientIdFile} ] &&
+            [ -f ${lib.escapeShellArg r.accessClientSecretFile} ]; then
+            if ${v}_catalog="$("$vllm_catalog" ${files})"; then
+              echo "deepseek: ${id} catalog fetched — $(describe ${shellRef "${v}_catalog"})" >&2
+            else
+              echo "deepseek: keeping the ${id} catalog already in ${homePatchFile}" >&2
+              ${v}_catalog=""
+            fi
+            ${v}_url="$(cat ${lib.escapeShellArg r.baseUrlFile})"
+            ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
+            ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+          else
+            echo "deepseek: ${id} secrets not present yet, keeping that route as it is in ${homePatchFile}" >&2
+          fi
+        '';
+
+      routeEnv =
+        id: r:
+        let
+          v = "route_${lib.toLower r.envName}";
+          env = "DSH_${r.envName}";
+        in
+        ''
+          ${env}_URL=${shellRef "${v}_url"} \
+          ${env}_ACCESS_ID=${shellRef "${v}_access_id"} \
+          ${env}_ACCESS_SECRET=${shellRef "${v}_access_secret"} \
+          ${env}_CATALOG=${shellRef "${v}_catalog"} \
+        '';
 
       # Everything in this module that consumes a sops secret or the network,
       # in one place.
@@ -165,44 +192,7 @@ _: {
           printf '%s' "$1" | "$yq" -p=json -o=tsv '[.[] | .id + " (" + (.contextWindow | tostring) + ")"] | join(", ")'
         }
 
-        if lan_catalog="$("$vllm_catalog")"; then
-          echo "deepseek: vllm catalog fetched — $(describe "$lan_catalog")" >&2
-        else
-          echo "deepseek: keeping the vllm catalog already in ${homePatchFile}" >&2
-          lan_catalog=""
-        fi
-
-        # The remote route's Cloudflare Access client secret lands in the home
-        # patch in cleartext: dsh types `headers` as a plain string dict, and
-        # only `apiKeyEnv` gets credential indirection, so home.file would
-        # publish it to the world-readable Nix store. Written here instead,
-        # mode 0600 via the umask and an atomic rename, with the values passed
-        # through the environment (strenv) so they never appear in argv where
-        # /proc/*/cmdline would expose them.
-        #
-        # Upstream caveat worth knowing: a credential in `headers` is returned
-        # verbatim by a redacted describe() and rendered by the Models page.
-        # That is a known limitation in llm-pi-ai, not something this config
-        # can avoid.
-        remote_url_file="${secretsDir}/vllm-base-url"
-        cf_id_file="${secretsDir}/cf-access-client-id"
-        cf_secret_file="${secretsDir}/cf-access-client-secret"
-        remote_url="" cf_id="" cf_secret="" remote_catalog=""
-
-        if [ -f "$remote_url_file" ] && [ -f "$cf_id_file" ] && [ -f "$cf_secret_file" ]; then
-          if remote_catalog="$("$vllm_catalog" "$remote_url_file" "$cf_id_file" "$cf_secret_file")"; then
-            echo "deepseek: vllm-remote catalog fetched — $(describe "$remote_catalog")" >&2
-          else
-            echo "deepseek: keeping the vllm-remote catalog already in ${homePatchFile}" >&2
-            remote_catalog=""
-          fi
-          remote_url="$(cat "$remote_url_file")"
-          cf_id="$(cat "$cf_id_file")"
-          cf_secret="$(cat "$cf_secret_file")"
-        else
-          echo "deepseek: vllm-remote secrets not present yet, keeping that route as it is in ${homePatchFile}" >&2
-        fi
-
+        ${lib.concatStrings (lib.mapAttrsToList fetchRoute routes)}
         mkdir -p "$(dirname "${homePatchFile}")"
         # An empty patch file fails boot, so the render always starts from a
         # list — an absent file is the empty one.
@@ -211,12 +201,7 @@ _: {
         # Swapped in by an atomic rename, so dsh never boots from a half-written
         # patch.
         if printf '%s\n' "$base" |
-          DSH_VLLM_CATALOG="$lan_catalog" \
-          DSH_REMOTE_CATALOG="$remote_catalog" \
-          DSH_REMOTE_URL="$remote_url" \
-          DSH_CF_ID="$cf_id" \
-          DSH_CF_SECRET="$cf_secret" \
-          "$yq" '${program}' > "${homePatchFile}.tmp"; then
+          ${lib.concatStrings (lib.mapAttrsToList routeEnv routes)}  "$yq" '${program}' > "${homePatchFile}.tmp"; then
           mv -f "${homePatchFile}.tmp" "${homePatchFile}"
         else
           rm -f "${homePatchFile}.tmp"
