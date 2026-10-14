@@ -8,29 +8,51 @@ _: {
     }:
     let
       servers = config.agentMcpServers;
+      agents = [
+        "claude"
+        "qwen"
+        "crush"
+        "opencode"
+        "prime"
+        "copilot"
+        "codex"
+        "dsh"
+      ];
+      excludes = agent: s: lib.elem agent s.excludeAgents;
+      serversFor = agent: lib.filterAttrs (_: s: !excludes agent s) servers;
 
       # Each agent keeps its MCP servers under its own key and in its own entry
-      # shape. A program merges every declared server into that key and leaves
-      # the rest of the file, including servers added by hand, alone. The
-      # entries are JSON literals baked in by Nix, so the merge needs no --arg.
-      mergeProg = prefix: key: entry: ''
-        ${prefix}.${key} += ${builtins.toJSON (lib.mapAttrs (_: entry) servers)}
-      '';
+      # shape. A program merges the agent's servers into that key and deletes
+      # the ones excluding it, which a previous activation may have written.
+      # The rest of the file, including servers added by hand, is left alone.
+      # The entries are JSON literals baked in by Nix, so the merge needs no
+      # --arg.
+      mergeProg =
+        agent: prefix: key: entry:
+        let
+          excluded = lib.attrNames (lib.filterAttrs (_: excludes agent) servers);
+        in
+        ''
+          ${prefix}.${key} += ${builtins.toJSON (lib.mapAttrs (_: entry) (serversFor agent))}
+          ${lib.concatMapStrings (name: "| del(.${key}[${builtins.toJSON name}])
+") excluded}'';
       stdio = s: { inherit (s) command args; };
 
-      claudeProg = mergeProg "" "mcpServers" stdio;
-      crushProg = mergeProg ''.["$schema"] = "https://charm.land/crush.json" | '' "mcp" (
+      mcpServersProg = agent: mergeProg agent "" "mcpServers" stdio;
+      crushProg = mergeProg "crush" ''.["$schema"] = "https://charm.land/crush.json" | '' "mcp" (
         s: { type = "stdio"; } // stdio s
       );
-      opencodeProg = mergeProg ''.["$schema"] = "https://opencode.ai/config.json" | '' "mcp" (s: {
-        type = "local";
-        command = [ s.command ] ++ s.args;
-        enabled = true;
-      });
+      opencodeProg =
+        mergeProg "opencode" ''.["$schema"] = "https://opencode.ai/config.json" | '' "mcp"
+          (s: {
+            type = "local";
+            command = [ s.command ] ++ s.args;
+            enabled = true;
+          });
       # Prime Agent's entries are internally tagged by `type`.
-      primeAgentProg = mergeProg "" "mcpServers" (s: { type = "stdio"; } // stdio s);
+      primeAgentProg = mergeProg "prime" "" "mcpServers" (s: { type = "stdio"; } // stdio s);
       # Copilot CLI exposes only the tools an entry allowlists; "*" is all of them.
-      copilotProg = mergeProg "" "mcpServers" (
+      copilotProg = mergeProg "copilot" "" "mcpServers" (
         s:
         {
           type = "local";
@@ -46,7 +68,7 @@ _: {
 
           [mcp_servers.${name}]
           command = ${builtins.toJSON s.command}
-          ${lib.optionalString (s.args != [ ]) "args = ${builtins.toJSON s.args}\n"}'') servers
+          ${lib.optionalString (s.args != [ ]) "args = ${builtins.toJSON s.args}\n"}'') (serversFor "codex")
       );
     in
     {
@@ -69,20 +91,30 @@ _: {
                 default = [ ];
                 description = "Arguments passed to `command`.";
               };
+
+              excludeAgents = lib.mkOption {
+                type = lib.types.listOf (lib.types.enum agents);
+                default = [ ];
+                description = ''
+                  Agents this server is not registered with. An entry left by
+                  an earlier activation is removed.
+                '';
+              };
             };
           }
         );
         default = { };
         description = ''
-          MCP servers registered with every agent: Claude Code, Qwen Code,
-          Crush, opencode, Prime Agent, Copilot CLI, Codex and dsh. Keyed by
+          MCP servers registered with every agent (Claude Code, Qwen Code,
+          Crush, opencode, Prime Agent, Copilot CLI, Codex and dsh) unless
+          the server excludes it. Keyed by
           the server name the agents namespace its tools under.
         '';
       };
 
       config = lib.mkIf (servers != { }) {
         # dsh renders these into every profile's patch itself.
-        deepseek.mcpServers = lib.mapAttrs (_: stdio) servers;
+        deepseek.mcpServers = lib.mapAttrs (_: stdio) (serversFor "dsh");
 
         # JSON agents are jq-merged in place. Codex's blocks are appended onto
         # the config.toml that codexConfig just regenerated, which keeps only
@@ -101,8 +133,8 @@ _: {
             fi
           }
 
-          mcp_merge "$HOME/.claude.json"                   ${lib.escapeShellArg claudeProg}
-          mcp_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg claudeProg}
+          mcp_merge "$HOME/.claude.json"                   ${lib.escapeShellArg (mcpServersProg "claude")}
+          mcp_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg "qwen")}
           mcp_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg crushProg}
           mcp_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg opencodeProg}
           mcp_merge "$HOME/.prime/agent/settings.json"     ${lib.escapeShellArg primeAgentProg}

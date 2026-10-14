@@ -113,8 +113,14 @@ _: {
       };
     in
     {
-      # Registered with every agent by home/agent-mcp.nix.
-      agentMcpServers.rea.command = mcpBin;
+      # Registered with every agent by home/agent-mcp.nix, except Copilot CLI.
+      # Copilot loads every tool definition up front, and rea's 139 tools
+      # (~1.9 MB of schemas) exceed the context budget of every model the
+      # account can use, so each prompt fails before it starts.
+      agentMcpServers.rea = {
+        command = mcpBin;
+        excludeAgents = [ "copilot" ];
+      };
 
       # Upstream's own skill, linked read-only out of the pinned store path. Same
       # mechanism as the agentmemory skills; the slash command comes from the
