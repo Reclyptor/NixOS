@@ -352,6 +352,15 @@ _: {
         config = { inherit (route) provider model; };
       };
 
+      # dsh-tui reads none of the profile rows: its route is the `/model`
+      # choice it keeps in ~/.dsh-tui/model.json, in exactly this shape
+      # (modelPrefs.js). Seeded like defaultRouteRow — written only when the
+      # file is missing, so a choice made in dsh-tui outlives a rebuild. An
+      # unreadable file is left alone too: dsh-tui already treats it as unset,
+      # and replacing it would be a pin by another name.
+      dshTuiModelSeed = jsonFormat.generate "dsh-tui-model.json" { inherit (route) provider model; };
+      usesDshTui = lib.any (profile: lib.elem pkgs.dsh-tui profile.plugins) (lib.attrValues profiles);
+
       # The rows Nix owns outright in a profile's patch, replaced on every
       # activation. defaultRouteRow is not among them: it is only seeded.
       ownedRowsFor = profile: lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
@@ -491,8 +500,10 @@ _: {
           than merged with a default, so the pair cannot be allowed to drift
           apart.
 
-          The dsh-tui front end keeps its own choice in
-          `~/.dsh-tui/model.json` and does not read this section at all.
+          The dsh-tui front end ignores that row and keeps its own choice
+          in `~/.dsh-tui/model.json`, which its `/model` picker rewrites.
+          That file is seeded from this route the same way: written only
+          when it does not exist.
         '';
       };
 
@@ -635,6 +646,14 @@ _: {
                 $DRY_RUN_CMD ${profilePatchRender} "$HOME/${profilePath name}/cordis.patch.yml"
             '') profiles
           )
+          + lib.optionalString usesDshTui ''
+            if [ ! -e "$HOME/.dsh-tui/model.json" ]; then
+              $DRY_RUN_CMD mkdir -p "$HOME/.dsh-tui"
+              $DRY_RUN_CMD cp ${dshTuiModelSeed} "$HOME/.dsh-tui/model.json.nix.tmp"
+              $DRY_RUN_CMD chmod 0644 "$HOME/.dsh-tui/model.json.nix.tmp"
+              $DRY_RUN_CMD mv -f "$HOME/.dsh-tui/model.json.nix.tmp" "$HOME/.dsh-tui/model.json"
+            fi
+          ''
         );
 
         # The two profiles the harness ships templates for. mkDefault so another
