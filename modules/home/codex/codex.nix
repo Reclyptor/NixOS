@@ -76,8 +76,8 @@ _: {
           # Managed declaratively by home/codex/codex.nix.
           # Edits to top-level keys and [features] will be overwritten on the next
           # home-manager activation. [projects.*] sections (trust levels) are preserved
-          # from codex's own writes across rebuilds. The agentmemory MCP server block is
-          # appended by home/agentmemory.nix.
+          # from codex's own writes across rebuilds. The [mcp_servers.*] blocks are
+          # appended by home/agent-mcp.nix.
 
           model = "gpt-5.5"
           model_reasoning_effort = "high"

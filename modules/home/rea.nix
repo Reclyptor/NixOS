@@ -106,14 +106,6 @@ _: {
       '';
       mcpBin = "${reaMcp}/bin/rea-mcp";
 
-      # Same per-agent shapes agentmemory.nix uses. rea needs no API key and runs
-      # entirely locally, so unlike agentmemory there is no secret to keep out of
-      # these files and no token-at-spawn-time wrapper concern.
-      mcpServersProg = ''.mcpServers.rea = {command: "${mcpBin}", args: []}'';
-      crushProg = ''.["$schema"] = "https://charm.land/crush.json" | .mcp.rea = {type: "stdio", command: "${mcpBin}", args: []}'';
-      opencodeProg = ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.rea = {type: "local", command: ["${mcpBin}"], enabled: true}'';
-      copilotProg = ''.mcpServers.rea = {type: "local", command: "${mcpBin}", args: [], tools: ["*"]}'';
-
       reaSkill = "reverse-engineer-anything";
       mkSkillLink = dir: {
         name = "${dir}/${reaSkill}";
@@ -121,7 +113,8 @@ _: {
       };
     in
     {
-      deepseek.mcpServers.rea.command = mcpBin;
+      # Registered with every agent by home/agent-mcp.nix.
+      agentMcpServers.rea.command = mcpBin;
 
       # Upstream's own skill, linked read-only out of the pinned store path. Same
       # mechanism as the agentmemory skills; the slash command comes from the
@@ -134,45 +127,5 @@ _: {
           ".copilot/skills"
         ]
       );
-
-      # Registers the MCP server with every JSON-configured agent, then appends
-      # Codex's TOML block. Ordered after codexConfig because that script
-      # regenerates config.toml and would otherwise drop this entry. `rea setup`
-      # would do this imperatively; doing it here keeps the pin authoritative and
-      # self-heals on every switch.
-      home.activation.rea = lib.hm.dag.entryAfter [ "writeBoundary" "codexConfig" ] ''
-        rea_merge() {
-          local file="$1" prog="$2" base
-          $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
-          if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-          if printf '%s' "$base" | ${lib.getExe pkgs.jq} "$prog" > "$file.rea.tmp"; then
-            $DRY_RUN_CMD mv -- "$file.rea.tmp" "$file"
-          else
-            rm -f "$file.rea.tmp"
-            echo "rea: jq merge failed for $file (left unchanged)" >&2
-          fi
-        }
-
-        rea_merge "$HOME/.claude.json"                   ${lib.escapeShellArg mcpServersProg}
-        rea_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg mcpServersProg}
-        rea_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg crushProg}
-        rea_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg opencodeProg}
-        rea_merge "$HOME/.copilot/mcp-config.json"       ${lib.escapeShellArg copilotProg}
-
-        codex_toml="$HOME/.codex/config.toml"
-        if [ ! -f "$codex_toml" ]; then
-          echo "rea: $codex_toml missing (codexConfig should create it), skipping codex" >&2
-        elif ${pkgs.gnugrep}/bin/grep -q '^\[mcp_servers\.rea\]' "$codex_toml"; then
-          :
-        else
-          {
-            cat "$codex_toml"
-            printf '\n[mcp_servers.rea]\n'
-            printf 'command = "%s"\n' "${mcpBin}"
-          } > "$codex_toml.rea.tmp"
-          $DRY_RUN_CMD mv -- "$codex_toml.rea.tmp" "$codex_toml"
-          $DRY_RUN_CMD chmod 600 "$codex_toml"
-        fi
-      '';
     };
 }
