@@ -17,6 +17,7 @@
       # unless HERDR_ENV=1 — outside a herdr pane they do nothing.
       claudeHookSrc = "${inputs.herdr}/src/integration/assets/claude/herdr-agent-state.sh";
       codexHookSrc = "${inputs.herdr}/src/integration/assets/codex/herdr-agent-state.sh";
+      copilotHookSrc = "${inputs.herdr}/src/integration/assets/copilot/herdr-agent-state.sh";
 
       # Installed at the paths herdr's own installer uses, so `herdr integration
       # status` recognizes them and stays a truthful drift canary. The installer
@@ -25,6 +26,7 @@
       # src/integration/config_file.rs), aborting before it writes either script.
       claudeHook = "${home}/.claude/hooks/herdr-agent-state.sh";
       codexHook = "${home}/.codex/herdr-agent-state.sh";
+      copilotHook = "${home}/.copilot/hooks/herdr-agent-state.sh";
 
       # Mirrors src/integration/command.rs: `bash '<path>' session`, single-quoted.
       hookCommand = path: "bash '${path}' session";
@@ -177,6 +179,7 @@
       # here during `integration install`, which we never run.
       home.file.".claude/hooks/herdr-agent-state.sh".source = claudeHookSrc;
       home.file.".codex/herdr-agent-state.sh".source = codexHookSrc;
+      home.file.".copilot/hooks/herdr-agent-state.sh".source = copilotHookSrc;
 
       # Claude Code: contributed to the list-merging option home/claude/claude.nix
       # folds into ~/.claude/settings.json, so this concatenates with
@@ -208,6 +211,19 @@
               timeout = hookTimeout;
             }
           ];
+        }
+      ];
+
+      # Copilot CLI: the entry upstream's installer writes into
+      # ~/.copilot/settings.json (src/integration/targets.rs), contributed instead
+      # to the option home/copilot/copilot.nix renders into its own hooks file.
+      # Upstream runs this script without the `session` argument, and herdr
+      # already whitelists herdr:copilot for resume, so nothing needs patching.
+      programs.copilotCli.hooks.SessionStart = [
+        {
+          type = "command";
+          bash = "bash '${copilotHook}'";
+          timeoutSec = hookTimeout;
         }
       ];
 
