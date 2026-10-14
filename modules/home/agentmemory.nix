@@ -206,6 +206,39 @@ _: {
         Stop = mkHook "stop";
       };
 
+      # Copilot CLI. Flat native entries under the PascalCase names, which deliver
+      # the same snake_case payloads Claude Code sends; subagentStart and
+      # notification exist only in camelCase, and the scripts read both
+      # spellings. Copilot injects SessionStart output only as JSON
+      # additionalContext, so both context producers are wrapped. PreCompact is
+      # left out: Copilot discards its output, and the script does nothing else
+      # (the Claude bridge sync it can run is off).
+      copilotContext = pkgs.writeShellScript "copilot-additional-context" ''
+        out="$("$@")" || exit 0
+        [ -n "$out" ] || exit 0
+        ${pkgs.jq}/bin/jq -n --arg c "$out" '{additionalContext: $c}'
+      '';
+      copilotEntry = command: [
+        {
+          type = "command";
+          bash = command;
+        }
+      ];
+      copilotHook = script: copilotEntry (hookCmd script);
+      copilotHooks = {
+        SessionStart =
+          copilotEntry "${copilotContext} ${hookCmd "session-start"}"
+          ++ copilotEntry "${copilotContext} ${directiveInject}";
+        UserPromptSubmit = copilotHook "prompt-submit";
+        PostToolUse = copilotHook "post-tool-use";
+        PostToolUseFailure = copilotHook "post-tool-failure";
+        subagentStart = copilotHook "subagent-start";
+        SubagentStop = copilotHook "subagent-stop";
+        notification = copilotHook "notification";
+        Stop = copilotHook "stop";
+        SessionEnd = copilotHook "session-end";
+      };
+
       agentmemorySkills = [
         "remember"
         "recall"
@@ -242,6 +275,10 @@ _: {
       # The wrapper reads the bearer token at run time, so these are wired
       # regardless of token state and carry no secret in the file.
       programs.codexCli.hooks = codexHooks;
+
+      # Copilot CLI lifecycle hooks, contributed to the list-merging option
+      # home/copilot/copilot.nix renders into ~/.copilot/hooks/home-manager.json.
+      programs.copilotCli.hooks = copilotHooks;
 
       # dsh: the same launcher, mounted into every profile as an MCP client row
       # by home/deepseek/deepseek.nix. Declarative rather than an activation
@@ -304,13 +341,17 @@ _: {
 
       '';
 
-      # agentmemory skills for Claude Code, Codex, and dsh: read-only symlinks
+      # agentmemory skills for Claude Code, Codex, dsh, and Copilot: read-only symlinks
       # into the pinned plugin. The slash commands (/remember, /recall, ...) come
       # from each skill's SKILL.md frontmatter name, not the directory name. dsh
       # scans $DSH_HOME/skills through its filesystem skill provider, so the same
-      # per-skill links land there; keying them individually leaves the parent
-      # directory writable for hand-placed skills.
+      # per-skill links land there, as does Copilot's personal ~/.copilot/skills;
+      # keying them individually leaves the parent directory writable for
+      # hand-placed skills.
       home.file =
-        (mkSkillLinks ".claude/skills") // (mkSkillLinks ".codex/skills") // (mkSkillLinks ".dsh/skills");
+        (mkSkillLinks ".claude/skills")
+        // (mkSkillLinks ".codex/skills")
+        // (mkSkillLinks ".dsh/skills")
+        // (mkSkillLinks ".copilot/skills");
     };
 }
