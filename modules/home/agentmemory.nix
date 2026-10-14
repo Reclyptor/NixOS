@@ -46,6 +46,9 @@ _: {
         ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["${bin}"], enabled: true}'';
       # Prime Agent's mcpServers entries are internally tagged by `type`.
       primeAgentProg = bin: ''.mcpServers.agentmemory = {type: "stdio", command: "${bin}", args: []}'';
+      # Copilot CLI exposes only the tools an entry allowlists; "*" is all of them.
+      copilotProg =
+        bin: ''.mcpServers.agentmemory = {type: "local", command: "${bin}", args: [], tools: ["*"]}'';
 
       # --- Lifecycle hooks + skills (Claude Code & Codex) -----------------------
 
@@ -277,6 +280,7 @@ _: {
         am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg mcpBin)}
         am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg mcpBin)}
         am_merge "$HOME/.prime/agent/settings.json"     ${lib.escapeShellArg (primeAgentProg mcpBin)}
+        am_merge "$HOME/.copilot/mcp-config.json"       ${lib.escapeShellArg (copilotProg mcpBin)}
 
         # Codex (TOML): append the agentmemory block onto the base config that
         # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
