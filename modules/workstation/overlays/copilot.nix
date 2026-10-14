@@ -5,6 +5,11 @@ _: {
         # Replaces nixpkgs' github-copilot-cli, which trails npm `latest` by
         # dozens of releases. The platform package is one self-contained ELF
         # that unpacks its JS payload into ~/.cache/copilot/pkg on first run.
+        #
+        # Refresh: read `latest` from https://registry.npmjs.org/@github/copilot,
+        # set `version`, then take the new hash from
+        #   nix store prefetch-file --json <src url> | jq -r .hash
+        # The platform tarball carries no dependencies, so that is the whole bump.
         github-copilot-cli = prev.stdenvNoCC.mkDerivation rec {
           pname = "github-copilot-cli";
           version = "1.0.97";
