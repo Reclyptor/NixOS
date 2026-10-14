@@ -156,7 +156,7 @@ _: {
         '';
 
       routeEnv =
-        id: r:
+        _id: r:
         let
           v = "route_${lib.toLower r.envName}";
           env = "DSH_${r.envName}";
