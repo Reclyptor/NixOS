@@ -112,6 +112,7 @@ _: {
       mcpServersProg = ''.mcpServers.rea = {command: "${mcpBin}", args: []}'';
       crushProg = ''.["$schema"] = "https://charm.land/crush.json" | .mcp.rea = {type: "stdio", command: "${mcpBin}", args: []}'';
       opencodeProg = ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.rea = {type: "local", command: ["${mcpBin}"], enabled: true}'';
+      copilotProg = ''.mcpServers.rea = {type: "local", command: "${mcpBin}", args: [], tools: ["*"]}'';
 
       reaSkill = "reverse-engineer-anything";
       mkSkillLink = dir: {
@@ -130,6 +131,7 @@ _: {
           ".claude/skills"
           ".codex/skills"
           ".dsh/skills"
+          ".copilot/skills"
         ]
       );
 
@@ -155,6 +157,7 @@ _: {
         rea_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg mcpServersProg}
         rea_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg crushProg}
         rea_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg opencodeProg}
+        rea_merge "$HOME/.copilot/mcp-config.json"       ${lib.escapeShellArg copilotProg}
 
         codex_toml="$HOME/.codex/config.toml"
         if [ ! -f "$codex_toml" ]; then
