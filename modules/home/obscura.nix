@@ -38,5 +38,21 @@ _: {
         };
         Install.WantedBy = [ "default.target" ];
       };
+
+      # Every agent's Playwright, attached to the service above. nixpkgs' wrapper
+      # forces PLAYWRIGHT_MCP_ISOLATED unless a user-data dir is set, and an
+      # isolated context neither loads nor saves Obscura's cookies. Over CDP
+      # the dir itself is never used, so naming one only turns isolation off.
+      # Unnamed snapshots and downloads go to the runtime dir rather than the
+      # agent's working tree; files an agent names still land there.
+      agentMcpServers.playwright.command = toString (
+        pkgs.writeShellScript "playwright-mcp-obscura" ''
+          export PLAYWRIGHT_MCP_USER_DATA_DIR="''${XDG_RUNTIME_DIR:-/tmp}/playwright-mcp/profile"
+          exec ${lib.getExe pkgs.playwright-mcp} \
+            --cdp-endpoint http://${endpoint} \
+            --output-dir "''${XDG_RUNTIME_DIR:-/tmp}/playwright-mcp" \
+            "$@"
+        ''
+      );
     };
 }
