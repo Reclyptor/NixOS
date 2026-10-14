@@ -75,6 +75,28 @@ _: {
                   '';
                 };
 
+                reasoningEfforts = lib.mkOption {
+                  type = lib.types.listOf (
+                    lib.types.enum [
+                      "none"
+                      "minimal"
+                      "low"
+                      "medium"
+                      "high"
+                      "xhigh"
+                      "max"
+                    ]
+                  );
+                  default = [ ];
+                  description = ''
+                    The `reasoning_effort` values the route's models accept,
+                    `none` meaning thinking can be turned off. Empty when the
+                    route has no thinking control. vLLM validates the field
+                    against the chat template, so a value missing here is a
+                    400, not a no-op.
+                  '';
+                };
+
                 contextWindow = lib.mkOption {
                   type = lib.types.ints.positive;
                   description = ''
@@ -98,6 +120,13 @@ _: {
           displayName = "vLLM";
           deployment = "qwen";
           seedModels = [ "Qwen3.8-27B-FP8" ];
+          # Its template rejects `high` and anything finer than low/medium/xhigh.
+          reasoningEfforts = [
+            "none"
+            "low"
+            "medium"
+            "xhigh"
+          ];
           contextWindow = 262144;
         };
 
@@ -109,6 +138,15 @@ _: {
           seedModels = [
             "deepseek-v4-flash-0731"
             "DeepSeek-v4.1-Flash-EXL3"
+          ];
+          reasoningEfforts = [
+            "none"
+            "minimal"
+            "low"
+            "medium"
+            "high"
+            "xhigh"
+            "max"
           ];
           contextWindow = 600000;
         };
