@@ -35,31 +35,60 @@ _: {
 
       # --- Lifecycle hooks + skills (Claude Code & Codex) -----------------------
 
-      # Pinned to the version the memory server runs (the StatefulSet's npm pin).
-      # Bump this in lockstep with the cluster image so the hook scripts' REST
-      # contract matches the running engine.
-      agentmemoryVersion = "0.9.26";
+      # Pinned to what the memory server runs, so the hook scripts' REST
+      # contract matches the running engine. The cluster image is built from
+      # upstream commit agentmemoryCommit: v0.9.30 plus #1507, the fix for 0.9.30
+      # completing a session at its first Stop (their issue #745), which no npm
+      # release contains yet. The client side therefore pins in two halves, each
+      # verified byte-identical to the image's own build:
+      #   - plugin/ (hook scripts + skills) from GitHub at that commit; the repo
+      #     commits the built plugin/scripts, and #1507 changes stop.mjs and
+      #     session-end.mjs;
+      #   - the MCP bridge's package from npm agentmemoryVersion, because the
+      #     bridge needs dist/standalone.mjs, which only a build produces (it is
+      #     unchanged by the commits past the release).
+      # Once a release contains #1507, collapse both back into one npm pin and
+      # move the cluster image to it in lockstep.
+      agentmemoryCommit = "df3d4a83b966d8d415cb9180d5a4724b07f729dc";
+      agentmemoryVersion = "0.9.30";
 
-      # The published package, unpacked whole into an immutable store path. It
-      # serves two consumers: plugin/scripts + plugin/skills below, and the MCP
-      # bridge's node_modules. The hook scripts are dependency-free Node (they
-      # import nothing and use the global fetch), so there is no npm install.
-      # A stable path means upgrades never silently break the hook commands the
-      # way version-embedded cache paths do (their issue #508): the path only
-      # changes on a deliberate version bump.
+      # The hook scripts are dependency-free Node (they import only node:
+      # builtins and each other and use the global fetch), so there is no npm
+      # install. A stable path means upgrades never silently break the hook
+      # commands the way version-embedded cache paths do (their issue #508):
+      # the path only changes on a deliberate bump.
+      agentmemoryPlugin = pkgs.fetchFromGitHub {
+        owner = "rohitg00";
+        repo = "agentmemory";
+        rev = agentmemoryCommit;
+        hash = "sha256-BEhWtstq08fRpfcHYr1r6aFZm3NfV3nVM23ixcQvsdI=";
+      };
+
+      # dist/standalone.mjs keeps one bare `import "picocolors"` that its bundler
+      # left external, and Node resolves it from the importing file's real path,
+      # so it has to sit in this package's own node_modules. Same version the
+      # cluster image resolves.
+      picocolors = pkgs.fetchzip {
+        url = "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz";
+        hash = "sha256-rtRAUPawx8nY0GyspP/GmVhcNEitt6eO/dJ5hTe/5rw=";
+      };
+
+      # The published package, unpacked whole into an immutable store path, for
+      # the MCP bridge's node_modules.
       agentmemoryPkg = pkgs.stdenvNoCC.mkDerivation {
         pname = "agentmemory";
         version = agentmemoryVersion;
         src = pkgs.fetchurl {
           url = "https://registry.npmjs.org/@agentmemory/agentmemory/-/agentmemory-${agentmemoryVersion}.tgz";
-          hash = "sha256-h6SMbE4ELw91wQEh+zEJZ8XOd67+kWRbDXh6VWQdRTI=";
+          hash = "sha256-QU7FKhikaKDdetNtGm3osAv7NeHO+q5DfrdKveAmc18=";
         };
         dontConfigure = true;
         dontBuild = true;
         installPhase = ''
           runHook preInstall
-          mkdir -p "$out"
+          mkdir -p "$out/node_modules"
           cp -r . "$out/"
+          ln -s ${picocolors} "$out/node_modules/picocolors"
           runHook postInstall
         '';
       };
@@ -72,16 +101,16 @@ _: {
       # No buildNpmPackage is needed. The package is a single bin.mjs whose only
       # dependency is @agentmemory/agentmemory (already pinned above), which it
       # reaches by bare specifier — so it just needs to resolve through a
-      # node_modules dir. That package's own dependencies don't matter here:
-      # dist/standalone.mjs is fully bundled and imports nothing but node: builtins.
-      # Its package.json `exports` whitelists the ./dist/standalone.mjs subpath,
+      # node_modules dir. That package's other dependencies don't matter here:
+      # dist/standalone.mjs is bundled and imports only node: builtins plus
+      # picocolors, which agentmemoryPkg carries. Its package.json `exports` whitelists the ./dist/standalone.mjs subpath,
       # so the import resolves cleanly.
       agentmemoryMcp = pkgs.stdenvNoCC.mkDerivation {
         pname = "agentmemory-mcp";
         version = agentmemoryVersion;
         src = pkgs.fetchurl {
           url = "https://registry.npmjs.org/@agentmemory/mcp/-/mcp-${agentmemoryVersion}.tgz";
-          hash = "sha256-KhY6fNQ1SZB7LU6S2ddVp3uGW+GWke8LxfkZG6aZRaY=";
+          hash = "sha256-+AFoMnPHx+bzQgaOzxjR1k+dVmvRvqpEGmRwRcMoLis=";
         };
         sourceRoot = "package";
         dontConfigure = true;
@@ -117,7 +146,7 @@ _: {
         else
           echo "agentmemory-hook: ${agentmemoryTokenFile} not readable; running unauthenticated" >&2
         fi
-        exec ${pkgs.nodejs}/bin/node "${agentmemoryPkg}/plugin/scripts/$hook.mjs"
+        exec ${pkgs.nodejs}/bin/node "${agentmemoryPlugin}/plugin/scripts/$hook.mjs"
       '';
 
       hookCmd = script: "${agentmemoryHook}/bin/agentmemory-hook ${script}";
@@ -237,7 +266,7 @@ _: {
         lib.listToAttrs (
           map (s: {
             name = "${dir}/${s}";
-            value.source = "${agentmemoryPkg}/plugin/skills/${s}";
+            value.source = "${agentmemoryPlugin}/plugin/skills/${s}";
           }) agentmemorySkills
         );
     in
