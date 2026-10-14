@@ -4,20 +4,26 @@ _: {
       (_final: prev: {
         codex = prev.stdenv.mkDerivation rec {
           pname = "codex";
-          version = "0.160.0";
+          version = "0.162.1";
 
+          # The package asset, not the bare `codex-…-musl` one: codex spawns
+          # codex-code-mode-host from next to its own binary for every tool
+          # call and fails closed without it, and only the package ships it
+          # (alongside its rg, bwrap and voice resources). Its layout is read
+          # through codex-package.json, so it is installed as one directory.
           src = prev.fetchurl {
-            url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-x86_64-unknown-linux-musl.tar.gz";
-            hash = "sha256-MGhlQX1O56kneFhSkQpSf0Hh4Vmt05CsWuOsy2fUShM=";
+            url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-package-x86_64-unknown-linux-musl.tar.gz";
+            hash = "sha256-pnb1ciquDYbL43ZDMvCOqx/didwKMAs61P+/SGEfo+M=";
           };
 
           sourceRoot = ".";
 
           nativeBuildInputs = [ prev.makeWrapper ];
 
-          # Static musl binary: nothing to strip or patchelf, and fixup would
-          # only mangle it. The wrapper below is written by the makeWrapper
-          # setup hook, which is independent of fixupPhase.
+          # Static musl binaries plus prebuilt voice libraries: nothing to strip
+          # or patchelf, and fixup would only mangle them. The wrapper below is
+          # written by the makeWrapper setup hook, which is independent of
+          # fixupPhase.
           dontFixup = true;
 
           # Codex sandboxes every command it runs through bwrap and falls back
@@ -25,9 +31,10 @@ _: {
           # absent. bubblewrap is not in systemPackages, so put it on codex's
           # own PATH rather than the whole system's.
           installPhase = ''
-            install -Dm755 codex-x86_64-unknown-linux-musl $out/bin/codex
+            mkdir -p $out/libexec/codex
+            cp -r bin codex-path codex-resources codex-package.json $out/libexec/codex/
 
-            wrapProgram $out/bin/codex \
+            makeWrapper $out/libexec/codex/bin/codex $out/bin/codex \
               --prefix PATH : ${prev.lib.makeBinPath [ prev.bubblewrap ]}
           '';
 
