@@ -79,7 +79,7 @@ _: {
           # from codex's own writes across rebuilds. The [mcp_servers.*] blocks are
           # appended by home/agent-mcp.nix.
 
-          model = "gpt-5.5"
+          model = "gpt-5.6-terra"
           model_reasoning_effort = "high"
 
           [features]
