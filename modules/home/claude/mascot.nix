@@ -108,6 +108,17 @@ _: {
           ];
         }
       ];
+
+      # Copilot CLI takes flat entries rather than Claude's matcher groups.
+      mkCopilotHook = event: extra: [
+        (
+          {
+            type = "command";
+            bash = "${mascotHook} ${event}";
+          }
+          // extra
+        )
+      ];
     in
     {
       # Contributed to the list-merging option in home/claude/claude.nix, so these
@@ -181,6 +192,29 @@ _: {
         PermissionRequest = mkHook "needs_input";
         SubagentStop = mkHook "subagent_finished";
         Stop = mkHook "finished";
+      };
+
+      # Copilot CLI, under the PascalCase names that deliver Claude-shaped
+      # payloads (session_id, cwd), which the script above already reads.
+      #
+      # needs_input does NOT hang off permissionRequest here. Copilot fires it
+      # before its permission service runs, for every tool call, auto-approved
+      # ones included - measured with --allow-all-tools, where nobody was ever
+      # asked anything. The blocked moment is the notification Copilot raises
+      # when it actually puts a permission prompt or a question on screen;
+      # elicitation_dialog is ask_user, so PreToolUse has no job left. It stays
+      # unwired on purpose: Copilot treats a PreToolUse command hook that exits
+      # non-zero as a denial of the tool call, and a desk ornament must never
+      # be able to do that.
+      programs.copilotCli.hooks = {
+        SessionStart = mkCopilotHook "session_start" { };
+        SessionEnd = mkCopilotHook "session_end" { };
+        UserPromptSubmit = mkCopilotHook "working" { };
+        PostToolUse = mkCopilotHook "working" { };
+        PostToolUseFailure = mkCopilotHook "tool_failure" { };
+        notification = mkCopilotHook "needs_input" { matcher = "permission_prompt|elicitation_dialog"; };
+        SubagentStop = mkCopilotHook "subagent_finished" { };
+        Stop = mkCopilotHook "finished" { };
       };
     };
 }
