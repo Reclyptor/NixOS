@@ -9,6 +9,10 @@ _: {
     let
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       modelsFile = "${config.home.homeDirectory}/.prime/agent/models.json";
+      routes = config.vllm.routes;
+
+      # A shell variable's expansion, double-quoted.
+      shellRef = name: "\"\$${name}\"";
 
       # Prime Agent owns ~/.prime/agent/settings.json — /model, /login, /factory
       # and the settings menu all write it — so Nix only fills in defaults that
@@ -35,62 +39,108 @@ _: {
       # the file — including anything else inside these entries, such as
       # modelOverrides — is carried through.
       #
-      # vllm, the LAN endpoint: keyless, but the validator rejects a provider
-      # that defines models without an apiKey, so it gets the catalog
-      # fetcher's placeholder. headers is deleted rather than carried through:
-      # the Cloudflare Access credential belongs to vllm-remote alone, an
-      # older render left it here, and nothing should send it to a
-      # plain-HTTP LAN host.
-      #
-      # vllm-remote, the Cloudflare-fronted endpoint: headers and baseUrl are
+      # The vLLM routes are declared once in ../vllm-routes.nix and shared
+      # with dsh. Each sits behind Cloudflare Access: headers and baseUrl are
       # sent literally (only apiKey gets `!cmd` or env indirection), so the
       # Access secret has to be in the file itself. That is why the file is
       # rendered here at 0600 from sops at runtime rather than through the
-      # world-readable store. Until the secrets exist the entry is left as it
-      # is, or absent.
+      # world-readable store. The endpoints check no bearer, but the
+      # validator rejects a provider that defines models without an apiKey,
+      # so each gets the catalog fetcher's placeholder. A route whose secrets
+      # do not exist yet is left as it is, or absent.
       #
-      # Neither vLLM route declares compat or `reasoning`: both endpoints
-      # think by default and only honor `chat_template_kwargs.thinking`, which
-      # none of Prime Agent's thinking formats send — declaring one would add
-      # a toggle that does nothing. Reasoning still surfaces; the transport
-      # reads reasoning_content for every model. Each route's models are only
+      # No vLLM route declares compat or `reasoning`: the endpoints think by
+      # default and only honor `chat_template_kwargs.thinking`, which none of
+      # Prime Agent's thinking formats send — declaring one would add a toggle
+      # that does nothing. Reasoning still surfaces; the transport reads
+      # reasoning_content for every model. Each route's models are only
       # replaced by a validated catalog of its own, so an outage keeps the one
-      # already there and never touches the other route's.
+      # already there and never touches another route's.
       #
       # deepseek: the built-in provider, so only its key is supplied — as a
       # command Prime Agent runs when it needs it, which keeps the key itself
       # off disk. baseUrl restates the built-in default because the validator
       # rejects a provider entry that carries only a key, and one invalid entry
       # discards the whole file.
+      routeProg =
+        id: r:
+        let
+          key = builtins.toJSON id;
+          env = "env.PA_${r.envName}";
+        in
+        ''
+          if ${env}_URL != "" then
+            .providers[${key}] = ((.providers[${key}] // {}) + {
+              name: ${builtins.toJSON r.displayName},
+              api: "openai-completions",
+              baseUrl: ${env}_URL,
+              apiKey: "${pkgs.vllm-catalog.placeholderKey}",
+              headers: {
+                "CF-Access-Client-Id": ${env}_ACCESS_ID,
+                "CF-Access-Client-Secret": ${env}_ACCESS_SECRET
+              }
+            }) |
+            if ${env}_CATALOG != "" then .providers[${key}].models = (${env}_CATALOG | fromjson) else . end
+          else . end |
+        '';
+
       providersProg = ''
-        .providers.vllm = ((.providers.vllm // {} | del(.headers)) + {
-          name: "vLLM (LAN)",
-          api: "openai-completions",
-          baseUrl: "${pkgs.vllm-catalog.baseUrl}",
-          apiKey: "${pkgs.vllm-catalog.placeholderKey}"
-        }) |
-        if env.PA_VLLM_CATALOG != "" then .providers.vllm.models = (env.PA_VLLM_CATALOG | fromjson) else . end |
-        if env.PA_REMOTE_URL != "" then
-          .providers["vllm-remote"] = ((.providers["vllm-remote"] // {}) + {
-            name: "vLLM (remote)",
-            api: "openai-completions",
-            baseUrl: env.PA_REMOTE_URL,
-            apiKey: "${pkgs.vllm-catalog.placeholderKey}",
-            headers: {
-              "CF-Access-Client-Id": env.PA_CF_ID,
-              "CF-Access-Client-Secret": env.PA_CF_SECRET
-            }
-          })
-        else . end |
-        if env.PA_REMOTE_CATALOG != "" then .providers["vllm-remote"].models = (env.PA_REMOTE_CATALOG | fromjson) else . end |
+        ${lib.concatStrings (lib.mapAttrsToList routeProg routes)}
         .providers.deepseek = ((.providers.deepseek // {}) + {
           baseUrl: "https://api.deepseek.com",
           apiKey: "!cat ${secretsDir}/deepseek-api-key"
         })
       '';
 
+      # Fetches one route's catalog and reads its URL and Access credentials
+      # into route_<id>_* shell variables, kept apart from the script's own
+      # names (route vllm would otherwise clobber $vllm_catalog). They reach jq
+      # through the environment, never argv, where /proc/*/cmdline would
+      # expose them.
+      fetchRoute =
+        id: r:
+        let
+          v = "route_${lib.toLower r.envName}";
+        in
+        ''
+          ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
+
+          if [ -f ${lib.escapeShellArg r.baseUrlFile} ] &&
+            [ -f ${lib.escapeShellArg r.accessClientIdFile} ] &&
+            [ -f ${lib.escapeShellArg r.accessClientSecretFile} ]; then
+            if ! ${v}_catalog="$("$vllm_catalog" ${
+              lib.escapeShellArgs [
+                r.baseUrlFile
+                r.accessClientIdFile
+                r.accessClientSecretFile
+              ]
+            })"; then
+              echo "prime-agent: keeping the ${id} models already in ${modelsFile}" >&2
+              ${v}_catalog=""
+            fi
+            ${v}_url="$(cat ${lib.escapeShellArg r.baseUrlFile})"
+            ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
+            ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+          else
+            echo "prime-agent: ${id} secrets not present yet, keeping that provider as it is in ${modelsFile}" >&2
+          fi
+        '';
+
+      routeEnv =
+        id: r:
+        let
+          v = "route_${lib.toLower r.envName}";
+          env = "PA_${r.envName}";
+        in
+        ''
+          ${env}_URL=${shellRef "${v}_url"} \
+          ${env}_ACCESS_ID=${shellRef "${v}_access_id"} \
+          ${env}_ACCESS_SECRET=${shellRef "${v}_access_secret"} \
+          ${env}_CATALOG=${shellRef "${v}_catalog"} \
+        '';
+
       # In a user unit rather than home.activation for the reason dsh's sync
-      # is: sops-nix.service installs the vllm-remote secrets after every
+      # is: sops-nix.service installs the vLLM route secrets after every
       # activation entry has already run. It also means no activation stalls
       # on a catalog fetch when an endpoint is down, and a login refreshes the
       # catalogs without waiting for a rebuild. The deepseek key does not gate
@@ -104,40 +154,12 @@ _: {
 
         vllm_catalog=${lib.getExe pkgs.vllm-catalog}
 
-        if ! lan_catalog="$("$vllm_catalog")"; then
-          echo "prime-agent: keeping the vllm models already in ${modelsFile}" >&2
-          lan_catalog=""
-        fi
-
-        # The remote URL and Access credentials reach jq through the
-        # environment, never argv, where /proc/*/cmdline would expose them.
-        remote_url_file="${secretsDir}/vllm-base-url"
-        cf_id_file="${secretsDir}/cf-access-client-id"
-        cf_secret_file="${secretsDir}/cf-access-client-secret"
-        remote_url="" cf_id="" cf_secret="" remote_catalog=""
-
-        if [ -f "$remote_url_file" ] && [ -f "$cf_id_file" ] && [ -f "$cf_secret_file" ]; then
-          if ! remote_catalog="$("$vllm_catalog" "$remote_url_file" "$cf_id_file" "$cf_secret_file")"; then
-            echo "prime-agent: keeping the vllm-remote models already in ${modelsFile}" >&2
-            remote_catalog=""
-          fi
-          remote_url="$(cat "$remote_url_file")"
-          cf_id="$(cat "$cf_id_file")"
-          cf_secret="$(cat "$cf_secret_file")"
-        else
-          echo "prime-agent: vllm-remote secrets not present yet, keeping that provider as it is in ${modelsFile}" >&2
-        fi
-
+        ${lib.concatStrings (lib.mapAttrsToList fetchRoute routes)}
         mkdir -p "$(dirname "${modelsFile}")"
         if [ -f "${modelsFile}" ]; then base="$(cat "${modelsFile}")"; else base="{}"; fi
 
         if printf '%s' "$base" |
-          PA_VLLM_CATALOG="$lan_catalog" \
-          PA_REMOTE_CATALOG="$remote_catalog" \
-          PA_REMOTE_URL="$remote_url" \
-          PA_CF_ID="$cf_id" \
-          PA_CF_SECRET="$cf_secret" \
-          ${lib.getExe pkgs.jq} ${lib.escapeShellArg providersProg} > "${modelsFile}.tmp"; then
+          ${lib.concatStrings (lib.mapAttrsToList routeEnv routes)}  ${lib.getExe pkgs.jq} ${lib.escapeShellArg providersProg} > "${modelsFile}.tmp"; then
           mv -f "${modelsFile}.tmp" "${modelsFile}"
         else
           rm -f "${modelsFile}.tmp"
