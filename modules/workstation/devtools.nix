@@ -12,6 +12,7 @@ _: {
       gallery-dl
       gcc
       gh
+      github-copilot-cli
       go
       gum
       jdk
