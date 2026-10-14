@@ -71,18 +71,26 @@ _: {
       # catalog describing it. Each route keeps its own, so one endpoint being
       # down never touches another's.
       #
-      # No `compat.thinkingFormat` and no `reasoningEfforts`: the endpoints
-      # ignore DeepSeek's `thinking: {type: disabled}` and only respond to
-      # `chat_template_kwargs`, which dsh's SUPPORTED_THINKING_FORMATS does
-      # not expose. Declaring a format would render an effort toggle that
-      # silently does nothing. Reasoning output still surfaces — pi-ai's
-      # response parser scans reasoning_content/reasoning/reasoning_text
-      # regardless of format.
+      # Each model gets the route's reasoningEfforts as dsh's level → wire
+      # map. pi-ai's openai-completions dispatch sends the wire value as
+      # `reasoning_effort`, which the endpoints honor, and dsh offers only the
+      # declared levels: vLLM validates the field against the chat template,
+      # so an undeclared one would be a 400. `off` is `none`. Reasoning output
+      # surfaces either way — pi-ai's response parser scans
+      # reasoning_content/reasoning/reasoning_text.
+      reasoningEfforts =
+        efforts:
+        lib.optionalAttrs (lib.elem "none" efforts) { off = "none"; }
+        // lib.genAttrs (lib.remove "none" efforts) lib.id;
+
       routeProgram =
         id: r:
         let
           key = builtins.toJSON id;
           env = "DSH_${r.envName}";
+          withEfforts =
+            lib.optionalString (r.reasoningEfforts != [ ])
+              " | map(. + ${builtins.toJSON { reasoningEfforts = reasoningEfforts r.reasoningEfforts; }})";
         in
         ''
           (({${key}: {
@@ -95,7 +103,7 @@ _: {
               "CF-Access-Client-Id": strenv(${env}_ACCESS_ID),
               "CF-Access-Client-Secret": strenv(${env}_ACCESS_SECRET)
             },
-            "models": ((strenv(${env}_CATALOG) | select(. != "") | from_json) // $prev[${key}].models // ${seedFor r})
+            "models": (((strenv(${env}_CATALOG) | select(. != "") | from_json) // $prev[${key}].models // ${seedFor r})${withEfforts})
           }} | select(strenv(${env}_URL) != "")) //
           ($prev | with_entries(select(.key == ${key}))))
         '';

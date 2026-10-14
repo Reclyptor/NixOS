@@ -49,24 +49,45 @@ _: {
       # so each gets the catalog fetcher's placeholder. A route whose secrets
       # do not exist yet is left as it is, or absent.
       #
-      # No vLLM route declares compat or `reasoning`: the endpoints think by
-      # default and only honor `chat_template_kwargs.thinking`, which none of
-      # Prime Agent's thinking formats send — declaring one would add a toggle
-      # that does nothing. Reasoning still surfaces; the transport reads
-      # reasoning_content for every model. Each route's models are only
-      # replaced by a validated catalog of its own, so an outage keeps the one
-      # already there and never touches another route's.
-      #
+      # Every Prime Agent thinking format for openai-completions sends
+      # `reasoning_effort`, and the vLLM endpoints honor it, so a route that
+      # lists its reasoningEfforts marks each model as reasoning, with a
+      # thinkingLevelMap that names only the efforts the endpoint accepts.
+      # Prime Agent offers just those levels and clamps a setting it has no
+      # entry for to the nearest one, so it never sends a value the chat
+      # template would reject. `off` is `none`. Each route's models are only
+      # replaced by a validated catalog of its own, so an outage keeps the
+      # ones already there and never touches another route's; the map is
+      # applied to whichever set survives.
       # deepseek: the built-in provider, so only its key is supplied — as a
       # command Prime Agent runs when it needs it, which keeps the key itself
       # off disk. baseUrl restates the built-in default because the validator
       # rejects a provider entry that carries only a key, and one invalid entry
       # discards the whole file.
+      thinkingLevels = [
+        "minimal"
+        "low"
+        "medium"
+        "high"
+        "xhigh"
+        "max"
+      ];
+      thinkingLevelMap =
+        efforts:
+        let
+          ifAccepted = effort: if lib.elem effort efforts then effort else null;
+        in
+        { off = ifAccepted "none"; } // lib.genAttrs thinkingLevels ifAccepted;
+
       routeProg =
         id: r:
         let
           key = builtins.toJSON id;
           env = "env.PA_${r.envName}";
+          reasoning = builtins.toJSON {
+            reasoning = true;
+            thinkingLevelMap = thinkingLevelMap r.reasoningEfforts;
+          };
         in
         ''
           if ${env}_URL != "" then
@@ -80,7 +101,12 @@ _: {
                 "CF-Access-Client-Secret": ${env}_ACCESS_SECRET
               }
             }) |
-            if ${env}_CATALOG != "" then .providers[${key}].models = (${env}_CATALOG | fromjson) else . end
+            if ${env}_CATALOG != "" then .providers[${key}].models = (${env}_CATALOG | fromjson) else . end${
+              lib.optionalString (
+                r.reasoningEfforts != [ ]
+              ) " |
+  .providers[${key}].models |= map(. + ${reasoning})"
+            }
           else . end |
         '';
 
