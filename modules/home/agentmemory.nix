@@ -33,23 +33,6 @@ _: {
       '';
       mcpBin = "${mcpWrapper}/bin/agentmemory-mcp";
 
-      # Per-agent jq programs that set only the agentmemory MCP entry — command is
-      # the launcher above, no embedded secret. Assigning the whole object replaces
-      # any previously-embedded `env`/token. `bin` is baked in by Nix, so the merge
-      # needs no jq --arg.
-      mcpServersProg = bin: ''.mcpServers.agentmemory = {command: "${bin}", args: []}'';
-      crushProg =
-        bin:
-        ''.["$schema"] = "https://charm.land/crush.json" | .mcp.agentmemory = {type: "stdio", command: "${bin}", args: []}'';
-      opencodeProg =
-        bin:
-        ''.["$schema"] = "https://opencode.ai/config.json" | .mcp.agentmemory = {type: "local", command: ["${bin}"], enabled: true}'';
-      # Prime Agent's mcpServers entries are internally tagged by `type`.
-      primeAgentProg = bin: ''.mcpServers.agentmemory = {type: "stdio", command: "${bin}", args: []}'';
-      # Copilot CLI exposes only the tools an entry allowlists; "*" is all of them.
-      copilotProg =
-        bin: ''.mcpServers.agentmemory = {type: "local", command: "${bin}", args: [], tools: ["*"]}'';
-
       # --- Lifecycle hooks + skills (Claude Code & Codex) -----------------------
 
       # Pinned to the version the memory server runs (the StatefulSet's npm pin).
@@ -280,66 +263,12 @@ _: {
       # home/copilot/copilot.nix renders into ~/.copilot/hooks/home-manager.json.
       programs.copilotCli.hooks = copilotHooks;
 
-      # dsh: the same launcher, mounted into every profile as an MCP client row
-      # by home/deepseek/deepseek.nix. Declarative rather than an activation
-      # merge because that module already owns the whole cordis.patch.yml. The
-      # tools arrive server-qualified as mcp__agentmemory__*; dsh has no
-      # lifecycle-hook seam, so there is no auto-capture counterpart here and
+      # Registered with every agent by home/agent-mcp.nix. No bearer token
+      # lands in any client config: each client launches the wrapper, which
+      # reads the token from the sops file at spawn time. dsh has no
+      # lifecycle-hook seam, so it gets no auto-capture counterpart and
       # ~/.dsh/AGENTS.md §11 says so outright.
-      deepseek.mcpServers.agentmemory.command = mcpBin;
-
-      # Single source of truth for all agentmemory wiring — MCP servers, lifecycle
-      # hooks, and skills, for every connected agent. JSON agents are jq-merged in
-      # place; Codex's MCP block is appended onto the base config that
-      # home/codex.nix regenerates (hence the "codexConfig" ordering dependency).
-      # No bearer token is written into any client config: each client launches a
-      # wrapper that reads the token from the sops file at spawn time, so this
-      # activation never touches the secret at all. Self-heals on every
-      # `nixos-rebuild switch`.
-      home.activation.agentmemory = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" "codexConfig" ] ''
-        am_merge() {
-          local file="$1" prog="$2" base
-          $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
-          if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
-          if printf '%s' "$base" | ${pkgs.jq}/bin/jq "$prog" > "$file.am.tmp"; then
-            $DRY_RUN_CMD mv -- "$file.am.tmp" "$file"
-          else
-            rm -f "$file.am.tmp"
-            echo "agentmemory: jq merge failed for $file (left unchanged)" >&2
-          fi
-        }
-
-        # MCP servers (jq merge, non-destructive). The launcher reads the token from
-        # sops at spawn time, so no secret is written here. Assigning the whole
-        # agentmemory object also strips any token embedded by a previous version.
-        am_merge "$HOME/.claude.json"                   ${lib.escapeShellArg (mcpServersProg mcpBin)}
-        am_merge "$HOME/.qwen/settings.json"            ${lib.escapeShellArg (mcpServersProg mcpBin)}
-        am_merge "$HOME/.config/crush/crush.json"       ${lib.escapeShellArg (crushProg mcpBin)}
-        am_merge "$HOME/.config/opencode/opencode.json" ${lib.escapeShellArg (opencodeProg mcpBin)}
-        am_merge "$HOME/.prime/agent/settings.json"     ${lib.escapeShellArg (primeAgentProg mcpBin)}
-        am_merge "$HOME/.copilot/mcp-config.json"       ${lib.escapeShellArg (copilotProg mcpBin)}
-
-        # Codex (TOML): append the agentmemory block onto the base config that
-        # home/codex.nix just regenerated. codexConfig strips any prior block (its awk
-        # preserves only [projects.*]), so this re-adds it deterministically each run
-        # — which is also how the previously-embedded [.env] secret table gets
-        # dropped on the next switch. command is the launcher; no [.env], no secret.
-        codex_toml="$HOME/.codex/config.toml"
-        if [ ! -f "$codex_toml" ]; then
-          echo "agentmemory: $codex_toml missing (codexConfig should create it), skipping codex" >&2
-        elif ${pkgs.gnugrep}/bin/grep -q '^\[mcp_servers\.agentmemory\]' "$codex_toml"; then
-          : # block already present (codexConfig normally strips it first, so this is the no-op guard)
-        else
-          {
-            cat "$codex_toml"
-            printf '\n[mcp_servers.agentmemory]\n'
-            printf 'command = "%s"\n' "${mcpBin}"
-          } > "$codex_toml.am.tmp"
-          $DRY_RUN_CMD mv -- "$codex_toml.am.tmp" "$codex_toml"
-          $DRY_RUN_CMD chmod 600 "$codex_toml"
-        fi
-
-      '';
+      agentMcpServers.agentmemory.command = mcpBin;
 
       # agentmemory skills for Claude Code, Codex, dsh, and Copilot: read-only symlinks
       # into the pinned plugin. The slash commands (/remember, /recall, ...) come
