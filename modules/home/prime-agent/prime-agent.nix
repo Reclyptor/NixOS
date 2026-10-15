@@ -38,6 +38,15 @@ _: {
       # writes an explicit false, which `== null` leaves alone where `//` would
       # not. Prime Agent reads it at client start.
       #
+      # Compaction is only checked when a run starts or ends, never between the
+      # tool calls inside one, so a long run can grow straight past the
+      # threshold into the context limit. The overflow recovery then has to
+      # summarize the run's opening as one cold prompt. Compacting at 160k of
+      # Qwen's 256k window (reserveTokens) leaves a run about 80k to grow
+      # before it overflows, against 16k with the default, and keeping 40k
+      # recent tokens verbatim keeps that recovery prompt to about 120k. Each
+      # field is filled separately, so a value set in-app stays.
+      #
       # Every saved reference to a route's former id moves to its current one:
       # the default provider, and the "provider/model" strings or
       # {provider, model} objects of the model lists and slots (recentModels
@@ -64,6 +73,8 @@ _: {
          then .defaultProvider = "anthropic" | .defaultModel = "claude-opus-5-5"
          else .
          end) |
+        (if .compaction.reserveTokens == null then .compaction.reserveTokens = 81920 else . end) |
+        (if .compaction.keepRecentTokens == null then .compaction.keepRecentTokens = 40000 else . end) |
         if .factory.enabled == null then .factory.enabled = true else . end
       '';
 
