@@ -185,13 +185,14 @@ _: {
             "deepseek-v4-flash-0731"
             "DeepSeek-v4.1-Flash-EXL3"
           ];
+          # DeepSeek V4's encoding has exactly two thinking efforts, `high` and
+          # `max` (encoding_dsv4.py asserts as much; only `max` changes the
+          # prompt), and `none` selects its chat mode. vLLM's validator takes
+          # every OpenAI spelling, but anything else would be a level that
+          # does nothing different.
           reasoningEfforts = [
             "none"
-            "minimal"
-            "low"
-            "medium"
             "high"
-            "xhigh"
             "max"
           ];
           contextWindow = 600000;
