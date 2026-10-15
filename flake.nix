@@ -36,6 +36,15 @@
     herdr = {
       url = "github:herdrdev/herdr/v0.9.3";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
+
+    # herdr's Rust toolchain comes from rust-overlay. Taken over from herdr's own
+    # lock, which pins a July build that still reads the deprecated stdenv.is*
+    # attributes and warns on every evaluation, so the pin moves with ours.
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
