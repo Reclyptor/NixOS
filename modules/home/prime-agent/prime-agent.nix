@@ -39,13 +39,16 @@ _: {
       # not. Prime Agent reads it at client start.
       #
       # Compaction is only checked when a run starts or ends, never between the
-      # tool calls inside one, so a long run can grow straight past the
-      # threshold into the context limit. The overflow recovery then has to
-      # summarize the run's opening as one cold prompt. Compacting at 160k of
-      # Qwen's 256k window (reserveTokens) leaves a run about 80k to grow
-      # before it overflows, against 16k with the default, and keeping 40k
-      # recent tokens verbatim keeps that recovery prompt to about 120k. Each
-      # field is filled separately, so a value set in-app stays.
+      # tool calls inside one — even an agent's own compact.run() waits for the
+      # run to end — so a long run can grow straight past the threshold into
+      # the context limit. The overflow recovery then has to summarize the
+      # run's opening as one cold prompt. Nothing here can stop that; the
+      # threshold only buys headroom. Compacting at 128k of Qwen's 256k window
+      # (reserveTokens) leaves a run about 115k to grow before it overflows
+      # (a run has been seen to grow 97k), and keeping 40k recent tokens
+      # verbatim keeps the recovery prompt to about 90k. Each field is filled
+      # separately, so a value set in-app stays; 81920 was this module's
+      # previous default rather than anyone's choice, so it moves too.
       #
       # Every saved reference to a route's former id moves to its current one:
       # the default provider, and the "provider/model" strings or
@@ -73,7 +76,10 @@ _: {
          then .defaultProvider = "anthropic" | .defaultModel = "claude-opus-5-5"
          else .
          end) |
-        (if .compaction.reserveTokens == null then .compaction.reserveTokens = 81920 else . end) |
+        (if .compaction.reserveTokens == null or .compaction.reserveTokens == 81920
+         then .compaction.reserveTokens = 131072
+         else .
+         end) |
         (if .compaction.keepRecentTokens == null then .compaction.keepRecentTokens = 40000 else . end) |
         if .factory.enabled == null then .factory.enabled = true else . end
       '';
