@@ -12,6 +12,7 @@ _: {
           cargoHash = "sha256-PQZGEtDvB6qb2arHuxGfz7Z+Pr1mCF/MrMI2yUGoV74=";
           releaseDate = "2026-10-14";
           description = "Image editor for photos and layered PSD documents";
+          craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
 
           # HEIC/HEIF decode, which 0.3.0 could not do: crates/heif landed after
           # that tag. It is off by default so distributors choose it, and

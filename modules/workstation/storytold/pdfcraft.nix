@@ -35,6 +35,7 @@ _: {
             cargoHash = "sha256-0YWdiM3E046i2t8lCHLEVYKC9pQnBXCFYMtG3aDxTZ0=";
             releaseDate = "2026-10-14";
             description = "PDF editor to read, organize, combine, split and secure PDFs";
+            craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
 
             # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
             # runs on ring). aws-lc-sys builds C and generates its bindings, so it

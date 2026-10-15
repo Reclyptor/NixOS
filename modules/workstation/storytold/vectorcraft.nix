@@ -11,6 +11,7 @@ _: {
           cargoHash = "sha256-rehAo3VB8gqPjRuOGohbqJmMtZjh5xkK4UBBEJFRa/o=";
           releaseDate = "2026-10-14";
           description = "Vector graphics editor for illustrations, SVG and PDF";
+          craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
         })
       ];
     };
