@@ -55,10 +55,39 @@
   # SPEC/storytold-artcraft-suite.md. Empty for the other twelve, which then take
   # the vendor tree buildRustPackage builds for itself, untouched.
   vendorPatches ? [ ],
+  # The storytold/craft-fonts commit this app's release workflow embeds, for
+  # the ten apps whose font crate reads CRAFT_FONTS_DIR. Null for the three
+  # that do not, which then build exactly as without it.
+  craftFontsRev ? null,
 }:
 
 let
   appId = "ai.storyteller.${pname}";
+
+  # One hash per craft-fonts commit, kept here rather than in each app module
+  # because the release workflows share four commits between ten apps.
+  craftFontsHashes = {
+    "3d9ab3a132ed0eff457e424226a435a901da30d3" = "sha256-mNnDzBcOp1X10dzmiW0iBAkb74QjuzMO4slWudxXCTE=";
+    "43913056ce82a3fdad0ef69f6b88d1dc922a8104" = "sha256-u1fC5spekizPXnrK6uiKEZSr2SJOaBF4ffLDbKkywEY=";
+    "abb83316d96aa59c1cf64784289e378fe9fa5695" = "sha256-e+6HpOYoAFTh6mNfGBBw2njnBzcE8W8+Jybv1+dKOCA=";
+    "8dcdacd5153e64560d109541a47d806f26f048c0" = "sha256-4E9OrthE5z39xFXpvpwn4Fn6RH3wX2sF56rZZejZT+I=";
+  };
+
+  # Japanese, Chinese, Arabic and Thai faces under OFL-1.1, which a font crate's
+  # build.rs compiles in from fonts/manifest.txt. Upstream's release builds
+  # always embed them; without them those scripts fall back to whatever the
+  # system happens to have. The build script reads only this checkout.
+  craftFonts = lib.mapNullable (
+    fontsRev:
+    pkgs.fetchFromGitHub {
+      owner = "storytold";
+      repo = "craft-fonts";
+      rev = fontsRev;
+      hash =
+        craftFontsHashes.${fontsRev}
+          or (throw "_artcraft.nix: no hash for craft-fonts ${fontsRev}; add it to craftFontsHashes");
+    }
+  ) craftFontsRev;
 
   src = pkgs.fetchFromGitHub {
     owner = "storytold";
@@ -161,7 +190,15 @@ pkgs.rustPlatform.buildRustPackage {
   nativeBuildInputs = [ pkgs.makeWrapper ] ++ extraNativeBuildInputs;
   buildInputs = extraBuildInputs;
 
-  env = extraEnv;
+  # CRAFT_FONTS_REQUIRED, as in upstream's release workflows, turns a checkout
+  # the build script cannot use into an error rather than a silent build
+  # without fonts.
+  env =
+    extraEnv
+    // lib.optionalAttrs (craftFonts != null) {
+      CRAFT_FONTS_DIR = "${craftFonts}";
+      CRAFT_FONTS_REQUIRED = "1";
+    };
 
   # What upstream's packaging/linux/package.sh builds. Deliberately not the
   # workspace default members: those also carry `<app>-web`, a wasm32 target,
@@ -207,6 +244,15 @@ pkgs.rustPlatform.buildRustPackage {
 
     mkdir -p $out/share/icons
     cp -R assets/app-icon/hicolor $out/share/icons/
+  ''
+  # OFL-1.1 lets the fonts be embedded only if their licences travel with them;
+  # craft-fonts' docs/integration.md asks for each family's OFL.txt, named after
+  # the family, among the package's licences.
+  + lib.optionalString (craftFonts != null) ''
+    for licence in ${craftFonts}/fonts/*/OFL.txt; do
+      family=$(basename "$(dirname "$licence")")
+      install -Dm644 "$licence" "$out/share/licenses/${pname}/fonts/$family-OFL.txt"
+    done
   '';
 
   postFixup = ''
@@ -220,10 +266,13 @@ pkgs.rustPlatform.buildRustPackage {
     inherit description;
     homepage = "https://getartcraft.com/apps/${pname}";
     changelog = "https://github.com/storytold/${pname}/releases/tag/${rev}";
-    license = with lib.licenses; [
-      asl20
-      mit
-    ];
+    license =
+      with lib.licenses;
+      [
+        asl20
+        mit
+      ]
+      ++ lib.optional (craftFonts != null) ofl;
     mainProgram = pname;
     platforms = lib.platforms.linux;
   };

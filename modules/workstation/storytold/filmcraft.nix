@@ -13,6 +13,7 @@ _: {
           cargoHash = "sha256-xjyTr6HPvaO6tndE+1Icgs6HCx96I5a2zQfAYpqPE7U=";
           releaseDate = "2026-10-14";
           description = "Video editor for picture, color and sound";
+          craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
 
           # Audio playback is ALSA (through cpal), and alsa-sys finds its headers
           # with pkg-config.

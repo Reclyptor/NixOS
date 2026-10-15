@@ -12,6 +12,7 @@ _: {
           cargoHash = "sha256-i+y4+1xTg9F1fxO0gdFU/ZxTRWsB+NHfOJKdNNWGtqs=";
           releaseDate = "2026-10-14";
           description = "Photo library and non-destructive raw developer";
+          craftFontsRev = "8dcdacd5153e64560d109541a47d806f26f048c0";
 
           # HEIC/HEIF decode, new in 0.6.0 and built by upstream's package.sh. Off by
           # default so distributors choose it, and enabled per package rather than

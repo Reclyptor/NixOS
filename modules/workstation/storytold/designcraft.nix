@@ -11,6 +11,7 @@ _: {
           cargoHash = "sha256-IKiZRTrYovE8ofm4Dg/u8wRBkHHbxAMECUy5qzCBnjc=";
           releaseDate = "2026-10-14";
           description = "Page layout for magazines, books and print documents";
+          craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
         })
       ];
     };
