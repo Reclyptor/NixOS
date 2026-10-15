@@ -261,14 +261,6 @@ _: {
         "commit-history"
         "session-history"
       ];
-      mkSkillLinks =
-        dir:
-        lib.listToAttrs (
-          map (s: {
-            name = "${dir}/${s}";
-            value.source = "${agentmemoryPlugin}/plugin/skills/${s}";
-          }) agentmemorySkills
-        );
     in
     {
       # Claude Code lifecycle hooks, contributed declaratively to the list-merging
@@ -299,17 +291,10 @@ _: {
       # ~/.dsh/AGENTS.md §11 says so outright.
       agentMcpServers.agentmemory.command = mcpBin;
 
-      # agentmemory skills for Claude Code, Codex, dsh, and Copilot: read-only symlinks
-      # into the pinned plugin. The slash commands (/remember, /recall, ...) come
-      # from each skill's SKILL.md frontmatter name, not the directory name. dsh
-      # scans $DSH_HOME/skills through its filesystem skill provider, so the same
-      # per-skill links land there, as does Copilot's personal ~/.copilot/skills;
-      # keying them individually leaves the parent directory writable for
-      # hand-placed skills.
-      home.file =
-        (mkSkillLinks ".claude/skills")
-        // (mkSkillLinks ".codex/skills")
-        // (mkSkillLinks ".dsh/skills")
-        // (mkSkillLinks ".copilot/skills");
+      # Linked into every agent by home/agent-skills.nix, straight out of the
+      # pinned plugin so they match the hooks and the server.
+      agentSkills = lib.genAttrs agentmemorySkills (s: {
+        source = "${agentmemoryPlugin}/plugin/skills/${s}";
+      });
     };
 }
