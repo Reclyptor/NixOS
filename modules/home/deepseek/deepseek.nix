@@ -39,6 +39,16 @@ _: {
       # (see below), and a route's seedModels are only what a first render
       # writes when its endpoint cannot be reached.
       routes = config.vllm.routes;
+      behindAccess = r: r.accessClientIdFile != null;
+      # The files a route's render reads: its URL, plus the Access token for
+      # a route behind Cloudflare.
+      routeFiles =
+        r:
+        [ r.baseUrlFile ]
+        ++ lib.optionals (behindAccess r) [
+          r.accessClientIdFile
+          r.accessClientSecretFile
+        ];
 
       seedFor = r: builtins.toJSON (map (id: { inherit id; }) r.seedModels);
 
@@ -99,9 +109,10 @@ _: {
             "baseURL": strenv(${env}_URL),
             "defaultContextWindow": ${toString r.contextWindow},
             "headers": {
-              "Authorization": "Bearer ${placeholderKey}",
-              "CF-Access-Client-Id": strenv(${env}_ACCESS_ID),
-              "CF-Access-Client-Secret": strenv(${env}_ACCESS_SECRET)
+              "Authorization": "Bearer ${placeholderKey}"${lib.optionalString (behindAccess r) ''
+                ,
+                              "CF-Access-Client-Id": strenv(${env}_ACCESS_ID),
+                              "CF-Access-Client-Secret": strenv(${env}_ACCESS_SECRET)''}
             },
             "models": (((strenv(${env}_CATALOG) | select(. != "") | from_json) // $prev[${key}].models // ${seedFor r})${withEfforts})
           }} | select(strenv(${env}_URL) != "")) //
@@ -137,27 +148,23 @@ _: {
         id: r:
         let
           v = "route_${lib.toLower r.envName}";
-          files = lib.escapeShellArgs [
-            r.baseUrlFile
-            r.accessClientIdFile
-            r.accessClientSecretFile
-          ];
+          files = routeFiles r;
         in
         ''
           ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
 
-          if [ -f ${lib.escapeShellArg r.baseUrlFile} ] &&
-            [ -f ${lib.escapeShellArg r.accessClientIdFile} ] &&
-            [ -f ${lib.escapeShellArg r.accessClientSecretFile} ]; then
-            if ${v}_catalog="$("$vllm_catalog" ${files})"; then
+          if ${lib.concatMapStringsSep " && " (f: "[ -f ${lib.escapeShellArg f} ]") files}; then
+            if ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs files})"; then
               echo "deepseek: ${id} catalog fetched — $(describe ${shellRef "${v}_catalog"})" >&2
             else
               echo "deepseek: keeping the ${id} catalog already in ${homePatchFile}" >&2
               ${v}_catalog=""
             fi
             ${v}_url="$(cat ${lib.escapeShellArg r.baseUrlFile})"
-            ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
-            ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+            ${lib.optionalString (behindAccess r) ''
+              ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
+              ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+            ''}
           else
             echo "deepseek: ${id} secrets not present yet, keeping that route as it is in ${homePatchFile}" >&2
           fi

@@ -10,6 +10,16 @@ _: {
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       modelsFile = "${config.home.homeDirectory}/.prime/agent/models.json";
       routes = config.vllm.routes;
+      behindAccess = r: r.accessClientIdFile != null;
+      # The files a route's render reads: its URL, plus the Access token for
+      # a route behind Cloudflare.
+      routeFiles =
+        r:
+        [ r.baseUrlFile ]
+        ++ lib.optionals (behindAccess r) [
+          r.accessClientIdFile
+          r.accessClientSecretFile
+        ];
 
       # A shell variable's expansion, double-quoted.
       shellRef = name: "\"\$${name}\"";
@@ -95,11 +105,12 @@ _: {
               name: ${builtins.toJSON r.displayName},
               api: "openai-completions",
               baseUrl: ${env}_URL,
-              apiKey: "${pkgs.vllm-catalog.placeholderKey}",
-              headers: {
-                "CF-Access-Client-Id": ${env}_ACCESS_ID,
-                "CF-Access-Client-Secret": ${env}_ACCESS_SECRET
-              }
+              apiKey: "${pkgs.vllm-catalog.placeholderKey}"${lib.optionalString (behindAccess r) ''
+                ,
+                              headers: {
+                                "CF-Access-Client-Id": ${env}_ACCESS_ID,
+                                "CF-Access-Client-Secret": ${env}_ACCESS_SECRET
+                              }''}
             }) |
             if ${env}_CATALOG != "" then .providers[${key}].models = (${env}_CATALOG | fromjson) else . end${
               lib.optionalString (
@@ -127,26 +138,21 @@ _: {
         id: r:
         let
           v = "route_${lib.toLower r.envName}";
+          files = routeFiles r;
         in
         ''
           ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
 
-          if [ -f ${lib.escapeShellArg r.baseUrlFile} ] &&
-            [ -f ${lib.escapeShellArg r.accessClientIdFile} ] &&
-            [ -f ${lib.escapeShellArg r.accessClientSecretFile} ]; then
-            if ! ${v}_catalog="$("$vllm_catalog" ${
-              lib.escapeShellArgs [
-                r.baseUrlFile
-                r.accessClientIdFile
-                r.accessClientSecretFile
-              ]
-            })"; then
+          if ${lib.concatMapStringsSep " && " (f: "[ -f ${lib.escapeShellArg f} ]") files}; then
+            if ! ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs files})"; then
               echo "prime-agent: keeping the ${id} models already in ${modelsFile}" >&2
               ${v}_catalog=""
             fi
             ${v}_url="$(cat ${lib.escapeShellArg r.baseUrlFile})"
-            ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
-            ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+            ${lib.optionalString (behindAccess r) ''
+              ${v}_access_id="$(cat ${lib.escapeShellArg r.accessClientIdFile})"
+              ${v}_access_secret="$(cat ${lib.escapeShellArg r.accessClientSecretFile})"
+            ''}
           else
             echo "prime-agent: ${id} secrets not present yet, keeping that provider as it is in ${modelsFile}" >&2
           fi
