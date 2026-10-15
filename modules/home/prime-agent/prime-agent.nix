@@ -10,6 +10,7 @@ _: {
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       modelsFile = "${config.home.homeDirectory}/.prime/agent/models.json";
       routes = config.vllm.routes;
+      renames = builtins.toJSON config.vllm.renames;
       behindAccess = r: r.accessClientIdFile != null;
       # The files a route's render reads: its URL, plus the Access token for
       # a route behind Cloudflare.
@@ -35,7 +36,29 @@ _: {
       # The factory (rlm.factory) ships off; here it defaults on. /factory off
       # writes an explicit false, which `== null` leaves alone where `//` would
       # not. Prime Agent reads it at client start.
+      #
+      # Every saved reference to a route's former id moves to its current one:
+      # the default provider, and the "provider/model" strings or
+      # {provider, model} objects of the model lists and slots (recentModels
+      # feeds the /model picker). Model ids belong to the route, so they stay.
       defaultsProg = ''
+        ${renames} as $ren |
+        def moved:
+          if type == "string" then
+            split("/") as $parts |
+            if ($parts | length) > 1 and ($ren | has($parts[0]))
+            then [$ren[$parts[0]]] + $parts[1:] | join("/")
+            else . end
+          elif type == "object" then
+            .provider as $p |
+            if ($p | type) == "string" and ($ren | has($p)) then .provider = $ren[$p] else . end
+          else . end;
+        (.defaultProvider as $p |
+         if $p != null and ($ren | has($p)) then .defaultProvider = $ren[$p] else . end) |
+        reduce ("recentModels", "enabledModels", "allowedModels") as $k (.;
+          if (.[$k] | type) == "array" then .[$k] |= (map(moved) | . as $l | reduce $l[] as $m ([]; if index([$m]) then . else . + [$m] end)) else . end) |
+        reduce ("auxiliaryModel", "imageModel", "providerBackupModel", "subagentDefaultModel") as $k (.;
+          if .[$k] != null then .[$k] |= moved else . end) |
         (if .defaultProvider == null
          then .defaultProvider = "anthropic" | .defaultModel = "claude-opus-5-5"
          else .
@@ -121,7 +144,10 @@ _: {
           else . end |
         '';
 
+      # Entries under a route's former ids are dropped first: a renamed route
+      # would otherwise show up twice, once under a key nothing refreshes.
       providersProg = ''
+        .providers |= del(.[(${renames} | keys)[]]) |
         ${lib.concatStrings (lib.mapAttrsToList routeProg routes)}
         .providers.deepseek = ((.providers.deepseek // {}) + {
           baseUrl: "https://api.deepseek.com",
@@ -131,7 +157,7 @@ _: {
 
       # Fetches one route's catalog and reads its URL and Access credentials
       # into route_<id>_* shell variables, kept apart from the script's own
-      # names (route vllm would otherwise clobber $vllm_catalog). They reach jq
+      # names (a route named vllm would clobber $vllm_catalog). They reach jq
       # through the environment, never argv, where /proc/*/cmdline would
       # expose them.
       fetchRoute =

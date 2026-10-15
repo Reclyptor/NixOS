@@ -97,9 +97,21 @@ _: {
                   readOnly = true;
                   default = lib.toUpper (lib.replaceStrings [ "-" ] [ "_" ] name);
                   description = ''
-                    The provider id as an identifier (vllm-remote →
-                    VLLM_REMOTE), for the environment variables and shell
+                    The provider id as an identifier (qwen-lan → QWEN_LAN),
+                    for the environment variables and shell
                     variables that carry this route's values through a render.
+                  '';
+                };
+
+                formerIds = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  default = [ ];
+                  description = ''
+                    Provider ids this route was registered under before. The
+                    renders delete entries left under them and move saved
+                    choices (default provider, /model picks) onto the current
+                    id, so a rename strands nothing. A former id can be dropped
+                    once every machine has activated past the rename.
                   '';
                 };
 
@@ -150,16 +162,41 @@ _: {
         description = "Self-hosted vLLM endpoints, keyed by the provider id each harness registers.";
       };
 
-      config.assertions = lib.mapAttrsToList (name: r: {
-        assertion = (r.deployment == null) != (r.baseUrl == null);
-        message = "vllm.routes.${name}: set exactly one of deployment (Cloudflare Access) or baseUrl (LAN).";
-      }) config.vllm.routes;
+      # Every former id mapped to the route that now holds it, for the renders'
+      # migrations.
+      options.vllm.renames = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        readOnly = true;
+        default = lib.listToAttrs (
+          lib.concatLists (
+            lib.mapAttrsToList (id: r: map (old: lib.nameValuePair old id) r.formerIds) config.vllm.routes
+          )
+        );
+        description = "Former provider id → current id, derived from each route's formerIds.";
+      };
+
+      config.assertions =
+        let
+          routes = config.vllm.routes;
+          formerIds = lib.concatMap (r: r.formerIds) (lib.attrValues routes);
+        in
+        lib.mapAttrsToList (name: r: {
+          assertion = (r.deployment == null) != (r.baseUrl == null);
+          message = "vllm.routes.${name}: set exactly one of deployment (Cloudflare Access) or baseUrl (LAN).";
+        }) routes
+        ++ [
+          {
+            assertion = lib.allUnique formerIds && !lib.any (id: lib.elem id (lib.attrNames routes)) formerIds;
+            message = "vllm.routes: a former id is claimed twice or is still a live route id.";
+          }
+        ];
 
       config.vllm.routes = {
         # Qwen on bytheon, straight to the Cilium LoadBalancer (kubernetes repo,
         # apps/vllm), whose policy admits the LAN and which checks no key.
-        vllm-lan = {
-          displayName = "vLLM (LAN)";
+        qwen-lan = {
+          displayName = "Qwen (LAN)";
+          formerIds = [ "vllm-lan" ];
           baseUrl = "http://192.168.1.120:8000/v1";
           seedModels = [ "Qwen3.8-27B-FP8" ];
           reasoningEfforts = qwenEfforts;
@@ -168,8 +205,9 @@ _: {
 
         # The same Qwen through the Kubernetes tunnel and the Reclyptor
         # account's Access, for when the LAN is out of reach.
-        vllm = {
-          displayName = "vLLM";
+        qwen-cloudflare = {
+          displayName = "Qwen (Cloudflare)";
+          formerIds = [ "vllm" ];
           deployment = "qwen";
           seedModels = [ "Qwen3.8-27B-FP8" ];
           reasoningEfforts = qwenEfforts;
@@ -178,8 +216,9 @@ _: {
 
         # The DeepSeek deployment, behind a separate Cloudflare account's
         # Access on purpose.
-        vllm-remote = {
-          displayName = "vLLM (remote)";
+        deepseek-self-hosted = {
+          displayName = "DeepSeek (self-hosted)";
+          formerIds = [ "vllm-remote" ];
           deployment = "deepseek";
           seedModels = [
             "deepseek-v4-flash-0731"
