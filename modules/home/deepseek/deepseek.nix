@@ -39,6 +39,7 @@ _: {
       # (see below), and a route's seedModels are only what a first render
       # writes when its endpoint cannot be reached.
       routes = config.vllm.routes;
+      renames = builtins.toJSON config.vllm.renames;
       behindAccess = r: r.accessClientIdFile != null;
       # The files a route's render reads: its URL, plus the Access token for
       # a route behind Cloudflare.
@@ -129,7 +130,7 @@ _: {
 
       # Discovers one route's catalog and reads its URL and Access credentials
       # into route_<id>_* shell variables, kept apart from the script's own
-      # names (route vllm would otherwise clobber $vllm_catalog), for the render
+      # names (a route named vllm would clobber $vllm_catalog), for the render
       # below.
       #
       # The Access client secret lands in the home patch in cleartext: dsh
@@ -386,7 +387,8 @@ _: {
       #   - rows whose id a profile declares in `patch`, and the MCP insert
       #     row (recognised by its mcp-* ids), are replaced every time;
       #   - agent-default-model is written only when no such row exists, so a
-      #     /model choice outlives a rebuild — a seed, not a pin;
+      #     /model choice outlives a rebuild — a seed, not a pin. One that
+      #     names a vLLM route's former id is moved onto its current id;
       #   - every other row is dsh's or the user's and is carried through.
       #
       # yq-go rather than a JSON round trip because the file holds what dsh's
@@ -400,7 +402,9 @@ _: {
         [ -n "$base" ] || base="[]"
         mkdir -p "$(dirname "$file")"
         if printf '%s\n' "$base" | ${lib.getExe pkgs.yq-go} '
-          (. // []) as $cur |
+          (strenv(DSH_RENAMES) | from_json) as $ren |
+          ((. // []) | with(.[] | select(.id == "agent-default-model" and (.config.provider as $p | $ren | has($p)));
+            .config.provider = $ren[.config.provider] | .config.provider style="")) as $cur |
           (strenv(DSH_OWNED_IDS) | from_json) as $owned |
           ([$cur[] | select(.id == "agent-default-model")] | length) as $seeded |
           (([strenv(DSH_DEFAULT_ROW) | from_json | select($seeded == 0)]
@@ -500,7 +504,7 @@ _: {
           model = "deepseek-v4-pro";
         };
         example = {
-          provider = "vllm";
+          provider = "qwen-lan";
           model = "Qwen3.8-27B-FP8";
         };
         description = ''
@@ -655,6 +659,7 @@ _: {
         home.activation.dshProfilePatches = lib.hm.dag.entryAfter [ "linkGeneration" ] (
           lib.concatStrings (
             lib.mapAttrsToList (name: profile: ''
+              DSH_RENAMES=${lib.escapeShellArg renames} \
               DSH_DEFAULT_ROW=${lib.escapeShellArg (builtins.toJSON defaultRouteRow)} \
               DSH_NIX_ROWS=${lib.escapeShellArg (builtins.toJSON (ownedRowsFor profile))} \
               DSH_OWNED_IDS=${lib.escapeShellArg (builtins.toJSON (map (row: row.id) profile.patch))} \
@@ -662,6 +667,17 @@ _: {
             '') profiles
           )
           + lib.optionalString usesDshTui ''
+            # A choice on a vLLM route's former id moves to its current one.
+            tui_model="$HOME/.dsh-tui/model.json"
+            if [ -f "$tui_model" ] && ${lib.getExe pkgs.jq} -e --argjson ren ${lib.escapeShellArg renames} \
+              '.provider as $p | ($p | type) == "string" and ($ren | has($p))' "$tui_model" > /dev/null 2>&1; then
+              if ${lib.getExe pkgs.jq} --argjson ren ${lib.escapeShellArg renames} \
+                '.provider = $ren[.provider]' "$tui_model" > "$tui_model.nix.tmp"; then
+                $DRY_RUN_CMD mv -f "$tui_model.nix.tmp" "$tui_model"
+              else
+                rm -f "$tui_model.nix.tmp"
+              fi
+            fi
             if [ ! -e "$HOME/.dsh-tui/model.json" ]; then
               $DRY_RUN_CMD mkdir -p "$HOME/.dsh-tui"
               $DRY_RUN_CMD cp ${dshTuiModelSeed} "$HOME/.dsh-tui/model.json.nix.tmp"
