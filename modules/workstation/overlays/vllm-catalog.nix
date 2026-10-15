@@ -4,8 +4,8 @@ _: {
       (
         final: _prev:
         let
-          # No endpoint checks the bearer: Cloudflare Access in front of each
-          # does the authenticating. But vLLM refuses a request that carries
+          # No endpoint checks the bearer: Cloudflare Access in front of each,
+          # or the LAN itself, does the authenticating. But vLLM refuses a request that carries
           # none, and so do some OpenAI clients. Not a secret.
           placeholderKey = "unused-vllm-checks-no-key";
         in
@@ -17,8 +17,10 @@ _: {
           # checks the answer. Sinks decide what a failure means for them; this
           # only reports it.
           #
-          #   vllm-catalog <base-url-file> <cf-id-file> <cf-secret-file>
+          #   vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>]
           #
+          # The Access files are left off for a LAN route, which has nothing in
+          # front of it.
           # Prints `[{"id": …, "contextWindow": …}]` and exits 0, or names the
           # reason on stderr and exits 1: unreadable files, unreachable,
           # unreadable body, empty, or an entry without an id or a positive
@@ -49,8 +51,8 @@ _: {
                 printf '"%s"' "''${v//\"/\\\"}"
               }
 
-              if [ "$#" -ne 3 ]; then
-                echo "usage: vllm-catalog <base-url-file> <cf-id-file> <cf-secret-file>" >&2
+              if [ "$#" -ne 1 ] && [ "$#" -ne 3 ]; then
+                echo "usage: vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>]" >&2
                 exit 2
               fi
               for f in "$@"; do
@@ -58,10 +60,14 @@ _: {
               done
               config=(
                 "url = $(quote "$(cat "$1")/models")"
-                "header = $(quote "CF-Access-Client-Id: $(cat "$2")")"
-                "header = $(quote "CF-Access-Client-Secret: $(cat "$3")")"
                 "header = $(quote "Authorization: Bearer ${placeholderKey}")"
               )
+              if [ "$#" -eq 3 ]; then
+                config+=(
+                  "header = $(quote "CF-Access-Client-Id: $(cat "$2")")"
+                  "header = $(quote "CF-Access-Client-Secret: $(cat "$3")")"
+                )
+              fi
 
               if ! body="$(printf '%s\n' "''${config[@]}" |
                 curl -sS --fail --max-time 8 --config - 2>/dev/null)"; then
