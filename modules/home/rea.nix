@@ -108,13 +108,20 @@ _: {
 
       reaSkill = "reverse-engineer-anything";
 
-      # Copilot CLI loads every tool definition up front, and rea's 139 tools
-      # (~1.9 MB of schemas) exceed the context budget of every model the
-      # account can use, so each prompt fails before it starts.
-      excludeAgents = [ "copilot" ];
+      # Copilot CLI and dsh put every tool definition into every request, and
+      # rea's 139 tools are most of it (570 KB of dsh's 686 KB). Copilot
+      # exceeds the context budget of every model the account can use, so
+      # each prompt fails before it starts; dsh spends minutes in prefill on
+      # each turn, past Cloudflare's origin timeout on a tunnelled route. The
+      # skill goes with the server: it is useless without the tools.
+      excludeAgents = [
+        "copilot"
+        "dsh"
+      ];
     in
     {
-      # Registered with every agent by home/agent-mcp.nix, except Copilot CLI.
+      # Registered with every agent by home/agent-mcp.nix, except Copilot CLI
+      # and dsh.
       agentMcpServers.rea = {
         command = mcpBin;
         inherit excludeAgents;
