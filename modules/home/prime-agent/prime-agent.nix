@@ -9,6 +9,7 @@ _: {
     let
       secretsDir = "${config.home.homeDirectory}/.config/sops/secrets/bash";
       modelsFile = "${config.home.homeDirectory}/.prime/agent/models.json";
+      settingsFile = "${config.home.homeDirectory}/.prime/agent/settings.json";
       routes = config.vllm.routes;
       renames = builtins.toJSON config.vllm.renames;
       behindAccess = r: r.accessClientIdFile != null;
@@ -155,6 +156,19 @@ _: {
         })
       '';
 
+      pruneRecentsProg = ''
+        ($models[0].providers // {}) as $providers |
+        if (.recentModels | type) == "array" then
+          .recentModels |= map(select(
+            (type != "string") or
+            (split("/") as $parts |
+             ($parts | length) < 2 or
+             ($routes | any(. == $parts[0]) | not) or
+             (($providers[$parts[0]].models | type) != "array") or
+             ($providers[$parts[0]].models | any(.id == ($parts[1:] | join("/")))))))
+        else . end
+      '';
+
       # Fetches one route's catalog and reads its URL and Access credentials
       # into route_<id>_* shell variables, kept apart from the script's own
       # names (a route named vllm would clobber $vllm_catalog). They reach jq
@@ -222,6 +236,26 @@ _: {
         else
           rm -f "${modelsFile}.tmp"
           echo "prime-agent: jq merge failed for ${modelsFile} (left unchanged)" >&2
+        fi
+
+        # The /model picker's recent list outlives what a route serves: an
+        # entry naming a self-hosted route and a model that route no longer
+        # lists (its catalog changed, or a rename carried an old pairing
+        # across) is dropped. Only route entries with a model list are
+        # judged; the file is rewritten only when something goes.
+        if [ -f "${settingsFile}" ] && [ -f "${modelsFile}" ]; then
+          if ${lib.getExe pkgs.jq} --slurpfile models "${modelsFile}" \
+            --argjson routes ${lib.escapeShellArg (builtins.toJSON (lib.attrNames routes))} \
+            ${lib.escapeShellArg pruneRecentsProg} "${settingsFile}" > "${settingsFile}.tmp"; then
+            if cmp -s "${settingsFile}.tmp" "${settingsFile}"; then
+              rm -f "${settingsFile}.tmp"
+            else
+              mv -f "${settingsFile}.tmp" "${settingsFile}"
+            fi
+          else
+            rm -f "${settingsFile}.tmp"
+            echo "prime-agent: could not prune recent models in ${settingsFile} (left unchanged)" >&2
+          fi
         fi
       '';
     in
