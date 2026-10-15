@@ -13,6 +13,19 @@ _: {
     lib.mkIf (config.host.gpu == "nvidia") {
       nixpkgs.config.nvidia.acceptLicense = true;
 
+      systemd.services.nvidia-power-limit = lib.mkIf (config.host.gpuPowerLimit != null) {
+        description = "Cap every NVIDIA GPU at ${toString config.host.gpuPowerLimit} W";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "nvidia-persistenced.service" ];
+        requires = [ "nvidia-persistenced.service" ];
+        before = [ "k3s.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${lib.getExe' driver.bin "nvidia-smi"} --power-limit ${toString config.host.gpuPowerLimit}";
+        };
+      };
+
       services.xserver.videoDrivers = [ "nvidia" ];
 
       environment.sessionVariables = {
@@ -60,6 +73,9 @@ _: {
           nvidiaSettings = false;
           modesetting.enable = true;
           package = driver;
+          # Keeps the driver initialized between CUDA clients, so a power
+          # limit set at boot holds.
+          nvidiaPersistenced = config.host.gpuPowerLimit != null;
         };
 
         nvidia-container-toolkit = {

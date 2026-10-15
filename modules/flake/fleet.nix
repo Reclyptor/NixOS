@@ -89,6 +89,12 @@ let
         description = "GPU vendor; selects kernel modules, drivers, and tooling.";
       };
 
+      gpuPowerLimit = lib.mkOption {
+        type = lib.types.nullOr lib.types.ints.positive;
+        default = null;
+        description = "Power limit in watts applied to every NVIDIA GPU at boot. Null keeps the card's default.";
+      };
+
       opticalDrives = lib.mkOption {
         type = lib.types.listOf opticalDriveType;
         default = [ ];
@@ -189,6 +195,9 @@ in
         wirelessIp = "192.168.1.24";
         k3s.role = "agent";
         gpu = "nvidia";
+        # GPU 0 sits in thermal slowdown at the 420 W default while serving
+        # vLLM, and tensor parallelism runs both cards at its pace.
+        gpuPowerLimit = 280;
       };
     };
   };
