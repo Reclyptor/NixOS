@@ -107,31 +107,24 @@ _: {
       mcpBin = "${reaMcp}/bin/rea-mcp";
 
       reaSkill = "reverse-engineer-anything";
-      mkSkillLink = dir: {
-        name = "${dir}/${reaSkill}";
-        value.source = "${reaRoot}/skills/${reaSkill}";
-      };
+
+      # Copilot CLI loads every tool definition up front, and rea's 139 tools
+      # (~1.9 MB of schemas) exceed the context budget of every model the
+      # account can use, so each prompt fails before it starts.
+      excludeAgents = [ "copilot" ];
     in
     {
       # Registered with every agent by home/agent-mcp.nix, except Copilot CLI.
-      # Copilot loads every tool definition up front, and rea's 139 tools
-      # (~1.9 MB of schemas) exceed the context budget of every model the
-      # account can use, so each prompt fails before it starts.
       agentMcpServers.rea = {
         command = mcpBin;
-        excludeAgents = [ "copilot" ];
+        inherit excludeAgents;
       };
 
-      # Upstream's own skill, linked read-only out of the pinned store path. Same
-      # mechanism as the agentmemory skills; the slash command comes from the
-      # SKILL.md frontmatter, not the directory name.
-      home.file = lib.listToAttrs (
-        map mkSkillLink [
-          ".claude/skills"
-          ".codex/skills"
-          ".dsh/skills"
-          ".copilot/skills"
-        ]
-      );
+      # Upstream's own skill, linked out of the pinned store path by
+      # home/agent-skills.nix into every agent that has the server it drives.
+      agentSkills.${reaSkill} = {
+        source = "${reaRoot}/skills/${reaSkill}";
+        inherit excludeAgents;
+      };
     };
 }
