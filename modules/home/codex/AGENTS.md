@@ -582,3 +582,16 @@ git -c url."https://github.com/".insteadOf="git@github.com:" \
 and it lands in shell history besides. Keep it in the environment, pass it
 by credential helper, and never write it into a tracked file, a git remote,
 or any config the repo carries.
+
+## 14. Scratch Files: Live in Workspaces, Never Loose in the Home Directory
+
+`~/` is auto-reaped. Scratch files, scan outputs, plans, and working artifacts
+written loose in the home directory vanish without warning — a day-long scan's
+outputs were already lost this way. `~/Workspaces` is the home for files an
+agent would otherwise drop in the user's home directory: every session that
+needs such storage creates its own directory there, named exactly like a
+worktree: `~/Workspaces/<repo>-<agent>-<session-id>`. Agents remain free to
+use their own scratch spaces — session directories, `/tmp` for transient
+one-shot scratch, the NAS `_plans` directories for resumable pipeline state —
+and to fold durable results into the conversation report. This is a
+user-stated hard rule.
