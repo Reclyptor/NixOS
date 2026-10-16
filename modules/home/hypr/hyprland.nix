@@ -319,6 +319,12 @@ _: {
             "workspace empty, match:class ^(steam_app_[0-9]+)$"
             "fullscreen on, match:class ^(steam_app_[0-9]+)$"
             "render_unfocused on, match:class ^(steam_app_[0-9]+)$"
+            # Games nested in gamescope surface as class gamescope, not
+            # steam_app_*; float at the nested resolution so screen capture
+            # gets the bare 16:9 frame.
+            "workspace empty, match:class ^(gamescope)$"
+            "float on, size 2560 1440, center on, match:class ^(gamescope)$"
+            "render_unfocused on, match:class ^(gamescope)$"
           ];
         };
       };

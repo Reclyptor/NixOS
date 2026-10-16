@@ -279,5 +279,11 @@ _: {
           proton-ge-bin
         ];
       };
+
+      # Nested gamescope pins a game to a fixed 16:9 canvas, so a Discord
+      # stream of its window carries no pillarbox from 16:9-locked games like
+      # Nightreign. capSysNice stays off: the setcap wrapper cannot exec inside
+      # Steam's bubblewrap container and the game fails to launch.
+      programs.gamescope.enable = true;
     };
 }
