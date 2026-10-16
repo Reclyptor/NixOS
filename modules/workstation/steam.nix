@@ -278,12 +278,15 @@ _: {
       #   * gamescope's Wayland backend hands the game's buffer to Hyprland on a
       #     subsurface and attaches a null buffer to its own toplevel, which
       #     unmaps the window, subsurfaces included. The SDL backend composites
-      #     into a window of its own, so it is the default here. SDL names that
-      #     window after the executable, which Nix wraps as .gamescope-wrapped;
-      #     the class is pinned back to gamescope for the Hyprland window rules.
+      #     into a window of its own, so it is the default here, and that window
+      #     is an X11 one: Discord runs under XWayland on this machine (its x11
+      #     wrapper is the only way it streams audio) and can only capture X11
+      #     windows. SDL names the window after the executable, which Nix wraps
+      #     as .gamescope-wrapped; the class is pinned back to gamescope for the
+      #     Hyprland window rules.
       #
-      # Both environment variables are scoped to gamescope and removed again
-      # before the game, which has no business inheriting them.
+      # The environment variables are scoped to gamescope: the game gets Steam's
+      # own SDL_VIDEODRIVER back and must not inherit the rest.
       steamGamescopeScripts = pkgs.writeTextDir "10-no-explicit-sync.lua" ''
         gamescope.convars.drm_debug_disable_explicit_sync.value = true
       '';
@@ -300,7 +303,12 @@ _: {
             shift
           fi
 
-          game=(env -u GAMESCOPE_SCRIPT_PATH -u SDL_VIDEO_WAYLAND_WMCLASS)
+          game=(env -u GAMESCOPE_SCRIPT_PATH -u SDL_VIDEO_X11_WMCLASS)
+          if [ -n "''${SDL_VIDEODRIVER-}" ]; then
+            game+=("SDL_VIDEODRIVER=$SDL_VIDEODRIVER")
+          else
+            game+=(-u SDL_VIDEODRIVER)
+          fi
           if [ -n "''${LD_LIBRARY_PATH-}" ]; then
             game+=("LD_LIBRARY_PATH=$LD_LIBRARY_PATH")
           fi
@@ -310,7 +318,8 @@ _: {
 
           exec env -u LD_LIBRARY_PATH -u LD_PRELOAD \
             GAMESCOPE_SCRIPT_PATH=${steamGamescopeScripts} \
-            SDL_VIDEO_WAYLAND_WMCLASS=gamescope \
+            SDL_VIDEODRIVER=x11 \
+            SDL_VIDEO_X11_WMCLASS=gamescope \
             gamescope --backend sdl "''${flags[@]}" -- "''${game[@]}" "$@"
         '';
       };
