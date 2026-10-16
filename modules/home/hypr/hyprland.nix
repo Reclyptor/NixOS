@@ -305,6 +305,7 @@ _: {
           # Layer rules
           layerrule = [
             "no_anim on, match:namespace launcher"
+            "no_anim on, match:namespace selection"
           ];
 
           # Window rules
