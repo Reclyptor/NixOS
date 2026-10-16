@@ -1,6 +1,6 @@
 _: {
   flake.modules.nixos.workstation =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       # Steam has no global launch-option default, so the same flags have to be
       # written into every game individually, and a newly installed game arrives
@@ -255,6 +255,65 @@ _: {
         if __name__ == "__main__":
             sys.exit(main())
       '';
+
+      # Nested gamescope for Proton games on this Hyprland/NVIDIA machine. Bare
+      # `gamescope -- %command%` runs the game invisibly here for three separate
+      # reasons, each confirmed with a Wayland protocol trace, and this launcher
+      # answers all three. Use it in launch options where gamescope would go:
+      #
+      #   steam-gamescope -W 2560 -H 1440 -w 2560 -h 1440 -- gamemoderun %command%
+      #
+      #   * Steam exports LD_LIBRARY_PATH (its scout runtime) and LD_PRELOAD
+      #     (its overlay) to the whole launch command. gamescope is a Nix binary
+      #     and LD_LIBRARY_PATH outranks its RUNPATH, so it loads scout's
+      #     libSDL2 and libX* in place of its own and never presents a frame.
+      #     gamescope gets neither; the game command gets both back, since the
+      #     launch wrapper is built against scout and the preload is how
+      #     Shift+Tab reaches the game.
+      #   * gamescope's wlserver offers explicit sync, and with it the NVIDIA
+      #     driver inside the Steam Linux Runtime container presents exactly
+      #     one swapchain of frames and then stalls waiting on fences that never
+      #     signal from gamescope's side. The Lua script below turns it off, so
+      #     Xwayland and the WSI layer fall back to implicit sync.
+      #   * gamescope's Wayland backend hands the game's buffer to Hyprland on a
+      #     subsurface and attaches a null buffer to its own toplevel, which
+      #     unmaps the window, subsurfaces included. The SDL backend composites
+      #     into a window of its own, so it is the default here. SDL names that
+      #     window after the executable, which Nix wraps as .gamescope-wrapped;
+      #     the class is pinned back to gamescope for the Hyprland window rules.
+      #
+      # Both environment variables are scoped to gamescope and removed again
+      # before the game, which has no business inheriting them.
+      steamGamescopeScripts = pkgs.writeTextDir "10-no-explicit-sync.lua" ''
+        gamescope.convars.drm_debug_disable_explicit_sync.value = true
+      '';
+      steamGamescope = pkgs.writeShellApplication {
+        name = "steam-gamescope";
+        runtimeInputs = [ config.programs.gamescope.package ];
+        text = ''
+          flags=()
+          while [ $# -gt 0 ] && [ "$1" != -- ]; do
+            flags+=("$1")
+            shift
+          done
+          if [ "''${1-}" = -- ]; then
+            shift
+          fi
+
+          game=(env -u GAMESCOPE_SCRIPT_PATH -u SDL_VIDEO_WAYLAND_WMCLASS)
+          if [ -n "''${LD_LIBRARY_PATH-}" ]; then
+            game+=("LD_LIBRARY_PATH=$LD_LIBRARY_PATH")
+          fi
+          if [ -n "''${LD_PRELOAD-}" ]; then
+            game+=("LD_PRELOAD=$LD_PRELOAD")
+          fi
+
+          exec env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+            GAMESCOPE_SCRIPT_PATH=${steamGamescopeScripts} \
+            SDL_VIDEO_WAYLAND_WMCLASS=gamescope \
+            gamescope --backend sdl "''${flags[@]}" -- "''${game[@]}" "$@"
+        '';
+      };
     in
     {
       # steam is deliberately absent: programs.steam below installs its own
@@ -265,6 +324,7 @@ _: {
       # steamwebhelper and the client UI draws every CJK codepoint as tofu.
       environment.systemPackages = with pkgs; [
         launchOptions
+        steamGamescope
         steam-wmclass
         mangohud
         protonup-qt
@@ -282,8 +342,18 @@ _: {
 
       # Nested gamescope pins a game to a fixed 16:9 canvas, so a Discord
       # stream of its window carries no pillarbox from 16:9-locked games like
-      # Nightreign. capSysNice stays off: the setcap wrapper cannot exec inside
+      # Nightreign. Launch options go through steam-gamescope above, never bare
+      # gamescope. capSysNice stays off: the setcap wrapper cannot exec inside
       # Steam's bubblewrap container and the game fails to launch.
-      programs.gamescope.enable = true;
+      #
+      # enableWsi installs gamescope's Vulkan layer, which lets the game present
+      # to gamescope over Wayland instead of through Xwayland. Without it,
+      # gamescope never sees a Proton game's frames at all: Wine draws into a
+      # child X window that gamescope does not track. gamescope enables the
+      # layer in its children itself via ENABLE_GAMESCOPE_WSI.
+      programs.gamescope = {
+        enable = true;
+        enableWsi = true;
+      };
     };
 }
