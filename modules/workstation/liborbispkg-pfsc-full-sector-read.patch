@@ -1,0 +1,38 @@
+Fill every compressed PFSC sector instead of trusting one DeflateStream.Read.
+
+ReadSector inflated each 64 KiB sector with a single ds.Read(output, 0,
+BlockSz) and ignored the count it returned. Stream.Read has always been free to
+return less than asked for, and since .NET 6 DeflateStream routinely does
+(dotnet/runtime "partial byte reads in streams" breaking change). The tail of
+the sector then keeps whatever the previous sector left in the reused buffer.
+Nothing reports it: file sizes come out right, small files often survive, and
+pkg_validate still passes.
+
+In practice: Bloodborne (CUSA03173) extracted this way has thousands of .dcx
+archives that no longer inflate, and the game dies at shader setup with
+"shaderBinarySize 2660 is not equal to Program size 9527387880"
+(deadinside28/bloodborne_pc#81). Unfixed upstream as of 92a4e7f8e5.
+
+A sector that ends before it is full is now an error rather than silently
+short: every PFSC sector inflates to exactly BlockSz.
+
+--- a/LibOrbisPkg/PFS/PFSCReader.cs
++++ b/LibOrbisPkg/PFS/PFSCReader.cs
+@@ -84,7 +84,16 @@
+         using (var bufStream = new MemoryStream(sectorBuf))
+         using (var ds = new DeflateStream(bufStream, CompressionMode.Decompress))
+         {
+-          ds.Read(output, 0, hdr.BlockSz);
++          // A single Read may return fewer bytes than asked for (always
++          // allowed, and routine since .NET 6), so loop until the sector is full.
++          int total = 0;
++          while (total < hdr.BlockSz)
++          {
++            int n = ds.Read(output, total, hdr.BlockSz - total);
++            if (n == 0)
++              throw new InvalidDataException("PFSC sector inflated to " + total + " of " + hdr.BlockSz + " bytes");
++            total += n;
++          }
+         }
+       }
+     }
