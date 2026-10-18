@@ -29,7 +29,7 @@ _: {
             outdir="$HOME/Recordings"
 
             usage() {
-              echo "usage: screenrecord {region|output} [--audio] | stop | status" >&2
+              echo "usage: screenrecord {region|window|output} [--audio] | stop | status" >&2
               exit 2
             }
 
@@ -63,15 +63,15 @@ _: {
               rm -f "$state"
             }
 
-            # slurp returns "x,y WxH" at whatever size was dragged; this prints
+            # slurp returns "x,y WxH" at whatever size was picked; this prints
             # "x,y W H" so the caller gets the dimensions on their own. yuv420p
             # needs both even and wf-recorder rounds down on its own, but it does
             # that after we have already picked a codec from these numbers —
             # rounding here keeps that choice matched to what actually gets
-            # encoded at the 4096 boundary.
-            region_geometry() {
+            # encoded at the 4096 boundary. Arguments go straight to slurp.
+            pick_geometry() {
               local geom pos size w h
-              geom="$(slurp)" || return 1
+              geom="$(slurp "$@")" || return 1
               pos="''${geom%% *}"
               size="''${geom##* }"
               w="''${size%%x*}"
@@ -80,6 +80,22 @@ _: {
               h=$((h - h % 2))
               [ "$w" -ge 2 ] && [ "$h" -ge 2 ] || return 1
               printf '%s %d %d\n' "$pos" "$w" "$h"
+            }
+
+            # One slurp box per window on screen right now: each monitor's
+            # active workspace, plus its special workspace when one is shown.
+            # Windows on background workspaces keep their coordinates, so
+            # without this filter they would stack invisible boxes on top of
+            # the real ones.
+            window_boxes() {
+              local shown
+              shown="$(hyprctl -j monitors |
+                jq -c '[.[] | .activeWorkspace.id, .specialWorkspace.id]')"
+              hyprctl -j clients | jq -r --argjson shown "$shown" '
+                .[]
+                | select(.mapped and (.hidden | not))
+                | select(.workspace.id as $id | $shown | index($id))
+                | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1]) \(.class)"'
             }
 
             # "name W H" for the monitor holding focus.
@@ -119,7 +135,14 @@ _: {
               case "$mode" in
                 region)
                   # Cancelled selection: nothing to record, nothing to report.
-                  info="$(region_geometry)" || exit 0
+                  info="$(pick_geometry)" || exit 0
+                  read -r pos w h <<<"$info"
+                  args+=(-g "$pos ''${w}x''${h}")
+                  ;;
+                window)
+                  # -r restricts slurp to the boxes, so a click lands on a
+                  # whole window rather than starting a drag.
+                  info="$(window_boxes | pick_geometry -r)" || exit 0
                   read -r pos w h <<<"$info"
                   args+=(-g "$pos ''${w}x''${h}")
                   ;;
@@ -185,7 +208,7 @@ _: {
             }
 
             case "''${1:-}" in
-              region | output)
+              region | window | output)
                 mode="$1"
                 shift
                 audio=no
@@ -205,7 +228,7 @@ _: {
           '';
 
           meta = {
-            description = "Toggle region or output screen recording via slurp and wf-recorder";
+            description = "Toggle region, window, or output screen recording via slurp and wf-recorder";
             mainProgram = "screenrecord";
           };
         };
