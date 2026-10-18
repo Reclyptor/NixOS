@@ -4,6 +4,10 @@ _: {
       enable = true;
       signing.format = null;
 
+      # Installs git-lfs and writes the global filter.lfs config. Game repos
+      # (genomech) keep their binary assets in LFS.
+      lfs.enable = true;
+
       # Global excludes (~/.config/git/ignore). Was a hand-written file holding
       # a single **/.claude/settings.local.json line — now declared here so it
       # is reproducible instead of drifting per machine.
