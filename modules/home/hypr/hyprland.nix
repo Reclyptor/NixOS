@@ -211,11 +211,11 @@ _: {
             "$mainMod SHIFT, R, exec, hyprctl reload"
             "$mainMod SHIFT, P, exec, hyprshot -m output"
             "$mainMod SHIFT, S, exec, hyprshot -m region"
+            "$mainMod SHIFT, W, exec, hyprshot -m window"
 
-            # Video twins of the two screenshot binds above: same S/P letters,
+            # Video twins of the screenshot binds above: same P/S/W letters,
             # plus CTRL. Each toggles — press to pick and record, press again to
-            # stop. Audio moves to A because SHIFT+S is the region video itself;
-            # W clicks a window instead of dragging a region.
+            # stop. Audio moves to A because SHIFT+S is the region video itself.
             "$mainMod CTRL SHIFT, P, exec, screenrecord output"
             "$mainMod CTRL SHIFT, S, exec, screenrecord region"
             "$mainMod CTRL SHIFT, W, exec, screenrecord window"
