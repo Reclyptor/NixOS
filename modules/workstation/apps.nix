@@ -23,7 +23,6 @@ _: {
       mpv
       mpvx
       obsidian
-      prismlauncher
       qbittorrent
       signal-desktop
       spotify
