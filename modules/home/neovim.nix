@@ -486,5 +486,22 @@ _: {
         vim.keymap.set("n", "N",     "Nzzzv",    { desc = "Prev Match" })
       '';
     };
+
+    # Double-click target for text and code files. The packaged nvim.desktop
+    # is Terminal=true and nothing in this Hyprland setup satisfies that, so
+    # this launches Neovim inside a terminal that works. kitty's
+    # single_instance default joins the running instance; %F passes every
+    # selected file. Referenced from xdg.nix as "nvim-kitty.desktop".
+    home.file.".local/share/applications/nvim-kitty.desktop".text = ''
+      [Desktop Entry]
+      Type=Application
+      Name=Neovim (Kitty)
+      GenericName=Text Editor
+      Comment=Open file(s) in Neovim inside Kitty
+      Exec=kitty nvim %F
+      Icon=nvim
+      Terminal=false
+      Categories=Utility;TextEditor;
+    '';
   };
 }

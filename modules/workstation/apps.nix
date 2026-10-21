@@ -25,6 +25,7 @@ _: {
       obsidian
       qbittorrent
       signal-desktop
+      sioyek
       spotify
       unixcw
       vlc

@@ -15,6 +15,8 @@ _: {
           imv = "imv.desktop";
           mpv = "mpv.desktop";
           mpvx = "mpvx.desktop";
+          nvimKitty = "nvim-kitty.desktop";
+          sioyek = "sioyek.desktop";
 
           # Video opens in mpvx so anything playing is already shareable on Discord
           # without reopening it — mpvx renders through XWayland, which is the only
@@ -135,9 +137,80 @@ _: {
             "audio/x-wav"
             "audio/x-wavpack"
           ];
+
+          # Text and code open in Neovim inside kitty (nvim-kitty.desktop
+          # from neovim.nix). The packaged nvim.desktop is Terminal=true
+          # and nothing in this Hyprland setup satisfies that, so without
+          # these defaults text files are effectively unopenable from a
+          # file manager and json lands in a browser.
+          text = [
+            "application/javascript"
+            "application/json"
+            "application/toml"
+            "application/typescript"
+            "application/x-c++source"
+            "application/x-csource"
+            "application/x-chdr"
+            "application/x-shellscript"
+            "application/x-yaml"
+            "application/xml"
+            "application/yaml"
+            "text/english"
+            "text/markdown"
+            "text/plain"
+            "text/x-c"
+            "text/x-c++hdr"
+            "text/x-c++src"
+            "text/x-csrc"
+            "text/x-chdr"
+            "text/x-java"
+            "text/x-java-source"
+            "text/x-javascript"
+            "text/x-log"
+            "text/x-lua"
+            "text/x-makefile"
+            "text/x-markdown"
+            "text/x-python"
+            "text/x-script.sh"
+            "text/x-toml"
+            "text/x-tex"
+            "text/x-typescript"
+            "text/x-yaml"
+            "text/xml"
+          ];
+
+          # Every image type imv 5.0.1 can actually decode: its built-in
+          # decoder (png/jpeg/bmp/tga/qoi/farbfeld) plus the enabled
+          # backends — librsvg for svg, libheif for heic/heif/jp2/avif,
+          # libjxl for jxl, libwebp for webp, libnsgif for animated gif.
+          # tiff and ico are deliberately excluded: this build has no
+          # backend for them, and krita remains the fallback.
+          images = [
+            "animation/x-gif"
+            "image/avif"
+            "image/bmp"
+            "image/gif"
+            "image/heic"
+            "image/heif"
+            "image/jp2"
+            "image/jpeg"
+            "image/jxl"
+            "image/pjpeg"
+            "image/png"
+            "image/qoi"
+            "image/svg+xml"
+            "image/tga"
+            "image/webp"
+            "image/x-bmp"
+            "image/x-farbfeld"
+            "image/x-ms-bmp"
+            "image/x-png"
+          ];
         in
         lib.genAttrs video (_: mpvx)
         // lib.genAttrs audio (_: mpv)
+        // lib.genAttrs text (_: nvimKitty)
+        // lib.genAttrs images (_: imv)
         // {
           # Web browser
           "text/html" = zen;
@@ -158,13 +231,10 @@ _: {
           # Claude Code URL handler (its .desktop lives in ~/.local/share/applications)
           "x-scheme-handler/claude-cli" = "claude-code-url-handler.desktop";
 
-          # Image viewer. imv animates gifs through its libnsgif backend; without
-          # the explicit default aseprite claims the type and a double-click drops
-          # into a sprite editor.
-          "image/gif" = imv;
-          "image/jpeg" = imv;
-          "image/png" = imv;
-          "image/webp" = imv;
+          # sioyek is the keyboard-driven PDF viewer for the "just read it"
+          # case; pdfcraft stays reachable through Open With for editing and
+          # annotation.
+          "application/pdf" = sioyek;
         };
 
       # imv also registered itself as a non-default handler for these; keep that so
