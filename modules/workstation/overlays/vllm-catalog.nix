@@ -17,14 +17,16 @@ _: {
           # checks the answer. Sinks decide what a failure means for them; this
           # only reports it.
           #
-          #   vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>]
+          #   vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>] <fallback-window>
           #
           # The Access files are left off for a LAN route, which has nothing in
-          # front of it.
+          # front of it. The fallback window is a positive integer: a model
+          # entry that reports no positive max_model_len gets it, because not
+          # every vLLM build reports per-model length.
           # Prints `[{"id": …, "contextWindow": …}]` and exits 0, or names the
           # reason on stderr and exits 1: unreadable files, unreachable,
-          # unreadable body, empty, or an entry without an id or a positive
-          # max_model_len. The whole request reaches curl as a config on stdin,
+          # unreadable body, empty, a non-positive fallback, or an entry
+          # without an id. The whole request reaches curl as a config on stdin,
           # so neither the URL nor the Access credentials ever appear in argv,
           # where /proc/*/cmdline would publish them.
           vllm-catalog = final.writeShellApplication {
@@ -51,18 +53,27 @@ _: {
                 printf '"%s"' "''${v//\"/\\\"}"
               }
 
-              if [ "$#" -ne 1 ] && [ "$#" -ne 3 ]; then
-                echo "usage: vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>]" >&2
+              if [ "$#" -ne 2 ] && [ "$#" -ne 4 ]; then
+                echo "usage: vllm-catalog <base-url-file> [<cf-id-file> <cf-secret-file>] <fallback-window>" >&2
                 exit 2
               fi
-              for f in "$@"; do
+              if [ "$#" -eq 2 ]; then
+                files=("$1")
+                fallback="$2"
+              else
+                files=("$1" "$2" "$3")
+                fallback="$4"
+              fi
+              [ "$fallback" -gt 0 ] 2> /dev/null ||
+                fail "fallback window must be a positive integer"
+              for f in "''${files[@]}"; do
                 [ -r "$f" ] || fail "$f is not readable"
               done
               config=(
                 "url = $(quote "$(cat "$1")/models")"
                 "header = $(quote "Authorization: Bearer ${placeholderKey}")"
               )
-              if [ "$#" -eq 3 ]; then
+              if [ "$#" -eq 4 ]; then
                 config+=(
                   "header = $(quote "CF-Access-Client-Id: $(cat "$2")")"
                   "header = $(quote "CF-Access-Client-Secret: $(cat "$3")")"
@@ -75,7 +86,8 @@ _: {
               fi
 
               if ! catalog="$(printf '%s' "$body" | jq -c \
-                '[.data[] | {"id": .id, "contextWindow": .max_model_len}]' 2>/dev/null)"; then
+                --argjson fallback "$fallback" \
+                '[.data[] | {"id": .id, "contextWindow": (if (.max_model_len // 0) > 0 then .max_model_len else $fallback end)}]' 2>/dev/null)"; then
                 fail "vllm /models returned a body this cannot read"
               fi
 
@@ -83,7 +95,7 @@ _: {
                 fail "vllm /models listed no models"
               printf '%s' "$catalog" | jq -e \
                 'all((.id // "" | length) > 0 and (.contextWindow // 0) > 0)' > /dev/null ||
-                fail "vllm /models listed an entry with no id or no positive max_model_len"
+                fail "vllm /models listed an entry with no id or a non-positive window"
 
               printf '%s\n' "$catalog"
             '';

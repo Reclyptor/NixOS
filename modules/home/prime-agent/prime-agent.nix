@@ -201,7 +201,7 @@ _: {
           ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
 
           if ${lib.concatMapStringsSep " && " (f: "[ -f ${lib.escapeShellArg f} ]") files}; then
-            if ! ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs files})"; then
+            if ! ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs (files ++ [ (toString r.contextWindow) ])})"; then
               echo "prime-agent: keeping the ${id} models already in ${modelsFile}" >&2
               ${v}_catalog=""
             fi
