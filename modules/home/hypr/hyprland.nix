@@ -29,7 +29,7 @@ _: {
 
           # Programs
           "$terminal" = "kitty";
-          "$fileManager" = "nautilus";
+          "$fileManager" = "kitty yazi";
           "$browser" = "zen-beta";
           "$menu" = "pkill fuzzel || fuzzel";
 
