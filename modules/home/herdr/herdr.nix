@@ -107,10 +107,12 @@
         reload_config = "prefix+shift+r"
         toggle_sidebar = "prefix+b"
 
-        # Workspaces — tmux sessions. goto is herdr's session navigator, so it
-        # takes choose-tree -Zs; workspace_picker keeps w for choose-tree -Zw.
-        goto = "prefix+s"
+        # Workspaces — tmux sessions. goto is herdr's global navigator; workspace_picker
+        # keeps w for choose-tree -Zw. Pane input synchronization is native and local to the
+        # active tab, matching tmux's per-window synchronize-panes option.
+        goto = "prefix+g"
         workspace_picker = "prefix+w"
+        synchronize_panes = "prefix+s"
         rename_workspace = "prefix+$"
         previous_workspace = "prefix+("
         next_workspace = "prefix+)"

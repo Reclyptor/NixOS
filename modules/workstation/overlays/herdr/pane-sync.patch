@@ -1,0 +1,517 @@
+diff --git a/src/client/shell/actions.rs b/src/client/shell/actions.rs
+index 9d0a3bd..5d40712 100644
+--- a/src/client/shell/actions.rs
++++ b/src/client/shell/actions.rs
+@@ -10,6 +10,21 @@ impl ClientShellState {
+             crate::input::KeybindMatch::Action(crate::input::KeybindAction::Detach) => {
+                 outcome.detach = true;
+             }
++            crate::input::KeybindMatch::Action(
++                crate::input::KeybindAction::TogglePaneSynchronization,
++            ) => {
++                if let Some(tab_id) = self
++                    .snapshot
++                    .as_deref()
++                    .and_then(|snapshot| snapshot.focused_tab_id.clone())
++                {
++                    let synchronized_tab = (self.active_endpoint_id.clone(), tab_id);
++                    if !self.synchronized_tabs.insert(synchronized_tab.clone()) {
++                        self.synchronized_tabs.remove(&synchronized_tab);
++                    }
++                    outcome.repaint = true;
++                }
++            }
+             crate::input::KeybindMatch::Action(crate::input::KeybindAction::ToggleSidebar) => {
+                 self.sidebar_collapsed = !self.sidebar_collapsed;
+                 self.sidebar_collapsed_manual = true;
+diff --git a/src/client/shell/composition.rs b/src/client/shell/composition.rs
+index b7ab4a9..7e73061 100644
+--- a/src/client/shell/composition.rs
++++ b/src/client/shell/composition.rs
+@@ -132,6 +132,7 @@ impl ClientShellState {
+             None,
+             self.endpoint_error.as_deref(),
+             false,
++            false,
+             &self.config.keybinds,
+             &self.config.palette,
+         );
+@@ -327,6 +328,7 @@ impl ClientShellState {
+                 self.mode,
+                 self.copy_mode.as_ref(),
+                 self.endpoint_error.as_deref(),
++                self.synchronization_enabled_for_focused_tab(),
+                 snapshot.update_available.is_some(),
+                 &self.config.keybinds,
+                 &self.config.palette,
+diff --git a/src/client/shell/input.rs b/src/client/shell/input.rs
+index 413e29f..cb63c8e 100644
+--- a/src/client/shell/input.rs
++++ b/src/client/shell/input.rs
+@@ -405,8 +405,11 @@ impl ClientShellState {
+     ) {
+         match plan {
+             crate::input::RepeatPlan::Forwarded(target) => {
+-                let pane_blocked_by_popup = matches!(&target, ClientInputTarget::Pane(_))
+-                    && (self.popup_pending || self.popup_terminal_id.is_some());
++                let pane_blocked_by_popup = matches!(
++                    &target,
++                    ClientInputTarget::Pane(_) | ClientInputTarget::Panes(_)
++                ) && (self.popup_pending
++                    || self.popup_terminal_id.is_some());
+                 if !pane_blocked_by_popup {
+                     self.push_pane_key(target, key, outcome);
+                 }
+@@ -574,7 +577,7 @@ impl ClientShellState {
+                     outcome.repaint = true;
+                     return None;
+                 }
+-                self.focused_pane_id().map(ClientInputTarget::Pane)
++                self.terminal_input_target()
+             }
+             ClientShellMode::Prefix => {
+                 let return_mode = if self.copy_mode.as_ref().is_some_and(|copy_mode| {
+@@ -587,7 +590,7 @@ impl ClientShellState {
+                 if self.config.keybinds.matches_prefix(key) {
+                     self.mode = return_mode;
+                     outcome.repaint = true;
+-                    return self.focused_pane_id().map(ClientInputTarget::Pane);
++                    return self.terminal_input_target();
+                 }
+                 if key.code == KeyCode::Esc {
+                     self.mode = return_mode;
+@@ -956,7 +959,7 @@ impl ClientShellState {
+             overlay: self.overlay.as_ref().map(ClientShellOverlay::kind),
+             popup_terminal_id: self.popup_input_target().and_then(|target| match target {
+                 ClientInputTarget::Popup(terminal_id) => Some(terminal_id),
+-                ClientInputTarget::Pane(_) => None,
++                ClientInputTarget::Pane(_) | ClientInputTarget::Panes(_) => None,
+             }),
+             popup_pending: self.popup_pending,
+             retained_selection: self
+@@ -972,6 +975,35 @@ impl ClientShellState {
+             .and_then(|snapshot| snapshot.focused_pane_id.clone())
+     }
+
++    fn terminal_input_target(&self) -> Option<ClientInputTarget> {
++        let snapshot = self.snapshot.as_deref()?;
++        let focused_pane_id = snapshot.focused_pane_id.clone()?;
++        let focused_tab_id = snapshot.focused_tab_id.as_deref()?;
++        if !self
++            .synchronized_tabs
++            .contains(&(self.active_endpoint_id.clone(), focused_tab_id.to_owned()))
++        {
++            return Some(ClientInputTarget::Pane(focused_pane_id));
++        }
++        let pane_ids = snapshot
++            .panes
++            .iter()
++            .filter(|pane| pane.tab_id == focused_tab_id)
++            .map(|pane| pane.pane_id.clone())
++            .collect::<Vec<_>>();
++        (!pane_ids.is_empty()).then_some(ClientInputTarget::Panes(pane_ids))
++    }
++
++    pub(super) fn synchronization_enabled_for_focused_tab(&self) -> bool {
++        self.snapshot
++            .as_deref()
++            .and_then(|snapshot| snapshot.focused_tab_id.as_deref())
++            .is_some_and(|tab_id| {
++                self.synchronized_tabs
++                    .contains(&(self.active_endpoint_id.clone(), tab_id.to_owned()))
++            })
++    }
++
+     pub(crate) fn clipboard_image_target(
+         &self,
+     ) -> Option<crate::protocol::ClientClipboardImageTarget> {
+@@ -991,7 +1023,7 @@ impl ClientShellState {
+         }
+         if let Some(terminal_id) = self.popup_input_target().and_then(|target| match target {
+             ClientInputTarget::Popup(terminal_id) => Some(terminal_id),
+-            ClientInputTarget::Pane(_) => None,
++            ClientInputTarget::Pane(_) | ClientInputTarget::Panes(_) => None,
+         }) {
+             return Some(crate::protocol::ClientClipboardImageTarget::Popup(
+                 terminal_id,
+@@ -1022,8 +1054,8 @@ impl ClientShellState {
+     }
+
+     fn push_focused_pane_event(&self, event: ClientPaneInputEvent, outcome: &mut ClientShellInput) {
+-        if let Some(pane_id) = self.focused_pane_id() {
+-            super::push_target_event(ClientInputTarget::Pane(pane_id), event, outcome);
++        if let Some(target) = self.terminal_input_target() {
++            super::push_target_event(target, event, outcome);
+         }
+     }
+ }
+diff --git a/src/client/shell/render.rs b/src/client/shell/render.rs
+index 248216c..ba7baf9 100644
+--- a/src/client/shell/render.rs
++++ b/src/client/shell/render.rs
+@@ -34,11 +34,14 @@ pub(super) fn render_mode_bar(
+     mode: ClientShellMode,
+     copy_mode: Option<&ClientCopyModeState>,
+     endpoint_error: Option<&str>,
++    synchronize_panes: bool,
+     update_available: bool,
+     keybinds: &LiveKeybindConfig,
+     palette: &Palette,
+ ) -> Option<Rect> {
+-    if (mode == ClientShellMode::Terminal && endpoint_error.is_none()) || pane_area.is_empty() {
++    if (mode == ClientShellMode::Terminal && endpoint_error.is_none() && !synchronize_panes)
++        || pane_area.is_empty()
++    {
+         return None;
+     }
+
+@@ -81,6 +84,8 @@ pub(super) fn render_mode_bar(
+             (" ERROR ".to_owned(), mode_style),
+             (format!(" {error}"), base),
+         ]);
++    } else if mode == ClientShellMode::Terminal {
++        segments.push((" SYNC ".to_owned(), mode_style));
+     } else {
+         match mode {
+             ClientShellMode::Prefix => {
+diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
+index c170c9b..33b7736 100644
+--- a/src/client/shell/state.rs
++++ b/src/client/shell/state.rs
+@@ -739,6 +739,7 @@ pub(super) struct ClientVisibleNotification {
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub(super) enum ClientInputTarget {
+     Pane(String),
++    Panes(Vec<String>),
+     Popup(String),
+ }
+
+@@ -892,6 +893,9 @@ pub(crate) struct ClientShellState {
+     pub(super) reveal_navigation_workspace: bool,
+     pub(super) overlay: Option<ClientShellOverlay>,
+     pub(super) previous_pane_id: Option<String>,
++    // Local client state, intentionally matching tmux's per-window option rather
++    // than changing shared server-owned tab data.
++    pub(super) synchronized_tabs: HashSet<(ClientEndpointId, String)>,
+     pub(super) pane_mouse_gesture: Option<ClientPaneMouseGesture>,
+     pub(super) link_hover: Option<super::link_hover::LinkHover>,
+     pub(super) url_click_consumes_until_up: bool,
+@@ -1057,6 +1061,7 @@ impl ClientShellState {
+             reveal_navigation_workspace: false,
+             overlay,
+             previous_pane_id: None,
++            synchronized_tabs: HashSet::new(),
+             pane_mouse_gesture: None,
+             link_hover: None,
+             url_click_consumes_until_up: false,
+@@ -1250,6 +1255,7 @@ impl ClientShellState {
+             .startup_onboarding
+             .then_some(ClientShellOverlay::Onboarding);
+         self.previous_pane_id = None;
++        self.synchronized_tabs.clear();
+         self.pane_mouse_gesture = None;
+         self.link_hover = None;
+         self.url_click_consumes_until_up = false;
+@@ -1383,6 +1389,10 @@ impl ClientShellState {
+                 self.mode = ClientShellMode::Terminal;
+             }
+         }
++        self.synchronized_tabs.retain(|(endpoint_id, tab_id)| {
++            endpoint_id != &self.active_endpoint_id
++                || snapshot.tabs.iter().any(|tab| tab.tab_id == *tab_id)
++        });
+         let tab_layout_changed = self.snapshot.as_deref().is_none_or(|current| {
+             current.tabs.len() != snapshot.tabs.len()
+                 || current
+diff --git a/src/client/shell/tests/input.rs b/src/client/shell/tests/input.rs
+index 145c7ae..ba18696 100644
+--- a/src/client/shell/tests/input.rs
++++ b/src/client/shell/tests/input.rs
+@@ -468,6 +468,86 @@ fn pixel_host_reports_use_cells_without_target_pixel_mode_and_release_outside()
+     assert!(state.pane_mouse_gesture.is_none());
+ }
+
++fn synchronized_snapshot() -> ClientShellSnapshot {
++    let mut snapshot = snapshot();
++    snapshot.panes.extend([
++        ClientShellPane {
++            pane_id: "pane_2".into(),
++            workspace_id: "ws_1".into(),
++            tab_id: "tab_1".into(),
++            label: None,
++            cwd: Some("/repo".into()),
++            foreground_cwd: Some("/repo".into()),
++            focused: false,
++            right_click_passthrough: false,
++        },
++        ClientShellPane {
++            pane_id: "pane_3".into(),
++            workspace_id: "ws_1".into(),
++            tab_id: "tab_2".into(),
++            label: None,
++            cwd: Some("/repo".into()),
++            foreground_cwd: Some("/repo".into()),
++            focused: false,
++            right_click_passthrough: false,
++        },
++    ]);
++    snapshot.tabs.push(ClientShellTab {
++        tab_id: "tab_2".into(),
++        workspace_id: "ws_1".into(),
++        number: 2,
++        label: "2".into(),
++        custom_label: false,
++        zoomed: false,
++        focused: false,
++        agent_status: AgentStatus::Idle,
++    });
++    snapshot
++}
++
++fn pane_input_ids(outcome: &ClientShellInput) -> Vec<&str> {
++    outcome
++        .requests
++        .iter()
++        .filter_map(|request| match request {
++            ClientMessage::ClientShellPaneInput { pane_id, .. } => Some(pane_id.as_str()),
++            _ => None,
++        })
++        .collect()
++}
++
++#[test]
++fn synchronized_panes_fan_out_terminal_input_only_within_the_active_tab() {
++    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
++    state.set_snapshot(Box::new(synchronized_snapshot()));
++    state.record_binding(
++        crate::input::KeybindMatch::Action(crate::input::KeybindAction::TogglePaneSynchronization),
++        &mut ClientShellInput::default(),
++    );
++    assert!(state.synchronization_enabled_for_focused_tab());
++
++    let key = state.handle_input_bytes(b"x");
++    assert_eq!(pane_input_ids(&key), ["pane_1", "pane_2"]);
++    let text = state.handle_raw_events(vec![RawInputEvent::Text(crate::input::TextCommit::new(
++        "text",
++    ))]);
++    assert_eq!(pane_input_ids(&text), ["pane_1", "pane_2"]);
++    let paste = state.handle_raw_events(vec![RawInputEvent::Paste("paste".into())]);
++    assert_eq!(pane_input_ids(&paste), ["pane_1", "pane_2"]);
++
++    let mut next_tab = synchronized_snapshot();
++    next_tab.focused_tab_id = Some("tab_2".into());
++    next_tab.focused_pane_id = Some("pane_3".into());
++    next_tab.panes[0].focused = false;
++    next_tab.panes[2].focused = true;
++    next_tab.tabs[0].focused = false;
++    next_tab.tabs[1].focused = true;
++    state.set_snapshot(Box::new(next_tab));
++    assert!(!state.synchronization_enabled_for_focused_tab());
++    let isolated = state.handle_input_bytes(b"y");
++    assert_eq!(pane_input_ids(&isolated), ["pane_3"]);
++}
++
+ #[test]
+ fn shell_targets_unconsumed_input_and_keeps_prefix_local() {
+     let config = ClientShellConfig::from_config(&Config::default());
+diff --git a/src/client/shell.rs b/src/client/shell.rs
+index 2d18044..4d4972e 100644
+--- a/src/client/shell.rs
++++ b/src/client/shell.rs
+@@ -73,6 +73,9 @@ fn target_event_message(target: ClientInputTarget, event: ClientPaneInputEvent)
+             pane_id,
+             events: vec![event],
+         },
++        ClientInputTarget::Panes(_) => {
++            unreachable!("synchronized pane input is expanded before creating messages")
++        }
+         ClientInputTarget::Popup(terminal_id) => ClientMessage::ClientShellPopupInput {
+             terminal_id,
+             events: vec![event],
+@@ -87,21 +90,29 @@ fn push_target_event(
+ ) {
+     match target {
+         ClientInputTarget::Pane(pane_id) => {
+-            if let Some(ClientMessage::ClientShellPaneInput {
+-                pane_id: pending_pane,
+-                events,
+-            }) = outcome.requests.last_mut()
+-            {
+-                if *pending_pane == pane_id {
+-                    events.push(event);
+-                    return;
+-                }
++            if let Some(events) = outcome.requests.iter_mut().rev().find_map(|request| {
++                let ClientMessage::ClientShellPaneInput {
++                    pane_id: pending_pane,
++                    events,
++                } = request
++                else {
++                    return None;
++                };
++                (pending_pane == &pane_id).then_some(events)
++            }) {
++                events.push(event);
++                return;
+             }
+             outcome.requests.push(target_event_message(
+                 ClientInputTarget::Pane(pane_id),
+                 event,
+             ));
+         }
++        ClientInputTarget::Panes(pane_ids) => {
++            for pane_id in pane_ids {
++                push_target_event(ClientInputTarget::Pane(pane_id), event.clone(), outcome);
++            }
++        }
+         ClientInputTarget::Popup(terminal_id) => {
+             if let Some(ClientMessage::ClientShellPopupInput {
+                 terminal_id: pending_terminal,
+diff --git a/src/config/keybinds.rs b/src/config/keybinds.rs
+index 903f85c..702fe99 100644
+--- a/src/config/keybinds.rs
++++ b/src/config/keybinds.rs
+@@ -361,6 +361,7 @@ pub struct Keybinds {
+     pub close_workspace: ActionKeybinds,
+     pub workspace_picker: ActionKeybinds,
+     pub goto: ActionKeybinds,
++    pub synchronize_panes: ActionKeybinds,
+     pub detach: ActionKeybinds,
+     pub reload_config: ActionKeybinds,
+     pub open_notification_target: ActionKeybinds,
+@@ -544,6 +545,7 @@ impl Config {
+             close_workspace: empty_action!(),
+             workspace_picker: empty_action!(),
+             goto: empty_action!(),
++            synchronize_panes: empty_action!(),
+             detach: empty_action!(),
+             reload_config: empty_action!(),
+             open_notification_target: empty_action!(),
+@@ -673,6 +675,7 @@ impl Config {
+             apply_action!(keybinds.close_workspace, close_workspace, source);
+             apply_action!(keybinds.workspace_picker, workspace_picker, source);
+             apply_action!(keybinds.goto, goto, source);
++            apply_action!(keybinds.synchronize_panes, synchronize_panes, source);
+             apply_action!(keybinds.detach, detach, source);
+             apply_action!(keybinds.reload_config, reload_config, source);
+             apply_action!(
+@@ -1666,6 +1669,25 @@ next_tab = "prefix+n"
+         );
+     }
+
++    #[test]
++    fn synchronize_panes_accepts_a_prefix_binding() {
++        let config: Config = toml::from_str(
++            r#"
++            [keys]
++            synchronize_panes = "prefix+s"
++            "#,
++        )
++        .expect("configuration parses");
++        let keybinds = config.keybinds();
++        assert_eq!(
++            binding_triggers(&keybinds.synchronize_panes),
++            vec![BindingTrigger::Prefix((
++                KeyCode::Char('s'),
++                KeyModifiers::empty()
++            ))]
++        );
++    }
++
+     #[test]
+     fn goto_defaults_to_prefix_g() {
+         let kb = Config::default().keybinds();
+diff --git a/src/config/model.rs b/src/config/model.rs
+index 0e2e57c..2442819 100644
+--- a/src/config/model.rs
++++ b/src/config/model.rs
+@@ -357,6 +357,8 @@ pub struct KeysConfig {
+     pub workspace_picker: BindingConfig,
+     /// Open the session navigator. Default: "prefix+g"
+     pub goto: BindingConfig,
++    /// Toggle synchronized input for panes in the active tab. Unset by default.
++    pub synchronize_panes: BindingConfig,
+     /// Move workspace selection up in navigate mode. Default: "up".
+     pub navigate_workspace_up: BindingConfig,
+     /// Move workspace selection down in navigate mode. Default: "down".
+@@ -495,6 +497,8 @@ pub(crate) struct KeysConfigOverlay {
+     #[serde(skip_serializing_if = "Option::is_none")]
+     goto: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
++    synchronize_panes: Option<BindingConfig>,
++    #[serde(skip_serializing_if = "Option::is_none")]
+     navigate_workspace_up: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     navigate_workspace_down: Option<BindingConfig>,
+@@ -654,6 +658,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
+         apply_field!(close_workspace);
+         apply_field!(workspace_picker);
+         apply_field!(goto);
++        apply_field!(synchronize_panes);
+         apply_field!(navigate_workspace_up);
+         apply_field!(navigate_workspace_down);
+         apply_field!(navigate_pane_left);
+@@ -759,6 +764,7 @@ impl KeysConfig {
+         copy_effective_action_field!(close_workspace, keybinds.close_workspace);
+         copy_effective_action_field!(workspace_picker, keybinds.workspace_picker);
+         copy_effective_action_field!(goto, keybinds.goto);
++        copy_effective_action_field!(synchronize_panes, keybinds.synchronize_panes);
+         copy_effective_action_field!(navigate_workspace_up, keybinds.navigate.workspace_up);
+         copy_effective_action_field!(navigate_workspace_down, keybinds.navigate.workspace_down);
+         copy_effective_action_field!(navigate_pane_left, keybinds.navigate.pane_left);
+@@ -1128,6 +1134,7 @@ impl Default for KeysConfig {
+             close_workspace: BindingConfig::one("prefix+shift+d"),
+             workspace_picker: BindingConfig::one("prefix+w"),
+             goto: BindingConfig::one("prefix+g"),
++            synchronize_panes: BindingConfig::empty(),
+             navigate_workspace_up: BindingConfig::one("up"),
+             navigate_workspace_down: BindingConfig::one("down"),
+             navigate_pane_left: BindingConfig::one("h"),
+diff --git a/src/input/keybindings.rs b/src/input/keybindings.rs
+index 9ffce2e..52c0169 100644
+--- a/src/input/keybindings.rs
++++ b/src/input/keybindings.rs
+@@ -61,6 +61,7 @@ pub(crate) enum KeybindAction {
+     ResizePaneUp,
+     ResizePaneRight,
+     ToggleSidebar,
++    TogglePaneSynchronization,
+     CyclePaneNext,
+     CyclePanePrevious,
+     LastPane,
+@@ -147,6 +148,10 @@ pub(crate) fn resolve_non_indexed_action(
+         (&keybinds.resize_pane_up, KeybindAction::ResizePaneUp),
+         (&keybinds.resize_pane_right, KeybindAction::ResizePaneRight),
+         (&keybinds.toggle_sidebar, KeybindAction::ToggleSidebar),
++        (
++            &keybinds.synchronize_panes,
++            KeybindAction::TogglePaneSynchronization,
++        ),
+         (&keybinds.reload_config, KeybindAction::ReloadConfig),
+         (
+             &keybinds.open_notification_target,
+@@ -294,6 +299,24 @@ mod tests {
+         ));
+     }
+
++    #[test]
++    fn resolves_synchronize_panes_binding() {
++        let config: crate::config::Config = toml::from_str(
++            r#"
++            [keys]
++            synchronize_panes = "prefix+s"
++            "#,
++        )
++        .expect("configuration parses");
++        let key = TerminalKey::new(KeyCode::Char('s'), KeyModifiers::empty());
++        assert!(matches!(
++            resolve_prefix_binding(&config.keybinds(), &key),
++            Some(KeybindMatch::Action(
++                KeybindAction::TogglePaneSynchronization
++            ))
++        ));
++    }
++
+     #[test]
+     fn one_shared_resolver_handles_direct_prefix_and_indexed_bindings() {
+         let keybinds = Keybinds {

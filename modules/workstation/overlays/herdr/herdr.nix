@@ -14,7 +14,10 @@
         # rustPlatform, zig cache and Cargo.lock — the patch adds no dependency,
         # so nothing re-vendors. Offered upstream; delete this once it ships.
         herdr = inputs.herdr.packages.${final.stdenv.hostPlatform.system}.herdr.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ [ ./deepseek-agent.patch ];
+          patches = (old.patches or [ ]) ++ [
+            ./deepseek-agent.patch
+            ./pane-sync.patch
+          ];
         });
       })
     ];
