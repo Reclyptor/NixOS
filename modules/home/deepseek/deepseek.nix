@@ -155,7 +155,7 @@ _: {
           ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
 
           if ${lib.concatMapStringsSep " && " (f: "[ -f ${lib.escapeShellArg f} ]") files}; then
-            if ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs files})"; then
+            if ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs (files ++ [ (toString r.contextWindow) ])})"; then
               echo "deepseek: ${id} catalog fetched — $(describe ${shellRef "${v}_catalog"})" >&2
             else
               echo "deepseek: keeping the ${id} catalog already in ${homePatchFile}" >&2
