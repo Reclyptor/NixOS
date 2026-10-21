@@ -54,6 +54,20 @@ _: {
       # the default provider, and the "provider/model" strings or
       # {provider, model} objects of the model lists and slots (recentModels
       # feeds the /model picker). Model ids belong to the route, so they stay.
+      #
+      # The model picker's scope (enabledModels) defaults to this machine's
+      # own models: the self-hosted routes as whole-provider globs (the app
+      # expands them at session creation against the live catalogs, so a model
+      # an endpoint newly serves appears without a Nix change), plus official
+      # DeepSeek's two models and the current latest of each Anthropic and
+      # Codex flagship line pinned by id. The pins are exact because a bare
+      # provider glob also matches other providers' slashed ids (openrouter's
+      # and vercel's DeepSeek models carry ids like "deepseek/deepseek-v4-flash"),
+      # which would leak into the scope; globs cannot express "latest" anyway,
+      # and a pinned id is a one-line bump when a newer model ships. Filled
+      # only while null, so a scope chosen in-app wins. The daemon's
+      # allowedModels gate stays unset: it fails closed and would hard-refuse
+      # stale references rather than hide them from the picker.
       defaultsProg = ''
         ${renames} as $ren |
         def moved:
@@ -81,6 +95,23 @@ _: {
          else .
          end) |
         (if .compaction.keepRecentTokens == null then .compaction.keepRecentTokens = 40000 else . end) |
+        (if .enabledModels == null
+         then .enabledModels = [
+           "deepseek-self-hosted/*",
+           "qwen-cloudflare/*",
+           "qwen-lan/*",
+           "deepseek/deepseek-flash",
+           "deepseek/deepseek-v4-pro",
+           "anthropic/claude-opus-5-5",
+           "anthropic/claude-sonnet-5-5",
+           "anthropic/claude-haiku-4-5",
+           "openai-codex/gpt-6-astra",
+           "openai-codex/gpt-6-luna",
+           "openai-codex/gpt-5.6-terra",
+           "openai-codex/gpt-6.1-sol"
+         ]
+         else .
+         end) |
         if .factory.enabled == null then .factory.enabled = true else . end
       '';
 
@@ -169,7 +200,24 @@ _: {
         ${lib.concatStrings (lib.mapAttrsToList routeProg routes)}
         .providers.deepseek = ((.providers.deepseek // {}) + {
           baseUrl: "https://api.deepseek.com",
-          apiKey: "!cat ${secretsDir}/deepseek-api-key"
+          apiKey: "!cat ${secretsDir}/deepseek-api-key",
+          # The official API renamed deepseek-v4-flash to deepseek-flash
+          # (verified 2026-10-20 against the live /models endpoint) while the
+          # app's catalog still lists the old id; declare the renamed model
+          # with that catalog entry's metadata, since the merge replaces a
+          # matching provider+id wholesale. deepseek-v4-pro keeps resolving
+          # from the catalog untouched.
+          models: [
+            {id: "deepseek-flash",
+             name: "DeepSeek Flash",
+             reasoning: true,
+             thinkingLevelMap: {off: null, minimal: null, low: null, medium: null, high: "high", xhigh: "max", max: null},
+             input: ["text", "image"],
+             cost: {input: 0.15, output: 0.6, cacheRead: 0.003, cacheWrite: 0},
+             contextWindow: 1000000,
+             maxTokens: 393216,
+             compat: {requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek"}}
+          ]
         })
       '';
 
