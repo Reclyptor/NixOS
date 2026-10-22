@@ -112,6 +112,24 @@
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "path": "inputs/rust-overlay",
+        "type": "path"
+      },
+      "original": {
+        "path": "inputs/rust-overlay",
+        "type": "path"
+      },
+      "parent": []
+    },
+    "rust-overlay_2": {
+      "inputs": {
+        "nixpkgs": [
+          "rust-overlay",
+          "nixpkgs"
         ]
       },
       "locked": {

@@ -30,10 +30,10 @@ _: {
         (
           (import ./_artcraft.nix { inherit lib pkgs; } {
             pname = "pdfcraft";
-            version = "0.8.0";
-            hash = "sha256-gPd3NSEaeBEP5m0zUHI92vrqPd0pQSItuF44ZHaTnco=";
-            cargoHash = "sha256-0YWdiM3E046i2t8lCHLEVYKC9pQnBXCFYMtG3aDxTZ0=";
-            releaseDate = "2026-10-14";
+            version = "0.9.0";
+            hash = "sha256-pOHCv3K6XfRci1kWhta1gmTZGklSpBJqjLIXvqKq484=";
+            cargoHash = "sha256-4zRin04PC+QAeV41qcXHouOXNbwIGYZ/IfXhGKa9Zp8=";
+            releaseDate = "2026-10-18";
             description = "PDF editor to read, organize, combine, split and secure PDFs";
             craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
 
@@ -47,9 +47,11 @@ _: {
             ];
 
             # pdfcraft-engine -> pdfcraft-ocr -> ocrs -> rten -> rten-gemm, which
-            # calls _mm512_dpbusd_epi32. rustc 1.97.1 cannot codegen that intrinsic
-            # — its own stdarch declares the LLVM intrinsic with the wrong vector
-            # types — so the build fails outright, and OCR is not optional here
+            # calls _mm512_dpbusd_epi32. rustc cannot codegen that intrinsic —
+            # its own stdarch declares the LLVM intrinsic with the wrong vector
+            # types (repro'd on 1.97.1, and again on 1.98.1 on 2026-10-21 by
+            # building unpatched rten-gemm 0.26.0) — so the build fails outright,
+            # and OCR is not optional here
             # (apps/pdfcraft/Cargo.toml declares no features at all). The patch emits
             # the instruction as inline asm instead, which is what rten already does
             # for the same instruction in its x86_64 kernel.
@@ -63,16 +65,16 @@ _: {
               }
             ];
           }).overrideAttrs
-          (old: {
-            postInstall = old.postInstall + ''
-              for model in ${lib.escapeShellArgs ocrModels}; do
-                install -Dm644 "$model" "$out/share/pdfcraft/models/$(stripHash "$model")"
-              done
-            '';
-            meta = old.meta // {
-              license = old.meta.license ++ [ lib.licenses.cc-by-sa-40 ];
-            };
-          })
+            (old: {
+              postInstall = old.postInstall + ''
+                for model in ${lib.escapeShellArgs ocrModels}; do
+                  install -Dm644 "$model" "$out/share/pdfcraft/models/$(stripHash "$model")"
+                done
+              '';
+              meta = old.meta // {
+                license = old.meta.license ++ [ lib.licenses.cc-by-sa-40 ];
+              };
+            })
         )
       ];
     };

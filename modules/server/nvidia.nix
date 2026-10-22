@@ -83,5 +83,35 @@ _: {
           device-name-strategy = "uuid";
         };
       };
+
+      # nixpkgs's CDI generator runs the freshly built nvidia-ctk against
+      # the kernel driver currently loaded. On a switch without reboot that
+      # bumps the driver, that userspace/kernel mismatch fails the unit and
+      # aborts the entire activation. Treat generation as best-effort here:
+      # the unit still runs for real at every boot (wantedBy multi-user),
+      # when driver and toolkit match, and until then the previous CDI spec
+      # stays valid in /run/cdi.
+      systemd.services.nvidia-container-toolkit-cdi-generator.serviceConfig = {
+        # udevadm settle may block the start job for up to 180 seconds
+        # while the udev queue drains during a busy switch; systemd's
+        # default start timeout is 90 seconds, which kills the job and
+        # aborts the whole activation. Give the settle room to finish.
+        TimeoutStartSec = 300;
+
+        # Generation itself is best-effort during a switch: it still runs
+        # for real at every boot (wantedBy multi-user), when driver and
+        # toolkit match, and until then the previous CDI spec stays valid
+        # in /run/cdi.
+        SuccessExitStatus = [
+          0
+          1
+          2
+          3
+          4
+          5
+          6
+          7
+        ];
+      };
     };
 }
