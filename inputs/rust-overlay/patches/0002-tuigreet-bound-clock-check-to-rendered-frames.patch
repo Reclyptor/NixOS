@@ -1,0 +1,50 @@
+--- a/crates/tuigreet/src/integration/display.rs
++++ b/crates/tuigreet/src/integration/display.rs
+@@ -1,6 +1,6 @@
+ use std::time::Duration;
+ 
+-use chrono::Local;
++use chrono::{Local, TimeZone};
+ use libgreetd_stub::SessionOptions;
+ 
+ use super::common::IntegrationRunner;
+@@ -71,10 +71,6 @@
+ 
+ const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
+ 
+-// TODO
+-// This could create a race condition if we do not mock time, because we rely on
+-// being at the same second between the test instantiation and the tasks
+-// running, which is not guaranteed.
+ #[tokio::test]
+ async fn show_time() {
+   let opts = SessionOptions {
+@@ -83,7 +79,7 @@
+     mfa:      false,
+   };
+ 
+-  let tref = Local::now().format(TIME_FORMAT).to_string();
++  let start = Local::now().timestamp();
+ 
+   let mut runner = IntegrationRunner::new(
+     opts,
+@@ -100,7 +96,18 @@
+     async move {
+       runner.wait_for_render().await;
+ 
+-      assert!(runner.output().await.contains(&tref));
++      let output = runner.output().await;
++      let end = Local::now().timestamp();
++      let tref = (start..=end)
++        .map(|timestamp| {
++          Local
++            .timestamp_opt(timestamp, 0)
++            .unwrap()
++            .format(TIME_FORMAT)
++            .to_string()
++        })
++        .find(|timestamp| output.contains(timestamp))
++        .expect("first render should show the current time");
+ 
+       tokio::time::sleep(Duration::from_secs(1)).await;
+ 

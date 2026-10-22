@@ -1,0 +1,27 @@
+--- a/installed-tests/scripts/testCommandLine.sh
++++ b/installed-tests/scripts/testCommandLine.sh
+@@ -214,5 +214,18 @@
+-# non UTF8 file names throws error
+-bash -c "touch $'\xff'"
+-G_FILENAME_ENCODING=utf8 $gjs -m printFiles.js 2>&1 | grep -q 'Gjs-CRITICAL.*Could not convert filename string to UTF-8 for string: \\377'
+-report "Throws error if filename is not UTF8"
+-bash -c "rm ''$'\377'"
++# Run this fixture on tmpfs: the build sandbox's ZFS `/nix` rejects
++# non-UTF-8 filenames. The JS fixture is in Meson's test working directory.
++non_utf8_dir=
++if non_utf8_dir=$(mktemp -d /dev/shm/gjs-nonutf8.XXXXXX) &&
++    (cd "$non_utf8_dir" && bash -c "touch $'\xff'"); then
++    test_top_dir=$(pwd)
++    (cd "$non_utf8_dir" && \
++        G_FILENAME_ENCODING=utf8 $gjs -m "$test_top_dir/printFiles.js") \
++        2>&1 | grep -q 'Gjs-CRITICAL.*Could not convert filename string to UTF-8 for string: \\377'
++    report "Throws error if filename is not UTF8"
++    rm -rf "$non_utf8_dir"
++else
++    if [ -n "$non_utf8_dir" ]; then
++        rm -rf "$non_utf8_dir"
++    fi
++    false
++    report "Throws error if filename is not UTF8"
++fi
++fi
