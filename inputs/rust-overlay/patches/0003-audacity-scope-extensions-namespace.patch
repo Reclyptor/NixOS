@@ -1,0 +1,80 @@
+--- a/muse/framework/extensions/qml/Muse/Extensions/devtools/apidumpmodel.cpp
++++ b/muse/framework/extensions/qml/Muse/Extensions/devtools/apidumpmodel.cpp
+@@ -33,7 +33,7 @@
+ 
+ #include "log.h"
+ 
+-using namespace muse::extensions;
++namespace muse::extensions {
+ using namespace muse::api;
+ 
+ static const QHash<QString, QString> TYPES_MAP = {
+@@ -285,3 +285,4 @@
+     QString str = makeWiki();
+     std::cout << str.toStdString() << std::endl;
+ }
++}
+--- a/muse/framework/extensions/qml/Muse/Extensions/devtools/devextensionslistmodel.cpp
++++ b/muse/framework/extensions/qml/Muse/Extensions/devtools/devextensionslistmodel.cpp
+@@ -21,7 +21,7 @@
+  */
+ #include "devextensionslistmodel.h"
+ 
+-using namespace muse::extensions;
++namespace muse::extensions {
+ 
+ DevExtensionsListModel::DevExtensionsListModel(QObject* parent)
+     : QObject(parent), Contextable(muse::iocCtxForQmlObject(this))
+@@ -48,3 +48,4 @@
+     UriQuery q(uri_.toStdString());
+     provider()->perform(q);
+ }
++}
+--- a/muse/framework/extensions/qml/Muse/Extensions/extensionbuilder.cpp
++++ b/muse/framework/extensions/qml/Muse/Extensions/extensionbuilder.cpp
+@@ -31,7 +31,7 @@
+ 
+ #include "log.h"
+ 
+-using namespace muse::extensions;
++namespace muse::extensions {
+ 
+ const QString ERROR_MSG_PATH = ":/qml/Muse/Extensions/ExtensionErrorMessage.qml";
+ 
+@@ -175,3 +175,4 @@
+ {
+     return m_title;
+ }
++}
+--- a/muse/framework/extensions/qml/Muse/Extensions/extensionslistmodel.cpp
++++ b/muse/framework/extensions/qml/Muse/Extensions/extensionslistmodel.cpp
+@@ -27,7 +27,7 @@
+ 
+ #include "log.h"
+ 
+-using namespace muse::extensions;
++namespace muse::extensions {
+ using namespace muse::async;
+ 
+ static constexpr int INVALID_INDEX = -1;
+@@ -278,3 +278,4 @@
+ 
+     return INVALID_INDEX;
+ }
++}
+--- a/muse/framework/extensions/qml/Muse/Extensions/extensionstoolbarmodel.cpp
++++ b/muse/framework/extensions/qml/Muse/Extensions/extensionstoolbarmodel.cpp
+@@ -23,7 +23,7 @@
+ 
+ #include "uicomponents/qml/Muse/UiComponents/toolbaritem.h"
+ 
+-using namespace muse::extensions;
++namespace muse::extensions {
+ using namespace muse::uicomponents;
+ 
+ void ExtensionsToolBarModel::load()
+@@ -52,3 +52,4 @@
+ 
+     AbstractToolBarModel::load();
+ }
++}

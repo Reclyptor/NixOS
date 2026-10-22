@@ -38,6 +38,10 @@
   # Test-runner flags, for skipping a test that fails for reasons unrelated to
   # what we install; the app module says which and why.
   checkFlags ? [ ],
+  # Shell fragment to run immediately before the test phase. Most apps leave it
+  # empty; a test with a filesystem requirement may set up its own test-only
+  # environment here, after stdenv has initialized TMPDIR to /build.
+  preCheck ? "",
   # Cargo features. Off by default upstream so distributors can choose; where
   # the official build turns one on, the app module says so.
   buildFeatures ? [ ],
@@ -225,7 +229,7 @@ pkgs.rustPlatform.buildRustPackage {
     "-p"
     "${pname}-cli"
   ];
-  inherit checkFlags;
+  inherit checkFlags preCheck;
 
   postInstall = ''
     install -Dm644 packaging/linux/${appId}.desktop \

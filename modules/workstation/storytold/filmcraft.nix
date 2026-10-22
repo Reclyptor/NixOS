@@ -8,10 +8,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "filmcraft";
-          version = "0.8.0";
-          hash = "sha256-CxmUZ0felNb371LiQy1bNOfc2V/16DixvCkzyuFRhMM=";
-          cargoHash = "sha256-xjyTr6HPvaO6tndE+1Icgs6HCx96I5a2zQfAYpqPE7U=";
-          releaseDate = "2026-10-14";
+          version = "0.9.0";
+          hash = "sha256-GQHgXZwEQcBfCZMxZMfPmoKXZvS9PwX99/Mq7aq34n8=";
+          cargoHash = "sha256-ilrMSVA0T1gQJRgCe+m8Vr2QTJMBZFas/gaYJ1+pttg=";
+          releaseDate = "2026-10-18";
           description = "Video editor for picture, color and sound";
           craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
 
