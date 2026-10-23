@@ -1,5 +1,4 @@
-{ inputs, ... }:
-{
+_: {
   flake.modules.homeManager.base =
     {
       pkgs,
@@ -13,9 +12,9 @@
         enableNushellIntegration = false;
         enableZshIntegration = false;
 
-        # max-preview renders images, GIFs, video frames, PDFs, archives and
-        # JSON. Pinned as a source input so `nix flake update` bumps it.
-        plugins."max-preview" = "${inputs.yazi-plugins}/max-preview.yazi";
+        # Image, GIF, video, PDF, archive and JSON previews are built into
+        # yazi since 25.2.7 (preset plugins), so no plugin is installed here —
+        # the preset previewers shell out to the tools below.
 
         # Companion tools from the official docs dependency list, added to
         # yazi's wrapper PATH. Already on the machine elsewhere: fd, rg
