@@ -28,14 +28,6 @@
       flake = false;
     };
 
-    # Same pattern: the preview plugin (max-preview) lives in the official
-    # yazi-rs/plugins collection, pinned as a source input so `nix flake
-    # update` bumps it.
-    yazi-plugins = {
-      url = "github:yazi-rs/plugins";
-      flake = false;
-    };
-
     # Pinned to a release tag rather than taken from nixpkgs, which trails by two
     # releases: the 0.9.x line is where Claude Code's "blocked" state became
     # trustworthy (Bash approvals, MCP questions), and that signal is the whole

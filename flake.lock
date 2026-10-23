@@ -105,7 +105,6 @@
         "rust-overlay": "rust-overlay",
         "sops-nix": "sops-nix",
         "treefmt-nix": "treefmt-nix",
-        "yazi-plugins": "yazi-plugins",
         "yt-dlp": "yt-dlp"
       }
     },
@@ -184,22 +183,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "yazi-plugins": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1792734954,
-        "narHash": "sha256-H/4Oi/D2M/aDEk/AourPURxfhoMxSm5UjaRgpeXrQ1Q=",
-        "owner": "yazi-rs",
-        "repo": "plugins",
-        "rev": "e0bbd205de9759e7aa81857e1ff616eb5123e305",
-        "type": "github"
-      },
-      "original": {
-        "owner": "yazi-rs",
-        "repo": "plugins",
         "type": "github"
       }
     },
