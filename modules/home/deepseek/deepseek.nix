@@ -218,7 +218,11 @@ _: {
         # patch.
         if printf '%s\n' "$base" |
           ${lib.concatStrings (lib.mapAttrsToList routeEnv routes)}  "$yq" '${program}' > "${homePatchFile}.tmp"; then
-          mv -f "${homePatchFile}.tmp" "${homePatchFile}"
+          if cmp -s "${homePatchFile}.tmp" "${homePatchFile}"; then
+            rm -f "${homePatchFile}.tmp"
+          else
+            mv -f "${homePatchFile}.tmp" "${homePatchFile}"
+          fi
         else
           rm -f "${homePatchFile}.tmp"
           echo "deepseek: yq merge failed for ${homePatchFile} (left unchanged)" >&2
@@ -239,7 +243,11 @@ _: {
         if [ -f "$dsh_key" ]; then
           mkdir -p "$(dirname "${envFile}")"
           printf 'DEEPSEEK_API_KEY=%s\n' "$(cat "$dsh_key")" > "${envFile}.tmp"
-          mv -f "${envFile}.tmp" "${envFile}"
+          if cmp -s "${envFile}.tmp" "${envFile}"; then
+            rm -f "${envFile}.tmp"
+          else
+            mv -f "${envFile}.tmp" "${envFile}"
+          fi
         else
           echo "deepseek: deepseek-api-key not present yet, skipping ${envFile}" >&2
         fi
@@ -413,7 +421,11 @@ _: {
               | select((.id as $i | $owned | any_c(. == $i)) | not)
               | select((has("insert") and (.insert | all_c((.id // "") | test("^mcp-")))) | not)]
         ' > "$file.tmp"; then
-          mv -f "$file.tmp" "$file"
+          if cmp -s "$file.tmp" "$file"; then
+            rm -f "$file.tmp"
+          else
+            mv -f "$file.tmp" "$file"
+          fi
         else
           # A patch the merge cannot read is left exactly as it is: failing
           # activation over it would block every unrelated home change.
