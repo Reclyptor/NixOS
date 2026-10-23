@@ -333,12 +333,18 @@ _: {
       # Edit ./AGENTS.md next to this module.
       home.file.".prime/agent/AGENTS.md".source = ./AGENTS.md;
 
+      # Same cmp guard as providersSync's prune below: a switch whose merge
+      # changes nothing must not rewrite the file under a running agent.
       home.activation.primeAgentSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="$HOME/.prime/agent/settings.json"
         $DRY_RUN_CMD mkdir -p "$(dirname "$settings")"
         if [ -f "$settings" ]; then base="$(cat "$settings")"; else base="{}"; fi
         if printf '%s' "$base" | ${pkgs.jq}/bin/jq ${lib.escapeShellArg defaultsProg} > "$settings.nix.tmp"; then
-          $DRY_RUN_CMD mv -- "$settings.nix.tmp" "$settings"
+          if cmp -s "$settings.nix.tmp" "$settings"; then
+            rm -f "$settings.nix.tmp"
+          else
+            $DRY_RUN_CMD mv -- "$settings.nix.tmp" "$settings"
+          fi
         else
           rm -f "$settings.nix.tmp"
           echo "prime-agent: jq merge failed for $settings (left unchanged)" >&2
