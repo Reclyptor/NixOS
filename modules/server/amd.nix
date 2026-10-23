@@ -28,5 +28,13 @@ _: {
         AMD_VULKAN_ICD = "RADV";
         RADV_PERFTEST = "gpl";
       };
+
+      # Plex hardware transcode (VAAPI via /dev/dri). Lived in server/iscsi.nix
+      # for years; it is AMD-node configuration, so it belongs beside the
+      # driver setup the condition already gates.
+      systemd.tmpfiles.rules = [
+        "d /dev/dri 0755 root video -"
+        "d /var/lib/plex-transcode 0755 root root -"
+      ];
     };
 }
