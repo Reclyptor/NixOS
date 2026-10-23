@@ -126,7 +126,14 @@ _: {
             $DRY_RUN_CMD mkdir -p "$(dirname "$file")"
             if [ -f "$file" ]; then base="$(cat "$file")"; else base="{}"; fi
             if printf '%s' "$base" | ${lib.getExe pkgs.jq} "$prog" > "$file.mcp.tmp"; then
-              $DRY_RUN_CMD mv -- "$file.mcp.tmp" "$file"
+              # cmp skips the rewrite when the merge is a no-op: several of
+              # these files are live agent state, and a no-op switch should
+              # not churn their mtimes under a running agent.
+              if cmp -s "$file.mcp.tmp" "$file"; then
+                rm -f "$file.mcp.tmp"
+              else
+                $DRY_RUN_CMD mv -- "$file.mcp.tmp" "$file"
+              fi
             else
               rm -f "$file.mcp.tmp"
               echo "agent-mcp: jq merge failed for $file (left unchanged)" >&2
@@ -147,8 +154,12 @@ _: {
             echo "agent-mcp: $codex_toml already has [mcp_servers.*] blocks codexConfig should have stripped, skipping codex" >&2
           else
             printf '%s' ${lib.escapeShellArg codexBlocks} | cat "$codex_toml" - > "$codex_toml.mcp.tmp"
-            $DRY_RUN_CMD mv -- "$codex_toml.mcp.tmp" "$codex_toml"
-            $DRY_RUN_CMD chmod 600 "$codex_toml"
+            if cmp -s "$codex_toml.mcp.tmp" "$codex_toml"; then
+              rm -f "$codex_toml.mcp.tmp"
+            else
+              $DRY_RUN_CMD mv -- "$codex_toml.mcp.tmp" "$codex_toml"
+              $DRY_RUN_CMD chmod 600 "$codex_toml"
+            fi
           fi
         '';
       };
