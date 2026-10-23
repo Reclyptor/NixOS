@@ -35,6 +35,10 @@ _: {
           printf '%s\n\n%s\n%s = "%s"\n' \
             '[gd_resource type="EditorSettings" format=3]' '[resource]' "$key" "$value" \
             > "$settings"
+        elif ${pkgs.gnugrep}/bin/grep -q "^$key = \"$value\"\$" "$settings"; then
+          # Already pointing at the right binary; leave Godot's own file alone
+          # so a no-op switch does not churn it under a running editor.
+          :
         elif ${pkgs.gnugrep}/bin/grep -q "^$key" "$settings"; then
           ${pkgs.gnused}/bin/sed -i "s|^$key = .*|$key = \"$value\"|" "$settings"
         else
