@@ -3,6 +3,12 @@ _: {
     services.openiscsi.enable = true;
     services.openiscsi.name = "iqn.2005-10.org.freenas.ctl";
 
+    # iscsiadm at the FHS paths its consumers hardcode. The k3s iSCSI
+    # consumers (democratic-csi node pods, defined in the Flux repo) invoke
+    # /sbin/iscsiadm or /usr/sbin/iscsiadm, and nixpkgs installs the binary
+    # only under /run/current-system/sw/bin. The d rules create the parents
+    # first, because L+ does not create intermediate directories. These run
+    # at boot, not on every switch.
     systemd.tmpfiles.rules = [
       "d /usr/sbin 0755 root root -"
       "L+ /usr/sbin/iscsiadm - - - - /run/current-system/sw/bin/iscsiadm"
