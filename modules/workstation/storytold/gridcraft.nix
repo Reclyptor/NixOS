@@ -7,10 +7,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "gridcraft";
-          version = "0.8.0";
-          hash = "sha256-G0xsNWRoNMtA5lTKSZgLCHP6gcq+zOaOPdcColuFr0A=";
-          cargoHash = "sha256-EY/41uMNm9hG7LhynI4d/7RSj5tGXsT8/s+Al8mr7pk=";
-          releaseDate = "2026-10-18";
+          version = "0.11.1";
+          hash = "sha256-ZhaRTAPX+bnifFTgU7Pv5wFaJHmffXI0a0vAyF4A0cs=";
+          cargoHash = "sha256-eQMyzLQGDw444ZPpw01jbJkoWXWlWfGvWoQCd9mYr50=";
+          releaseDate = "2026-10-22";
           description = "Spreadsheet for calculating, analyzing and charting data";
         })
       ];

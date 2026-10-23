@@ -72,6 +72,7 @@ let
   # because the release workflows share four commits between ten apps.
   craftFontsHashes = {
     "3d9ab3a132ed0eff457e424226a435a901da30d3" = "sha256-mNnDzBcOp1X10dzmiW0iBAkb74QjuzMO4slWudxXCTE=";
+    "a71c20e30af613287c504f7e685ca8fad77752bc" = "sha256-KTyWjbpGmgZI2L+tL+vY1qI3Lr+j/9bO3i+s566rdlk=";
     "43913056ce82a3fdad0ef69f6b88d1dc922a8104" = "sha256-u1fC5spekizPXnrK6uiKEZSr2SJOaBF4ffLDbKkywEY=";
     "abb83316d96aa59c1cf64784289e378fe9fa5695" = "sha256-e+6HpOYoAFTh6mNfGBBw2njnBzcE8W8+Jybv1+dKOCA=";
     "8dcdacd5153e64560d109541a47d806f26f048c0" = "sha256-4E9OrthE5z39xFXpvpwn4Fn6RH3wX2sF56rZZejZT+I=";
@@ -174,6 +175,7 @@ let
     pkgs.wayland # libwayland-client.so.0
     pkgs.vulkan-loader # wgpu's first choice; finds its ICDs under /run/opengl-driver
     pkgs.libGL # libEGL.so.1, wgpu's fallback
+    pkgs.fontconfig # libfontconfig.so.1, dlopened by photocraft's text stack since 0.14.0
   ];
 in
 pkgs.rustPlatform.buildRustPackage {

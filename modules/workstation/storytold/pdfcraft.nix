@@ -30,10 +30,10 @@ _: {
         (
           (import ./_artcraft.nix { inherit lib pkgs; } {
             pname = "pdfcraft";
-            version = "0.9.0";
-            hash = "sha256-pOHCv3K6XfRci1kWhta1gmTZGklSpBJqjLIXvqKq484=";
-            cargoHash = "sha256-4zRin04PC+QAeV41qcXHouOXNbwIGYZ/IfXhGKa9Zp8=";
-            releaseDate = "2026-10-18";
+            version = "0.13.0";
+            hash = "sha256-DS2jfwzH3LtvEhlxcoSywyDDenvH2N9DkdDVzEP6QdQ=";
+            cargoHash = "sha256-w56jGzgk82D67vH3z0aUL49iGMtl9oYQVmgwVZ4EkLc=";
+            releaseDate = "2026-10-23";
             description = "PDF editor to read, organize, combine, split and secure PDFs";
             craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
 

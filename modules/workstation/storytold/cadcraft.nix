@@ -7,15 +7,15 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "cadcraft";
-          version = "0.8.0";
-          hash = "sha256-kJQAgQ9ebzSW2V4/pK2HxRuLLQfvZJ16miJshbYo0TU=";
-          cargoHash = "sha256-ql6+1TmAhoDumKI7YbTE0gVSoRa0yr0amaH0OIKF+os=";
-          releaseDate = "2026-10-17";
+          version = "0.12.0";
+          hash = "sha256-JkpiJvU/Pk00q52lL1/LehJKIX5kHKMLQhhgxZdmRYs=";
+          cargoHash = "sha256-lfoYEl44uFPdl5YYBOlsYUFlU00eDHnILcOGcrFc1BM=";
+          releaseDate = "2026-10-23";
           description = "2D drafting and plotting with DXF and DWG support";
           craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
 
           extraEnv = {
-            CADCRAFT_BUILD_SHA = "714111d528acc86dc6b41e03f9a82cabc1066dca";
+            CADCRAFT_BUILD_SHA = "bad1073fdf10a521949f6b542837b564719d0023";
           };
         })
       ];

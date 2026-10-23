@@ -12,10 +12,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "effectcraft";
-          version = "0.11.1";
-          hash = "sha256-Tck0XVne5B5mdnRzN50zrG/gCa5tE56TOyFi9ieSPEE=";
-          cargoHash = "sha256-wyRErJzqvXFAl3RLQREUSkLCqWMUVDHszI8jAjBqfpI=";
-          releaseDate = "2026-10-18";
+          version = "0.16.0";
+          hash = "sha256-Qc6DJtbJND79MHsqQsHkPpL+xg622xk4kn4+nYXBpSM=";
+          cargoHash = "sha256-BkZjYS5G+mx7F+0ODjEwMn9JBBLG8x58oMGgeBMrT8E=";
+          releaseDate = "2026-10-23";
           description = "Motion graphics and visual effects compositor";
 
           # Same ALSA path as filmcraft, whose media crates it shares.

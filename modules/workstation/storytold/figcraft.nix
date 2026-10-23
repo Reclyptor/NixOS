@@ -11,10 +11,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "figcraft";
-          version = "0.7.0";
-          hash = "sha256-0K9K3EEe/HKpufzW8ym9NUwsNpioUvPUxV9rxpoJU2Q=";
-          cargoHash = "sha256-BdDJmIoTAH06y+bvfY8WyzxgV7572oxSdkA8kN4wz4E=";
-          releaseDate = "2026-10-18";
+          version = "0.10.0";
+          hash = "sha256-GTcEYs6BUqcA3AhXph1uZM78Z1N2FgljW1X5oaoim7I=";
+          cargoHash = "sha256-/ovHS9Psoaonak7k3BGo2PPeH441Tec9WE047pzHoGA=";
+          releaseDate = "2026-10-22";
           description = "Interface design and prototyping tool";
           craftFontsRev = "43913056ce82a3fdad0ef69f6b88d1dc922a8104";
 
@@ -23,7 +23,7 @@ _: {
           # official build: the collaboration server it names is contacted only
           # when sharing online, joining by code or publishing.
           extraEnv = {
-            FIGCRAFT_BUILD_SHA = "47438dd4a2e8b49a7e6bb3dfd480262dadc37f12";
+            FIGCRAFT_BUILD_SHA = "80f916326fb94f3a88cb24e64f396f564a0ebc06";
           };
         })
       ];

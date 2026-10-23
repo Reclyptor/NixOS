@@ -7,10 +7,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "deckcraft";
-          version = "0.8.0";
-          hash = "sha256-kO8YBFzyip+NJmH2eFGGOB7OCOZWUhIGvEuxBzSemgk=";
-          cargoHash = "sha256-TlPzzZqjfKPE0D6FUSQKYkfdENzED+zNRYfQxepEBzk=";
-          releaseDate = "2026-10-18";
+          version = "0.10.0";
+          hash = "sha256-q18YQXHmkPaULSMPxu5vY9/F7JThejIhKwpHhme0UCI=";
+          cargoHash = "sha256-iHkyrHz2VMx0+bpYnve5EtBiuH32VSYHRSvg+ihIdwU=";
+          releaseDate = "2026-10-22";
           description = "Presentation editor for building and showing slide decks";
           craftFontsRev = "43913056ce82a3fdad0ef69f6b88d1dc922a8104";
 
@@ -20,8 +20,8 @@ _: {
           extraBuildInputs = [ pkgs.alsa-lib ];
 
           extraEnv = {
-            DECKCRAFT_BUILD_SHA = "22db9261f9d1a214c296fd390173130c45d76d66";
-            DECKCRAFT_BUILD_DATE = "2026-10-18";
+            DECKCRAFT_BUILD_SHA = "b47195feec0f0fe4220d8943ad1c8add5dad8072";
+            DECKCRAFT_BUILD_DATE = "2026-10-22";
           };
         })
       ];

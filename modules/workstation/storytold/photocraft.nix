@@ -7,10 +7,10 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "photocraft";
-          version = "0.10.0";
-          hash = "sha256-asFS+pfcFBD5sNm6AMOnCaPVVluXvN2TBW5jeFFPpEQ=";
-          cargoHash = "sha256-MXFjgTw0G3phdPe19I1Wb+qU0jfszw/0vNw7hyTJQ7g=";
-          releaseDate = "2026-10-18";
+          version = "0.14.0";
+          hash = "sha256-dkaJAJAcB433EDRiteDoxfvK17st37YP/tmlzQhi0UE=";
+          cargoHash = "sha256-I0b+ZDqsi2fucOlIbu3UpVAFV4hvIJyUoWFx28SYiC8=";
+          releaseDate = "2026-10-23";
           description = "Image editor for photos and layered PSD documents";
           craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
 
@@ -19,6 +19,15 @@ _: {
           # upstream's own packaging/linux/package.sh now builds with it. Costs no
           # native dependency — photocraft-heif wraps heic-rs, which is pure Rust.
           buildFeatures = [ "heif" ];
+
+          # New in 0.14.0: the text stack (photocraft-text -> parley -> fontique ->
+          # yeslogic-fontconfig-sys) reads the system font list. fontconfig-sys
+          # needs pkg-config and the fontconfig headers at build time, and it
+          # dlopens libfontconfig.so.1 at run time — so fontconfig also joins
+          # the builder's shared wrapper set in _artcraft.nix. Upstream's nfpm
+          # depends list omits it because every supported distro ships it.
+          extraNativeBuildInputs = [ pkgs.pkg-config ];
+          extraBuildInputs = [ pkgs.fontconfig ];
 
           # Cargo.lock lists pipewire-sys since 0.7.0 and aws-lc-sys since 0.9.0, which
           # would want libpipewire, cmake and a libclang. Both are Windows-only paths:
@@ -30,16 +39,16 @@ _: {
 
           # Build provenance, read at compile time by crates/engine/src/build_info.rs
           # and shown in --version and the About dialog. Unset, the binary calls
-          # itself "0.10.0 (dev build)": a build that cannot name the commit it came
+          # itself "0.14.0 (dev build)": a build that cannot name the commit it came
           # from is of no use in a bug report. Both values are properties of the pin
           # above, so stamping them costs nothing in reproducibility. The commit is
-          # v0.10.0^{commit}, which upstream shortens to 9 characters for display.
+          # v0.14.0^{commit}, which upstream shortens to 9 characters for display.
           #
           # The only one of the seven ArtCraft apps that reads a provenance; of the
           # rest of the suite, wordcraft, deckcraft, cadcraft and figcraft do too.
           extraEnv = {
-            PHOTOCRAFT_BUILD_SHA = "8407d9ccb125af52944fca9d228383459f94aaef";
-            PHOTOCRAFT_BUILD_DATE = "2026-10-18";
+            PHOTOCRAFT_BUILD_SHA = "ff4738810134d7f7e68b49f2e4f231b686282ff3";
+            PHOTOCRAFT_BUILD_DATE = "2026-10-23";
           };
         })
       ];
