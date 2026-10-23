@@ -96,8 +96,15 @@ _: {
                 fi
               } > "$CODEX_CFG.tmp"
 
-              $DRY_RUN_CMD mv "$CODEX_CFG.tmp" "$CODEX_CFG"
-              $DRY_RUN_CMD chmod 600 "$CODEX_CFG"
+              # Skip the rename when the regenerated config is byte-identical:
+              # codex rewrites this file itself (trust levels, mcp blocks), and
+              # a no-op switch should not churn it under a running session.
+              if cmp -s "$CODEX_CFG.tmp" "$CODEX_CFG"; then
+                rm -f "$CODEX_CFG.tmp"
+              else
+                $DRY_RUN_CMD mv "$CODEX_CFG.tmp" "$CODEX_CFG"
+                $DRY_RUN_CMD chmod 600 "$CODEX_CFG"
+              fi
         '';
       };
     };
