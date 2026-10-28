@@ -122,7 +122,8 @@ _: {
                   -- that has stopped answering and drops it. The render_unfocused rule
                   -- in 10-rules opts a window back into callbacks; this is the rate they
                   -- arrive at. The default of 15 is a budget for keeping a preview
-                  -- alive, not for keeping a game's simulation fed.
+                  -- alive, not for keeping a game's simulation fed -- nor for a video
+                  -- being streamed to Discord, whose ceiling is also 60.
                   render_unfocused_fps = 60,
               },
 
@@ -182,6 +183,12 @@ _: {
           hl.window_rule({ name = "gamescope-empty-workspace",  match = { class = "^(gamescope)$" }, workspace = "empty" })
           hl.window_rule({ name = "gamescope-float-centered",   match = { class = "^(gamescope)$" }, float = true, size = "2560 1440", center = true })
           hl.window_rule({ name = "gamescope-render-unfocused", match = { class = "^(gamescope)$" }, render_unfocused = true })
+
+          -- mpvx (XWayland mpv) is what gets streamed to Discord while a game holds
+          -- another workspace. Without callbacks XWayland's Present stalls mpv's swaps,
+          -- and Discord's X11 capturer streams the resulting bursts as stutter.
+          -- Native-Wayland mpv is not capturable by discordx, so it is left out.
+          hl.window_rule({ name = "mpvx-render-unfocused", match = { class = "^(mpv)$", xwayland = true }, render_unfocused = true })
         '';
 
         extraLuaFiles."20-binds".content = ''
