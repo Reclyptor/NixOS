@@ -9,11 +9,13 @@ _: {
   flake.modules.nixos.workstation =
     { lib, pkgs, ... }:
     let
-      # Scan & OCR's two models, pinned by the sha256s upstream records in
-      # ATTRIBUTION.toml. Release packages stage them into share/pdfcraft/models,
+      # Scan & OCR's two models, pinned by the sha256s upstream's release build
+      # verifies them against. Release packages stage them into share/pdfcraft/models,
       # which crates/ocr looks for beside the binary (../share/pdfcraft/models from
       # bin/); a source build has to fetch them itself, and without them OCR
-      # reports its models as not installed.
+      # reports its models as not installed. Since 0.15.0 these are the ONNX
+      # exports, which rten-onnx loads; crates/ocr still accepts a complete pair
+      # of the older .rten files, but no longer ships them.
       ocrModel =
         name: hash:
         pkgs.fetchurl {
@@ -21,8 +23,8 @@ _: {
           inherit hash;
         };
       ocrModels = [
-        (ocrModel "text-detection.rten" "sha256-8Vz7Vr0CxL9HiiA0OYZQSh8B4WZcKzoK1mNA8FSxtco=")
-        (ocrModel "text-recognition.rten" "sha256-5ISGbUzOQDF1vY0AsSj+sIq0LiCN4w5CzZiJ2PFzWm4=")
+        (ocrModel "text-detection.onnx" "sha256-qReyPb2VJLRl336SJkGz/ymBYj303tWgI0AE7y/ufP4=")
+        (ocrModel "text-recognition.onnx" "sha256-hsFFwu25bIyu1bHruPRNcGQIkiIRRRwwnGJRV91gYcU=")
       ];
     in
     {
@@ -30,31 +32,27 @@ _: {
         (
           (import ./_artcraft.nix { inherit lib pkgs; } {
             pname = "pdfcraft";
-            version = "0.9.0";
-            hash = "sha256-pOHCv3K6XfRci1kWhta1gmTZGklSpBJqjLIXvqKq484=";
-            cargoHash = "sha256-4zRin04PC+QAeV41qcXHouOXNbwIGYZ/IfXhGKa9Zp8=";
-            releaseDate = "2026-10-18";
+            version = "0.15.0";
+            hash = "sha256-9XgS4feVsc+2c6aMi9WbG1NI/SjVhjU3otMU9bmQez0=";
+            cargoHash = "sha256-n2hA1QOPUVG65EMCpEWu8kUEHoVV3nTCNq9sja3cNqQ=";
+            releaseDate = "2026-10-28";
             description = "PDF editor to read, organize, combine, split and secure PDFs";
-            craftFontsRev = "3d9ab3a132ed0eff457e424226a435a901da30d3";
+            craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
 
             # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
-            # runs on ring). aws-lc-sys builds C and generates its bindings, so it
-            # needs cmake and a libclang on top of rustc. The only app in the suite
-            # that does.
-            extraNativeBuildInputs = [
-              pkgs.cmake
-              pkgs.rustPlatform.bindgenHook
-            ];
+            # runs on ring). aws-lc-sys 0.46.0 needs nothing beyond the C compiler on
+            # x86_64-linux: it ships pregenerated bindings and builds with cc, so it
+            # reaches for cmake and bindgen only when neither applies.
 
             # pdfcraft-engine -> pdfcraft-ocr -> ocrs -> rten -> rten-gemm, which
             # calls _mm512_dpbusd_epi32. rustc cannot codegen that intrinsic —
             # its own stdarch declares the LLVM intrinsic with the wrong vector
-            # types (repro'd on 1.97.1, and again on 1.98.1 on 2026-10-21 by
-            # building unpatched rten-gemm 0.26.0) — so the build fails outright,
-            # and OCR is not optional here
-            # (apps/pdfcraft/Cargo.toml declares no features at all). The patch emits
-            # the instruction as inline asm instead, which is what rten already does
-            # for the same instruction in its x86_64 kernel.
+            # types (repro'd on 1.97.1, on 1.98.1 on 2026-10-21 by building
+            # unpatched rten-gemm 0.26.0, and on 1.99.0 with LLVM 21.1.8 on
+            # 2026-10-28) — so the build fails outright, and OCR is not optional
+            # here (apps/pdfcraft/Cargo.toml declares no features at all). The
+            # patch emits the instruction as inline asm instead, which is what rten
+            # already does for the same instruction in its x86_64 kernel.
             #
             # Still rten-gemm 0.26.0 at this release, so the patch applies unchanged.
             # Delete this, and the vendorPatches plumbing, once rustc ships the fix.

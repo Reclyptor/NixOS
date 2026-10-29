@@ -9,26 +9,22 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "wordcraft";
-          version = "0.8.0";
-          hash = "sha256-5zT+XjveKuuqaSsJnKZjerai0TaBO6s7LhrWKrvNcSU=";
-          cargoHash = "sha256-Dvjl82GeD/lxrRMCOQJm8pxbVctSeMiRhtmUWpDjziE=";
-          releaseDate = "2026-10-18";
+          version = "0.12.0";
+          hash = "sha256-LhpKmMH3WdWjheAj8m+umkNhYUSuHlkuh+ynnhTqwyQ=";
+          cargoHash = "sha256-1gxWhk2Ln/V+lIiSnMOd0tE0QEYsQ5MJJmPUcDX0hhU=";
+          releaseDate = "2026-10-28";
           description = "Word processor for documents, with DOCX and ODT support";
-          craftFontsRev = "8dcdacd5153e64560d109541a47d806f26f048c0";
+          craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+
+          # Since 0.11.0 the interface translations live in storytold/craft-i18n,
+          # which crates/ui-egui/build.rs embeds at the commit in craft-i18n.rev.
+          craftI18nRev = "9205108cfdced5177706264038848b68b2422d2b";
 
           # Only the commit: unlike photocraft and deckcraft, nothing here reads a
           # BUILD_DATE, so passing one would just be an unread input.
           extraEnv = {
-            WORDCRAFT_BUILD_SHA = "f2e15cf8f899a79899a2d9595ca4ce7df1e5ea22";
+            WORDCRAFT_BUILD_SHA = "3de6ff95af86c19d67030cd96dba15cd6a45a25e";
           };
-
-          # This tagged Unix-only test creates a deliberately non-UTF-8 name.
-          # stdenv's /build is on this host's ZFS utf8only dataset, which rejects
-          # it; /dev/shm accepts raw filename bytes. Set this in preCheck because
-          # stdenv initializes TMPDIR after the derivation environment.
-          preCheck = ''
-            export TMPDIR=/dev/shm
-          '';
         })
       ];
     };

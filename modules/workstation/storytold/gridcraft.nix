@@ -7,11 +7,14 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "gridcraft";
-          version = "0.8.0";
-          hash = "sha256-G0xsNWRoNMtA5lTKSZgLCHP6gcq+zOaOPdcColuFr0A=";
-          cargoHash = "sha256-EY/41uMNm9hG7LhynI4d/7RSj5tGXsT8/s+Al8mr7pk=";
-          releaseDate = "2026-10-18";
+          version = "0.13.0";
+          hash = "sha256-L1kbIku3WX/7pU/DpTqy2A2yT/+7vQVoK+iUYf5Dkpk=";
+          cargoHash = "sha256-gudikEONztiu7cfkt87CTIydKQEfPNgvRBTobzXz3qM=";
+          releaseDate = "2026-10-28";
           description = "Spreadsheet for calculating, analyzing and charting data";
+          # crates/ui-egui/build.rs reads CRAFT_FONTS_DIR as of 0.13.0; before that
+          # GridCraft embedded no craft-fonts at all.
+          craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
         })
       ];
     };
