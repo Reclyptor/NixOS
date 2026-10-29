@@ -7,11 +7,12 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "soundcraft";
-          version = "0.8.0";
-          hash = "sha256-SI58vpqyig1J1l81rqNRrIEhAgpE/mq/nSOjUxn8910=";
-          cargoHash = "sha256-+XQMm8RB2MvuJRGddTZDVM3qRG7hHY7vM5xuxeqsG4o=";
-          releaseDate = "2026-10-17";
+          version = "0.14.0";
+          hash = "sha256-u6aRlfonVjzK6HRfXWDftz118sD3/OR/ZcoALXiky3A=";
+          cargoHash = "sha256-lysmnO12fqA0fJrmunX3kQXWpYPCmJ719LFm4WUwsXY=";
+          releaseDate = "2026-10-28";
           description = "Digital audio workstation for audio and MIDI";
+          cliDocs = true;
 
           # The one app in the suite where ALSA is the whole point rather than
           # playback for something else.

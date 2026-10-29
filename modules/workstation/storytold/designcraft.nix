@@ -6,12 +6,12 @@ _: {
       environment.systemPackages = [
         (import ./_artcraft.nix { inherit lib pkgs; } {
           pname = "designcraft";
-          version = "0.9.0";
-          hash = "sha256-IL5kXdkFG1CiIuh3dWTphFu5EPHeSrg2eQ8N9dFNqkQ=";
-          cargoHash = "sha256-pt/8PkH2c9IKFRgNIKkEUyUMca/glpEoo5CjgM3VVyU=";
-          releaseDate = "2026-10-18";
+          version = "0.14.0";
+          hash = "sha256-eQrDZN4ADUjXXAndAc1QNZ+LNGV0TLRJ4CopmzAwfBM=";
+          cargoHash = "sha256-4TXmagOH4NbYSwHQ/M/8pjGQTWOoLDxuFA0yTPGtoDI=";
+          releaseDate = "2026-10-28";
           description = "Page layout for magazines, books and print documents";
-          craftFontsRev = "abb83316d96aa59c1cf64784289e378fe9fa5695";
+          craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
         })
       ];
     };
