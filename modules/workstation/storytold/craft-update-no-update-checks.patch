@@ -1,0 +1,31 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -47,23 +47,11 @@
+ pub use dialog::{StartupPrompt, StartupPromptResponse};
+ 
+ /// Checks for an update against GitHub releases for the given app.
+-pub fn check_for_update(app: &App, http: &Http, current_version: &str) -> Result<Option<Release>, String> {
+-    let url = format!("https://api.github.com/repos/{}/releases?per_page=30", app.repo);
+-    match http.get_api(&url, None)? {
+-        crate::http::Fetched::Body { text, .. } => {
+-            let latest = crate::release::parse_github_release_list(&text, app.repo, false)?;
+-            if let Some(release) = latest
+-                && let Some(rel_v) = &release.version
+-                && let Some(cur_v) = crate::version::parse(current_version)
+-                && crate::version::is_newer(rel_v, &cur_v)
+-            {
+-                return Ok(Some(release));
+-            }
+-            Ok(None)
+-        }
+-        crate::http::Fetched::RateLimited { .. } => Err("GitHub's request limit was reached".into()),
+-        crate::http::Fetched::NotModified | crate::http::Fetched::NotFound => Ok(None),
+-    }
++///
++/// Disabled in the NixOS package: the copy in the Nix store is updated through the system
++/// configuration, so nothing here contacts GitHub.
++pub fn check_for_update(_app: &App, _http: &Http, _current_version: &str) -> Result<Option<Release>, String> {
++    Err("updates for this copy come from the NixOS configuration".into())
+ }
+ 
+ /// Unix seconds now.

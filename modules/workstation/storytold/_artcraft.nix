@@ -47,10 +47,9 @@
   # default to anyway.
   extraEnv ? { },
   # Patches applied to a dependency's vendored sources, as
-  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ]. Only pdfcraft needs
-  # one, to get past a rustc codegen bug in a transitive dependency — see
-  # SPEC/storytold-artcraft-suite.md. Empty for the other twelve, which then take
-  # the vendor tree buildRustPackage builds for itself, untouched.
+  # [ { crate = "<name>-<version>"; patch = ./x.patch; } ], after the one every
+  # app gets (see suitePatches). Only pdfcraft needs one, to get past a rustc
+  # codegen bug in a transitive dependency — see SPEC/storytold-artcraft-suite.md.
   vendorPatches ? [ ],
   # The storytold/craft-fonts commit this app's release workflow embeds, for
   # the eleven apps whose font crate reads CRAFT_FONTS_DIR. Null for the two
@@ -121,11 +120,23 @@ let
   # The same vendored dependency tree buildRustPackage would build from
   # cargoHash, named here so a dependency inside it can be patched: the fetch is
   # a fixed-output derivation, so its result cannot be modified in place and the
-  # patch has to land in a copy. Only reached when vendorPatches is non-empty.
+  # patch has to land in a copy.
   vendor = pkgs.rustPlatform.fetchCargoVendor {
     inherit pname version src;
     hash = cargoHash;
   };
+
+  # Every app checks GitHub for a newer release at start and from Help ▸ Check
+  # for Updates, and offers to replace itself, which the read-only store cannot
+  # allow. All of them reach GitHub through craft-update's check_for_update, so
+  # the patch turns that into an error that says where updates come from: no
+  # request, no prompt, and the menu explains why.
+  suitePatches = [
+    {
+      crate = "craft-update-0.1.0";
+      patch = ./craft-update-no-update-checks.patch;
+    }
+  ];
 
   patchedVendor =
     pkgs.runCommand "${pname}-${version}-vendor-patched"
@@ -161,7 +172,7 @@ let
           # --fuzz=0: a patch that no longer applies exactly, because the pin
           # moved under it, should fail rather than land somewhere plausible.
           patch -p1 --fuzz=0 -d "$crate" < ${p.patch}
-        '') vendorPatches
+        '') (suitePatches ++ vendorPatches)
       );
 
   # winit and wgpu dlopen their windowing and GPU libraries, so none of these is
@@ -207,11 +218,7 @@ pkgs.rustPlatform.buildRustPackage {
     buildFeatures
     ;
 
-  # Null leaves buildRustPackage to build the vendor tree from cargoHash, which
-  # is what the twelve unpatched apps want: passing one explicitly changes the
-  # derivation even when the contents are identical, and would rebuild all of
-  # them to no purpose.
-  cargoDeps = if vendorPatches == [ ] then null else patchedVendor;
+  cargoDeps = patchedVendor;
 
   nativeBuildInputs = [
     pkgs.makeWrapper

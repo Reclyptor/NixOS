@@ -55,7 +55,7 @@ _: {
             # already does for the same instruction in its x86_64 kernel.
             #
             # Still rten-gemm 0.26.0 at this release, so the patch applies unchanged.
-            # Delete this, and the vendorPatches plumbing, once rustc ships the fix.
+            # Delete this once rustc ships the fix.
             vendorPatches = [
               {
                 crate = "rten-gemm-0.26.0";
