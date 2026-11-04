@@ -221,10 +221,10 @@ _: {
 
           -- Without relative = true the numbers are an absolute size, and a 0 axis is
           -- rejected outright.
-          hl.bind(mainMod .. " + SHIFT + L", hl.dsp.window.resize({ x = 100,  y = 0,    relative = true }))
-          hl.bind(mainMod .. " + SHIFT + H", hl.dsp.window.resize({ x = -100, y = 0,    relative = true }))
-          hl.bind(mainMod .. " + SHIFT + J", hl.dsp.window.resize({ x = 0,    y = 100,  relative = true }))
-          hl.bind(mainMod .. " + SHIFT + K", hl.dsp.window.resize({ x = 0,    y = -100, relative = true }))
+          hl.bind(mainMod .. " + SHIFT + L", hl.dsp.window.resize({ x = 100,  y = 0,    relative = true }), { repeating = true })
+          hl.bind(mainMod .. " + SHIFT + H", hl.dsp.window.resize({ x = -100, y = 0,    relative = true }), { repeating = true })
+          hl.bind(mainMod .. " + SHIFT + J", hl.dsp.window.resize({ x = 0,    y = 100,  relative = true }), { repeating = true })
+          hl.bind(mainMod .. " + SHIFT + K", hl.dsp.window.resize({ x = 0,    y = -100, relative = true }), { repeating = true })
 
           hl.bind(mainMod .. " + CTRL + H", hl.dsp.window.swap({ direction = "left" }))
           hl.bind(mainMod .. " + CTRL + L", hl.dsp.window.swap({ direction = "right" }))
