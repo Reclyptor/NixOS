@@ -267,9 +267,14 @@ _: {
       #     (its overlay) to the whole launch command. gamescope is a Nix binary
       #     and LD_LIBRARY_PATH outranks its RUNPATH, so it loads scout's
       #     libSDL2 and libX* in place of its own and never presents a frame.
-      #     gamescope gets neither; the game command gets both back, since the
-      #     launch wrapper is built against scout and the preload is how
-      #     Shift+Tab reaches the game.
+      #     So gamescope never sees scout's path, while the game command gets it
+      #     back, since the launch wrapper is built against scout. The overlay
+      #     preload stays with gamescope: on the SDL backend gamescope draws the
+      #     Steam overlay into its own window and strips it from its children.
+      #     Handing the preload to the game instead puts the overlay inside Wine,
+      #     where the game keeps blanking its cursor, so the overlay opens with no
+      #     pointer. gameoverlayrenderer.so needs libGL.so.1, which gamescope's
+      #     RUNPATH lacks, so gamescope gets libglvnd in place of scout's path.
       #   * gamescope's wlserver offers explicit sync, and with it the NVIDIA
       #     driver inside the Steam Linux Runtime container presents exactly
       #     one swapchain of frames and then stalls waiting on fences that never
@@ -311,12 +316,11 @@ _: {
           fi
           if [ -n "''${LD_LIBRARY_PATH-}" ]; then
             game+=("LD_LIBRARY_PATH=$LD_LIBRARY_PATH")
-          fi
-          if [ -n "''${LD_PRELOAD-}" ]; then
-            game+=("LD_PRELOAD=$LD_PRELOAD")
+          else
+            game+=(-u LD_LIBRARY_PATH)
           fi
 
-          exec env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+          exec env LD_LIBRARY_PATH=${pkgs.libglvnd}/lib \
             GAMESCOPE_SCRIPT_PATH=${steamGamescopeScripts} \
             SDL_VIDEODRIVER=x11 \
             SDL_VIDEO_X11_WMCLASS=gamescope \
