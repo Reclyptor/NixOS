@@ -248,7 +248,8 @@
         Unit = {
           Description = "herdr — the runtime the coding agents live on";
           Documentation = "https://herdr.dev/docs/";
-          After = [ "default.target" ];
+          After = [ "default.target" "gpg-agent-ssh.socket" ];
+          Wants = [ "gpg-agent-ssh.socket" ];
         };
 
         Service = {
@@ -282,9 +283,18 @@
           # Xwayland's number is the compositor's choice; :0 is what Hyprland has
           # taken every session. If it ever differs, xclip loses the fallback and
           # image paste still rides the Wayland path above.
+          #
+          # SSH_AUTH_SOCK has the same problem: the user manager never sees it, and
+          # herdr aims each pane's herdr.sock.agent at whatever the server
+          # inherited — local clients never register theirs, only remote ones do
+          # (src/remote/host.rs). Without it every pane gets herdr.sock.unavailable
+          # and loses the YubiKey. gpg-agent's ssh socket is socket-activated at a
+          # fixed path, and herdr only adopts it if it exists at server start,
+          # hence the ordering on gpg-agent-ssh.socket above.
           Environment = [
             "WAYLAND_DISPLAY=wayland-current"
             "DISPLAY=:0"
+            "SSH_AUTH_SOCK=%t/gnupg/S.gpg-agent.ssh"
           ];
         };
 
