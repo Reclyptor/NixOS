@@ -4,11 +4,11 @@ _: {
       (_final: prev: {
         crush = prev.stdenv.mkDerivation rec {
           pname = "crush";
-          version = "0.97.1";
+          version = "0.100.0";
 
           src = prev.fetchurl {
             url = "https://github.com/charmbracelet/crush/releases/download/v${version}/crush_${version}_Linux_x86_64.tar.gz";
-            hash = "sha256-G3y+BgCjeXU4p03ADdjEusVKxLj0RVul/yMSspx71Zg=";
+            hash = "sha256-Ei1K/g47sPxMVx9YsMCNSFyHM/Jy6WKgIGTCFQzXoVI=";
           };
 
           sourceRoot = "crush_${version}_Linux_x86_64";

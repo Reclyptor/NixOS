@@ -4,7 +4,7 @@ _: {
       (_final: prev: {
         codex = prev.stdenv.mkDerivation rec {
           pname = "codex";
-          version = "0.162.1";
+          version = "0.167.0";
 
           # The package asset, not the bare `codex-…-musl` one: codex spawns
           # codex-code-mode-host from next to its own binary for every tool
@@ -13,7 +13,7 @@ _: {
           # through codex-package.json, so it is installed as one directory.
           src = prev.fetchurl {
             url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-package-x86_64-unknown-linux-musl.tar.gz";
-            hash = "sha256-pnb1ciquDYbL43ZDMvCOqx/didwKMAs61P+/SGEfo+M=";
+            hash = "sha256-O7916D3mtYrtKPLPbjOtQj7DH9RwChRXuUvlV+pafG4=";
           };
 
           sourceRoot = ".";

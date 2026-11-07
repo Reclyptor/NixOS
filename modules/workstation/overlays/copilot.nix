@@ -12,11 +12,11 @@ _: {
         # The platform tarball carries no dependencies, so that is the whole bump.
         github-copilot-cli = prev.stdenvNoCC.mkDerivation rec {
           pname = "github-copilot-cli";
-          version = "1.0.98";
+          version = "1.0.107";
 
           src = prev.fetchurl {
             url = "https://registry.npmjs.org/@github/copilot-linux-x64/-/copilot-linux-x64-${version}.tgz";
-            hash = "sha256-2apN5Z6IQtm2YHaNc/7QwGhADKY+ute1fAd8X8tGL8w=";
+            hash = "sha256-APbXAvEu9TTSeSRjKG4qB7Jbd8mU2toVe0y6fLn8208=";
           };
 
           sourceRoot = "package";
