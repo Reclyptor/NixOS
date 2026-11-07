@@ -595,3 +595,27 @@ use their own scratch spaces — session directories, `/tmp` for transient
 one-shot scratch, the NAS `_plans` directories for resumable pipeline state —
 and to fold durable results into the conversation report. This is a
 user-stated hard rule.
+
+---
+
+## 15. Nix Builds: Never Without Explicit Authorization
+
+This is a user-stated hard rule and applies on every machine and in every
+repo.
+
+Never start a Nix build unless the user has explicitly authorized that
+build in the current conversation. A build here means anything that
+realises derivations: `nix build`, `nixos-rebuild` (any subcommand),
+`home-manager switch`/`build`, `nix flake check`, `nix-build`,
+`nix develop`, `nix shell`, and `nix run`. Approval for one build covers
+that build only, not the next one, and a request such as "update the
+flake" or "fix it" does not authorize a build.
+
+`nix eval` of plain attributes and `nix flake update`/`lock` are not
+builds and stay allowed.
+
+This overrides §3's Forced Verification for Nix. When a change needs a
+build to verify it, stop, say which build you want to run and why, and
+wait. Until the user approves, report the change as unverified, never as
+done. If a build is already running when the user says to stop, kill it
+at once and start nothing in its place.
