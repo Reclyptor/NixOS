@@ -20,12 +20,12 @@ _: {
         obscura = prev.obscura.overrideAttrs (
           old:
           let
-            version = "0.2.4";
+            version = "0.2.6";
             src = prev.fetchFromGitHub {
               owner = "h4ckf0r0day";
               repo = "obscura";
               rev = "v${version}";
-              hash = "sha256-thpUbGHwO2oU1kaIlrSp1RBonITVjyS8xocmlAZYpJ0=";
+              hash = "sha256-5zJ6if1DtNW9josrcA2G2o5x3w7BtJCz59TRJOqBGv4=";
             };
             # deno_core turns on the v8 crate's `simdutf` feature, which links
             # against the `_simdutf` flavor of the prebuilt archive.
@@ -46,7 +46,7 @@ _: {
             cargoDeps = prev.rustPlatform.fetchCargoVendor {
               inherit src version;
               pname = "obscura";
-              hash = "sha256-5nBy/hJgNpun7bhKuTd0sBBwDUcbnBkvSMh+6GgIsIo=";
+              hash = "sha256-FPCcSvECFeHRXzOUg1+Ou75W42IZ2C3osKcdINb7MwA=";
             };
 
             # Same for `buildFeatures`, which it turns into this up front.
