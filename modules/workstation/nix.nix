@@ -13,6 +13,10 @@ _: {
       automatic = true;
       dates = [ "weekly" ];
     };
+    # At most ~24 compiler threads on this 24-core box. "auto" x all cores ran
+    # up to 24 jobs x 24 threads and swapped the desktop out mid-game.
+    nix.settings.max-jobs = 4;
+    nix.settings.cores = 6;
     nix.daemonCPUSchedPolicy = "batch";
     nix.daemonIOSchedClass = "idle";
     # Thread policies only order threads inside a cgroup; system.slice still

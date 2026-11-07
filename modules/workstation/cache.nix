@@ -35,10 +35,6 @@ _: {
       # Fallback to building if cache is unavailable
       fallback = true;
 
-      # Enable parallel building
-      max-jobs = "auto";
-      cores = 0; # Use all available cores
-
       # Increase download buffer to avoid throttling on fast connections
       download-buffer-size = 1073741824; # 1 GiB
     };
