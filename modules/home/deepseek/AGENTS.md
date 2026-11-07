@@ -642,24 +642,26 @@ user-stated hard rule.
 
 ---
 
-## 15. Nix Builds: Never Without Explicit Authorization
+## 15. Full System Rebuilds: Never Without Explicit Authorization
 
 This is a user-stated hard rule and applies on every machine and in every
 repo.
 
-Never start a Nix build unless the user has explicitly authorized that
-build in the current conversation. A build here means anything that
-realises derivations: `nix build`, `nixos-rebuild` (any subcommand),
-`home-manager switch`/`build`, `nix flake check`, `nix-build`,
-`nix develop`, `nix shell`, and `nix run`. Approval for one build covers
-that build only, not the next one, and a request such as "update the
-flake" or "fix it" does not authorize a build.
+Never start a full system rebuild unless the user has explicitly
+authorized that rebuild in the current conversation. That means
+`nixos-rebuild` (any subcommand), `home-manager switch`/`build`, and any
+`nix build` of a whole configuration such as
+`nixosConfigurations.<host>.config.system.build.toplevel` or a complete
+home-manager activation package. Approval covers one rebuild only, not the
+next one, and a request such as "update the flake" or "fix it" does not
+authorize one.
 
-`nix eval` of plain attributes and `nix flake update`/`lock` are not
-builds and stay allowed.
+Package-level builds are allowed without asking: `nix build` of a single
+package or overlay attribute, including the fixed-output builds that
+produce an `npmDepsHash`/`cargoHash`/`vendorHash`, along with `nix shell`,
+`nix run`, and `nix eval`.
 
-This overrides §3's Forced Verification for Nix. When a change needs a
-build to verify it, stop, say which build you want to run and why, and
-wait. Until the user approves, report the change as unverified, never as
-done. If a build is already running when the user says to stop, kill it
-at once and start nothing in its place.
+This overrides §3's Forced Verification for whole-system builds. Verify
+the packages you touched, then hand the full rebuild to the user and say
+it has not run. If a build is already running when the user says to stop,
+kill it at once and start nothing in its place.
