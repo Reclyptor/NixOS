@@ -4,9 +4,7 @@ _: {
       aldo
       aseprite
       audacity
-      brave
       code-cursor
-      google-chrome
       discord
       discordx
       element-desktop

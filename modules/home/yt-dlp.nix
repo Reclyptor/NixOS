@@ -37,7 +37,7 @@ _: {
 
         export_help() {
           {
-            echo "Sign in to ''${CATEGORY} inside a private Brave window, then export that site's cookies"
+            echo "Sign in to ''${CATEGORY} inside a private Zen window, then export that site's cookies"
             echo "to ''${COOKIES_FILE} with the 'Get cookies.txt LOCALLY' extension."
             echo "A private window starts signed out, so exporting before signing in yields a guest jar."
           } >&2

@@ -96,7 +96,7 @@ _: {
         export REA_PWNTOOLS_PYTHON="${pwntoolsPython}/bin/python3"
         export REA_BINWALK_COMMAND="${lib.getExe pkgs.binwalk}"
         export REA_MITMDUMP_COMMAND="${pkgs.mitmproxy}/bin/mitmdump"
-        export REA_BROWSER_EXECUTABLE="${pkgs.google-chrome}/bin/google-chrome"
+        export REA_BROWSER_EXECUTABLE="${lib.getExe pkgs.chromium}"
         export REA_JADX_MCP_JAR="${jadxMcpJar}"
 
         # MCP speaks JSON-RPC over stdout; keep anything chattier off it.
