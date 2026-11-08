@@ -1,4 +1,4 @@
-{ inputs, ... }:
+_:
 let
   # nixpkgs f903b88 bumped patchelf 0.15.2 -> 0.19.2. 0.19.2's segment rewrite
   # grows the first PT_LOAD of NVIDIA's binaries (--interpreter alone
@@ -30,11 +30,13 @@ let
         else pkg) lprev.nvidiaPackages;
     });
   };
+  # rust-overlay's buildFixes stay out of the system package set. They override
+  # python3 and other widely used libraries, which changes the hash of
+  # everything above them, so Chromium, Electron, Qt and WebKit miss
+  # cache.nixos.org and compile here, the very local builds those test fixes
+  # exist to rescue. Herdr still gets them through overlays.default.
   buildFixes = _: {
-    nixpkgs.overlays = [
-      inputs."rust-overlay".overlays.buildFixes
-      nvidiaBinFix
-    ];
+    nixpkgs.overlays = [ nvidiaBinFix ];
   };
 in
 {

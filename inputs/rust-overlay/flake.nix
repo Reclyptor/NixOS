@@ -135,7 +135,6 @@
     rust-overlay
     // {
       overlays = rust-overlay.overlays // {
-        inherit buildFixes;
         default = lib.composeExtensions rust-overlay.overlays.default buildFixes;
       };
     };
