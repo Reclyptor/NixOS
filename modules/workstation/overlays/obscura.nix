@@ -62,6 +62,10 @@ _: {
               prev.git
             ];
 
+            # cargoSetupHook sets ZSTD_SYS_USE_PKG_CONFIG, so zstd-sys links the
+            # system libzstd instead of its bundled copy.
+            buildInputs = old.buildInputs ++ [ prev.zstd ];
+
             env = old.env // {
               RUSTY_V8_ARCHIVE = librusty_v8;
               OBSCURA_VERSION = version;
