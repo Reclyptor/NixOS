@@ -41,7 +41,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 ---
 --- a/src/output/Monitor.hpp
 +++ b/src/output/Monitor.hpp
-@@ -115,6 +115,9 @@
+@@ -116,6 +116,9 @@
          bool                        m_createdByUser    = false;
          bool                        m_isUnsafeFallback = false;
  
@@ -52,26 +52,26 @@ Previously a failed retry left it registered for the lifetime of the monitor.
  
          bool                        m_pendingFrame    = false; // if we schedule a frame during rendering, reschedule it after
 @@ -393,6 +396,9 @@
-         WORKSPACEID             findAvailableDefaultWS();
-         void                    setSpecialWorkspaceVisualState(bool active);
-         void                    commitDPMSState(bool state);
-+        void                    scheduleDPMSRetry();
-+        void                    cancelDPMSRetryTimer();
-+        void                    clearDPMSRetry();
-         void                    scheduleModeRetry();
-         void                    clearModeRetry();
-         void                    updateVCGTRamps();
+ 
+         void                setSpecialWorkspaceVisualState(bool active);
+         void                commitDPMSState(bool state);
++        void                scheduleDPMSRetry();
++        void                cancelDPMSRetryTimer();
++        void                clearDPMSRetry();
+         void                scheduleModeRetry();
+         void                clearModeRetry();
+         void                updateVCGTRamps();
 --- a/src/output/Monitor.cpp
 +++ b/src/output/Monitor.cpp
-@@ -402,6 +402,7 @@
- 
+@@ -395,6 +395,7 @@
      m_frameScheduler.reset();
+     m_commitCoordinator->cancelPending();
      clearModeRetry();
 +    clearDPMSRetry();
  
      if (!m_enabled || g_pCompositor->m_isShuttingDown)
          return;
-@@ -2308,12 +2309,17 @@
+@@ -2217,12 +2218,17 @@
  }
  
  void CMonitor::setDPMS(bool on) {
@@ -93,7 +93,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
  
      if (on) {
          // enable the monitor. Wait for the frame to be presented, then begin animation
-@@ -2340,38 +2346,92 @@
+@@ -2249,39 +2255,92 @@
  }
  
  void CMonitor::commitDPMSState(bool state) {
@@ -106,7 +106,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
      m_output->state->setEnabled(state);
  
      if (!m_state.commit()) {
-         Log::logger->log(Log::ERR, "Couldn't commit output {} for DPMS = {}, will retry.", m_name, state);
+         LOG(Log::ERR, "Couldn't commit output {} for DPMS = {}, will retry.", m_name, state);
 +        scheduleDPMSRetry();
 +        return;
 +    }
@@ -121,27 +121,22 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 -            [this, self = m_self](SP<CEventLoopTimer> s, void* d) {
 -                if (!self)
 -                    return;
--
--                m_output->state->resetExplicitFences();
--                m_output->state->setEnabled(m_dpmsStatus);
--                if (!m_state.commit()) {
--                    Log::logger->log(Log::ERR, "Couldn't retry committing output {} for DPMS = {}", m_name, m_dpmsStatus);
--                    return;
--                }
 +    // Only now is the cached state true, and only now do listeners get told.
 +    if (m_dpmsStatus != state) {
 +        m_dpmsStatus = state;
 +        m_events.dpmsChanged.emit();
 +    }
  
--                m_dpmsRetryTimer.reset();
--            },
--            nullptr);
--        g_pEventLoopManager->addTimer(m_dpmsRetryTimer);
+-                m_output->state->resetExplicitFences();
+-                m_output->state->setEnabled(m_dpmsStatus);
 +    if (state)
 +        g_pHyprRenderer->damageMonitor(m_self.lock());
 +}
  
+-                if (!m_state.commit()) {
+-                    LOG(Log::ERR, "Couldn't retry committing output {} for DPMS = {}", m_name, m_dpmsStatus);
+-                    return;
+-                }
 +// The DRM backend rejects a commit for reasons that clear on their own -- a disable and
 +// an enable sent almost together, or a connector still settling after a hotplug. Those
 +// resolve over hundreds of milliseconds, so back off across a window that can outlast
@@ -156,7 +151,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 +    static constexpr int MAX_DELAY_MS     = 2000;
 +
 +    if (m_dpmsRetryCount >= MAX_DPMS_RETRIES) {
-+        Log::logger->log(Log::ERR, "Gave up committing output {} for DPMS = {} after {} attempts, leaving it on {}", m_name, m_dpmsTarget, m_dpmsRetryCount, m_dpmsStatus);
++        LOG(Log::ERR, "Gave up committing output {} for DPMS = {} after {} attempts, leaving it on {}", m_name, m_dpmsTarget, m_dpmsRetryCount, m_dpmsStatus);
 +        clearDPMSRetry();
 +        m_dpmsAwaitingCommit = false;
 +
@@ -164,15 +159,17 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 +        // that never committed, it would make the next toggle invert an intention the
 +        // compositor has already abandoned and ask for the state already on the panel.
 +        m_dpmsTarget = m_dpmsStatus;
-         return;
-     }
++        return;
++    }
  
--    if (state)
--        g_pHyprRenderer->damageMonitor(m_self.lock());
+-                m_dpmsRetryTimer.reset();
+-            },
+-            nullptr);
+-        g_pEventLoopManager->addTimer(m_dpmsRetryTimer);
 +    int delayMs = FIRST_DELAY_MS << m_dpmsRetryCount;
 +    if (delayMs > MAX_DELAY_MS)
 +        delayMs = MAX_DELAY_MS;
-+
+ 
 +    m_dpmsRetryCount++;
 +
 +    // Safe from inside the timer's own callback: the event loop copies its timer list
@@ -193,8 +190,11 @@ Previously a failed retry left it registered for the lifetime of the monitor.
 +
 +void CMonitor::cancelDPMSRetryTimer() {
 +    if (!m_dpmsRetryTimer)
-+        return;
-+
+         return;
+-    }
+ 
+-    if (state)
+-        g_pHyprRenderer->damageMonitor(m_self.lock());
 +    m_dpmsRetryTimer->cancel();
 +    g_pEventLoopManager->removeTimer(m_dpmsRetryTimer);
 +    m_dpmsRetryTimer.reset();
@@ -208,7 +208,7 @@ Previously a failed retry left it registered for the lifetime of the monitor.
  void CMonitor::debugLastPresentation(const std::string& message) {
 --- a/src/config/shared/actions/ConfigActions.cpp
 +++ b/src/config/shared/actions/ConfigActions.cpp
-@@ -1246,7 +1246,11 @@
+@@ -1297,7 +1297,11 @@
  
          bool enable = false;
          switch (action) {
