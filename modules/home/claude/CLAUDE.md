@@ -208,6 +208,21 @@ other work while sub-agents execute. Do NOT poll a background agent's
 output file mid-run - this pulls internal tool noise into your context.
 Wait for the completion notification.
 
+### Model Routing
+Whenever work is parallelized, the role decides the model:
+- **Opus** investigates, designs, plans, and coordinates - research
+  threads, audits, architecture, specs, and merging and verifying results.
+- **Sonnet** writes code - implementation, scripting, and mechanical edits.
+
+Leads the main agent spawns are the one exception: a lead may run on
+Sonnet, as long as every sub-agent it launches for implementation, coding,
+or scripting also runs on Sonnet.
+
+Set the model explicitly on every spawn (`model: "opus"` or
+`model: "sonnet"`); never rely on inheritance or defaults. A fork always
+inherits its parent's model, so an Opus session never forks implementation
+work - it spawns a fresh Sonnet sub-agent with a complete brief instead.
+
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
 editing it. Do not trust your memory of file contents. Auto-compaction may
