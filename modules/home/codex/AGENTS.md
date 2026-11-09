@@ -195,8 +195,8 @@ worktree it may write in - write sets never overlap), an output file path,
 and the reply format you want back. Ask for conclusions, not dumps. Merge
 their results and verify the merged whole before reporting up.
 
-- **`spawn_agent`**: start a sub-agent on one bounded task. It inherits
-  your model; leave `model` unset unless the user asks for another.
+- **`spawn_agent`**: start a sub-agent on one bounded task. Always set
+  `model` explicitly per Model Routing below; never let it inherit yours.
 - **`send_input`**: follow up with a running sub-agent instead of
   re-explaining context to a fresh one.
 - **`wait_agent`**: only when your very next step is blocked on that
@@ -210,6 +210,21 @@ search (grep/find) instead of loading whole trees into context, and
 checkpoint intermediate state to files so a fresh session - or a
 non-interactive run - can pick up cleanly. Keep the working context lean:
 pull in only what the current batch actually needs.
+
+### Model Routing
+Whenever work is parallelized, the role decides the model:
+- **`gpt-6.1-sol`** investigates, designs, plans, and coordinates -
+  research threads, audits, architecture, specs, and merging and verifying
+  results.
+- **`gpt-5.6-terra`** writes code - implementation, scripting, and
+  mechanical edits.
+
+Leads the main agent spawns are the one exception: a lead may run on
+`gpt-5.6-terra`, as long as every sub-agent it launches for
+implementation, coding, or scripting also runs on `gpt-5.6-terra`.
+
+Set `model` explicitly on every `spawn_agent` call; never rely on
+inheritance or defaults.
 
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
