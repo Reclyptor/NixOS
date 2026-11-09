@@ -27,6 +27,22 @@ _: {
         hash = "sha256-bl6s9QC2QpK/tzxJeXwZWPbuRGRuQ+hoA5rn/rVz/3U=";
       };
 
+      # mitmproxy 12.3.0's test_emudhra fails on Python 3.14.10, whose ssl module
+      # rejects the compromised eMudhra intermediates the test connects through,
+      # so Hydra has no build of it either. This is upstream's own test fix, from
+      # nixpkgs #584457 (mitmproxy 12.3.1); drop it once that reaches
+      # nixos-unstable.
+      mitmproxy = pkgs.mitmproxy.overridePythonAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          (pkgs.fetchpatch {
+            name = "fix-test-emudhra.patch";
+            url = "https://github.com/mitmproxy/mitmproxy/commit/992052ee92d7ff4d240eafbe1afdf87c94b3f080.patch";
+            hash = "sha256-kxCt72m8G+yoAWe8xsXjt1U6B2Sh02u8MCFiqi18lng=";
+          })
+        ];
+        disabledTests = (old.disabledTests or [ ]) ++ [ "test_emudhra_revocation_block" ];
+      });
+
       # REA_PWNTOOLS_PYTHON must be an interpreter that can `import pwnlib`, not the
       # pwntools CLI wrapper that forensics.nix installs.
       pwntoolsPython = pkgs.python3.withPackages (ps: [ ps.pwntools ]);
@@ -95,7 +111,7 @@ _: {
         export GHIDRA_INSTALL_DIR="${pkgs.ghidra}/lib/ghidra"
         export REA_PWNTOOLS_PYTHON="${pwntoolsPython}/bin/python3"
         export REA_BINWALK_COMMAND="${lib.getExe pkgs.binwalk}"
-        export REA_MITMDUMP_COMMAND="${pkgs.mitmproxy}/bin/mitmdump"
+        export REA_MITMDUMP_COMMAND="${mitmproxy}/bin/mitmdump"
         export REA_BROWSER_EXECUTABLE="${lib.getExe pkgs.chromium}"
         export REA_JADX_MCP_JAR="${jadxMcpJar}"
 
