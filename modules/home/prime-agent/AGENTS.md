@@ -203,8 +203,9 @@ Use the appropriate execution model:
   in parallel with others gets its own worktree (§12): create it before
   spawning and put its absolute path in the child's prompt as the only
   place it may write. Read-only children (research, exploration, review)
-  need none. `model=` and `thinking=` set a child's model and effort when
-  its task needs a different one than yours.
+  need none. `model=` sets a child's model per Model Routing below -
+  always pass it; `thinking=` sets its effort when the task needs a
+  different one than yours.
 - **Retained children**: keep a child alive for follow-ups instead of
   re-explaining context to a fresh one; coordinate with `agent_message`
   and find who is reachable with `agent_observe.list_agents()`.
@@ -223,6 +224,22 @@ child, then end the turn - do not block on a long `await` or poll with
 sleeps. `rlm.collect()` gives a non-blocking snapshot when you need one. Do
 NOT read a child's raw transcript mid-run - that pulls its internal noise
 into your context.
+
+### Model Routing
+Whenever work is parallelized, the role decides the model:
+- **`anthropic/claude-opus-5-5`** investigates, designs, plans, and
+  coordinates - research threads, audits, architecture, specs, and merging
+  and verifying results.
+- **`anthropic/claude-sonnet-5-5`** writes code - implementation,
+  scripting, and mechanical edits.
+
+Leads the main agent spawns are the one exception: a lead may run on
+`anthropic/claude-sonnet-5-5`, as long as every sub-agent it launches for
+implementation, coding, or scripting also runs on
+`anthropic/claude-sonnet-5-5`.
+
+Set the model explicitly on every `rlm.spawn` (`model=`); never rely on
+inheritance or defaults.
 
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
