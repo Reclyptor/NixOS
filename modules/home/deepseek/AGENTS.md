@@ -213,6 +213,24 @@ them to return conclusions, not dumps. Do NOT poll a background child
 mid-run - that pulls its internal tool noise into your context. Wait for
 the completion notice.
 
+### Model Routing
+Whenever work is parallelized, the role decides the model:
+- **`deepseek-v4-pro`** investigates, designs, plans, and coordinates -
+  research threads, audits, architecture, specs, and merging and verifying
+  results.
+- **`deepseek-v4-flash`** writes code - implementation, scripting, and
+  mechanical edits.
+
+Leads the main agent spawns are the one exception: a lead may run on
+`deepseek-v4-flash`, as long as every sub-agent it launches for
+implementation, coding, or scripting also runs on `deepseek-v4-flash`.
+
+Set the model explicitly on every `subagent` call; never rely on
+inheritance or defaults. A `subagent_fork` child always inherits its
+parent's model, so a `deepseek-v4-pro` session never forks implementation
+work - it spawns a fresh `deepseek-v4-flash` `subagent` with a complete
+brief instead.
+
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
 editing it. Do not trust your memory of file contents. Compaction may have
