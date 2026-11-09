@@ -73,14 +73,6 @@
             enableParallelInstalling = false;
           });
 
-          # gjs: keep its non-UTF-8 filename test on tmpfs; the test sandbox's
-          # utf8only ZFS filesystem rejects the fixture name.
-          gjs = prev.gjs.overrideAttrs (old: {
-            patches = (old.patches or [ ]) ++ [
-              ./patches/0001-gjs-run-non-utf8-filename-test-in-tmpdir.patch
-            ];
-          });
-
           # Azurite returns truncated HTTP error responses when Arrow runs its
           # filesystem tests concurrently. Keep CTest serial for this package;
           # leave compilation parallel and retain Arrow's full test suite.
