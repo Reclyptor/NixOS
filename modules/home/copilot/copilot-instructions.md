@@ -215,6 +215,21 @@ fresh one, and read the result with `read_agent` only when your next step
 needs it. Do NOT poll a background agent mid-run - this pulls internal
 tool noise into your context. Wait for it to finish.
 
+### Model Routing
+Whenever work is parallelized, the role decides the model:
+- **`claude-opus-5.5`** investigates, designs, plans, and coordinates -
+  research threads, audits, architecture, specs, and merging and verifying
+  results.
+- **`claude-sonnet-5.5`** writes code - implementation, scripting, and
+  mechanical edits.
+
+Leads the main agent spawns are the one exception: a lead may run on
+`claude-sonnet-5.5`, as long as every sub-agent it launches for
+implementation, coding, or scripting also runs on `claude-sonnet-5.5`.
+
+Set the model explicitly on every `task` call (its `model` argument); never
+rely on inheritance or defaults.
+
 ### Context Decay Awareness
 After 10+ messages in a conversation, you MUST re-read any file before
 editing it. Do not trust your memory of file contents. Auto-compaction may
