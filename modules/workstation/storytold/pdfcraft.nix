@@ -40,9 +40,11 @@ _: {
             craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
 
             # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
-            # runs on ring). aws-lc-sys 0.46.0 needs nothing beyond the C compiler on
-            # x86_64-linux: it ships pregenerated bindings and builds with cc, so it
-            # reaches for cmake and bindgen only when neither applies.
+            # runs on ring). nixpkgs' cargoSetupHook exports AWS_LC_SYS_USE_SYSTEM=1
+            # (since 44cddf92c4), so aws-lc-sys links the system AWS-LC, found
+            # through pkg-config, instead of building its bundled copy.
+            extraNativeBuildInputs = [ pkgs.pkg-config ];
+            extraBuildInputs = [ pkgs.aws-lc ];
 
             # pdfcraft-engine -> pdfcraft-ocr -> ocrs -> rten -> rten-gemm, which
             # calls _mm512_dpbusd_epi32. rustc cannot codegen that intrinsic —

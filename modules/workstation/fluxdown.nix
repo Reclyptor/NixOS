@@ -60,7 +60,6 @@ _: {
 
         nativeBuildInputs = with pkgs; [
           pkg-config
-          cmake # aws-lc-sys
           clang
           rustPlatform.bindgenHook
           makeWrapper
@@ -82,6 +81,10 @@ _: {
           libayatana-appindicator
           glib
           zstd
+          # cargoSetupHook (nixpkgs 44cddf92c4) makes aws-lc-sys and
+          # libsqlite3-sys link system libraries instead of building their own.
+          aws-lc
+          sqlite
         ];
 
         # Upstream's own release command (release.yml:947-949) plus the CLI.
