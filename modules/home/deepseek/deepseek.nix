@@ -155,7 +155,9 @@ _: {
           ${v}_url="" ${v}_access_id="" ${v}_access_secret="" ${v}_catalog=""
 
           if ${lib.concatMapStringsSep " && " (f: "[ -f ${lib.escapeShellArg f} ]") files}; then
-            if ${v}_catalog="$("$vllm_catalog" ${lib.escapeShellArgs (files ++ [ (toString r.contextWindow) ])})"; then
+            if ${v}_catalog="$("$vllm_catalog" ${
+              lib.escapeShellArgs (files ++ [ (toString r.contextWindow) ])
+            })"; then
               echo "deepseek: ${id} catalog fetched — $(describe ${shellRef "${v}_catalog"})" >&2
             else
               echo "deepseek: keeping the ${id} catalog already in ${homePatchFile}" >&2
@@ -353,9 +355,10 @@ _: {
 
       # dsh mounts no MCP client of its own — dsh-mcp-client ships in the
       # installation's closure but no bundle inserts it — so every declared
-      # server becomes one row here, in every profile. The rows go in their own
-      # patch entry ahead of the profile's, which leaves a profile free to
-      # retarget or disable `mcp-<name>` by id in its own layer.
+      # server becomes one row, in every profile, through deepseek.insertRows
+      # below. The rows go in their own patch entry ahead of the profile's,
+      # which leaves a profile free to retarget or disable `mcp-<name>` by id
+      # in its own layer.
       mcpRows = lib.mapAttrsToList (server: cfg: {
         id = "mcp-${server}";
         name = "@deepseek-ai/dsh-mcp-client";
@@ -387,17 +390,24 @@ _: {
 
       # The rows Nix owns outright in a profile's patch, replaced on every
       # activation. defaultRouteRow is not among them: it is only seeded.
-      ownedRowsFor = profile: lib.optional (mcpRows != [ ]) { insert = mcpRows; } ++ profile.patch;
+      insertRows = config.deepseek.insertRows;
+      ownedRowsFor = profile: lib.optional (insertRows != [ ]) { insert = insertRows; } ++ profile.patch;
 
       # Merges the Nix rows into a profile's cordis.patch.yml without taking
       # the file away from dsh, which writes in-app edits into it:
       #
-      #   - rows whose id a profile declares in `patch`, and the MCP insert
-      #     row (recognised by its mcp-* ids), are replaced every time;
+      #   - rows whose id a profile declares in `patch`, and the insert row
+      #     (recognised by its ids: the Nix-declared ones, plus any mcp-* so an
+      #     older generation's row migrates), are replaced every time;
       #   - agent-default-model is written only when no such row exists, so a
       #     /model choice outlives a rebuild — a seed, not a pin. One that
       #     names a vLLM route's former id is moved onto its current id;
       #   - every other row is dsh's or the user's and is carried through.
+      #
+      # The ownership test builds a list and asks any_c over it instead of
+      # using yq's `or`, which evaluates its right side against the left
+      # side's result and so answers false for an id that only the right
+      # side matches.
       #
       # yq-go rather than a JSON round trip because the file holds what dsh's
       # config editor writes back, `!!js` expressions and comments included.
@@ -414,12 +424,13 @@ _: {
           ((. // []) | with(.[] | select(.id == "agent-default-model" and (.config.provider as $p | $ren | has($p)));
             .config.provider = $ren[.config.provider] | .config.provider style="")) as $cur |
           (strenv(DSH_OWNED_IDS) | from_json) as $owned |
+          (strenv(DSH_OWNED_INSERT_IDS) | from_json) as $ownedInserts |
           ([$cur[] | select(.id == "agent-default-model")] | length) as $seeded |
           (([strenv(DSH_DEFAULT_ROW) | from_json | select($seeded == 0)]
             + (strenv(DSH_NIX_ROWS) | from_json)) | ... style="")
           + [$cur[]
               | select((.id as $i | $owned | any_c(. == $i)) | not)
-              | select((has("insert") and (.insert | all_c((.id // "") | test("^mcp-")))) | not)]
+              | select((has("insert") and (.insert | all_c((.id // "") as $i | [($i | test("^mcp-")), ($ownedInserts | any_c(. == $i))] | any_c(. == true)))) | not)]
         ' > "$file.tmp"; then
           if cmp -s "$file.tmp" "$file"; then
             rm -f "$file.tmp"
@@ -601,6 +612,21 @@ _: {
         '';
       };
 
+      options.deepseek.insertRows = lib.mkOption {
+        type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
+        default = [ ];
+        example = lib.literalExpression ''
+          [ { id = "my-hook"; name = "@deepseek-ai/dsh-hooks-claude-code"; config.configPath = "/path/hooks.json"; } ]
+        '';
+        description = ''
+          Plugin rows mounted into every profile through one `insert` entry of
+          its `cordis.patch.yml`, replaced on every activation. Each row needs
+          an `id`: activation recognises its own insert entry by those ids, the
+          same way it recognises `patch` rows. `deepseek.mcpServers` contributes
+          its `mcp-<name>` rows here.
+        '';
+      };
+
       options.deepseek.mcpServers = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.submodule {
@@ -652,7 +678,19 @@ _: {
               and finds the rows it owns by id; a row without one could never
               be replaced, so it would pile up on every rebuild.
             '';
-          }) profiles;
+          }) profiles
+          ++ [
+            {
+              assertion = lib.all (row: row ? id) insertRows;
+              message = ''
+                Every row in deepseek.insertRows needs an `id`, for the same
+                reason profile patch rows do: activation finds the insert entry
+                it owns by the ids inside it.
+              '';
+            }
+          ];
+
+        deepseek.insertRows = mcpRows;
 
         # Global dsh directives. The loader's user-global scope is the fixed
         # path $DSH_HOME/AGENTS.md — dshHome is configurable, the file name is
@@ -675,6 +713,7 @@ _: {
               DSH_DEFAULT_ROW=${lib.escapeShellArg (builtins.toJSON defaultRouteRow)} \
               DSH_NIX_ROWS=${lib.escapeShellArg (builtins.toJSON (ownedRowsFor profile))} \
               DSH_OWNED_IDS=${lib.escapeShellArg (builtins.toJSON (map (row: row.id) profile.patch))} \
+              DSH_OWNED_INSERT_IDS=${lib.escapeShellArg (builtins.toJSON (map (row: row.id) insertRows))} \
                 $DRY_RUN_CMD ${profilePatchRender} "$HOME/${profilePath name}/cordis.patch.yml"
             '') profiles
           )
