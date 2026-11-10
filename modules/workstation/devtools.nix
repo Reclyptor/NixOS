@@ -7,12 +7,10 @@ _: {
       codex
       crush
       deno
-      dsh
       duckdb
       gallery-dl
       gcc
       gh
-      github-copilot-cli
       go
       gum
       jdk
@@ -22,7 +20,6 @@ _: {
       natscli
       nodejs
       opencode
-      prime-agent
       python3
       qwen-code
       rcon-cli
