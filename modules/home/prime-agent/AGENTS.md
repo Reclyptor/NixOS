@@ -233,9 +233,10 @@ Whenever work is parallelized, the role decides the model:
 - **`anthropic/claude-sonnet-5-5`** writes code - implementation,
   scripting, and mechanical edits.
 
-Writing or updating a skill always runs on `anthropic/claude-opus-5-5`,
-scripts and all - a skill is instructions other agents follow, so it is
-design work.
+Writing or updating a skill, scripts and all, and making any configuration
+change always run on `anthropic/claude-opus-5-5`. A skill is instructions
+other agents follow, and configuration shapes how the whole system behaves,
+so both are design work, not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
 `anthropic/claude-sonnet-5-5`, as long as every sub-agent it launches for

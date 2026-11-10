@@ -214,8 +214,10 @@ Whenever work is parallelized, the role decides the model:
   threads, audits, architecture, specs, and merging and verifying results.
 - **Sonnet** writes code - implementation, scripting, and mechanical edits.
 
-Writing or updating a skill always runs on Opus, scripts and all - a skill
-is instructions other agents follow, so it is design work.
+Writing or updating a skill, scripts and all, and making any configuration
+change always run on Opus. A skill is instructions other agents follow, and
+configuration shapes how the whole system behaves, so both are design work,
+not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
 Sonnet, as long as every sub-agent it launches for implementation, coding,
