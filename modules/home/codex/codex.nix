@@ -29,10 +29,23 @@ _: {
 
   flake.modules.homeManager.base =
     {
+      config,
       lib,
       pkgs,
       ...
     }:
+    let
+      inherit (config.programs.codexCli) shellEnvironment;
+
+      # JSON strings are valid TOML basic strings, and these values are plain
+      # paths, so builtins.toJSON is the whole escaping story.
+      shellEnvironmentSection = lib.optionalString (shellEnvironment.set != { }) (
+        "\n[shell_environment_policy.set]\n"
+        + lib.concatStrings (
+          lib.mapAttrsToList (name: value: "${name} = ${builtins.toJSON value}\n") shellEnvironment.set
+        )
+      );
+    in
     {
       # Per-event Codex hook lists, merged across modules and rendered by the
       # NixOS module above into /etc/codex/hooks.json. The twin of
@@ -50,6 +63,20 @@ _: {
         type = lib.types.attrsOf (lib.types.listOf lib.types.anything);
         default = { };
         description = "Per-event Codex hook lists, merged across modules and rendered to the managed /etc/codex/hooks.json.";
+      };
+
+      # Variables forced into every command Codex runs, rendered as
+      # [shell_environment_policy.set]. This is the only seam that works for
+      # credential-shaped names: Codex drops inherited *KEY*, *SECRET* and
+      # *TOKEN* variables before it applies `set`, so a wrapper exporting
+      # SOPS_AGE_KEY_FILE would lose it, while `set` is applied after the
+      # excludes and survives. It is also re-exported after a login shell's
+      # snapshot is sourced, so the shell cannot undo it. Source:
+      # codex-rs/protocol/src/shell_environment.rs, populate_env.
+      options.programs.codexCli.shellEnvironment.set = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        description = "Environment variables Codex forces into every command it runs.";
       };
 
       config = {
@@ -90,6 +117,7 @@ _: {
           # reports session identity through a SessionStart hook, and by every
           # other hook in the managed /etc/codex/hooks.json.
           hooks = true
+          ${shellEnvironmentSection}
           BASE_EOF
                 if [ -n "$PRESERVED" ]; then
                   printf '\n%s\n' "$PRESERVED"
