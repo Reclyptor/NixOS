@@ -219,6 +219,9 @@ Whenever work is parallelized, the role decides the model:
 - **`gpt-5.6-terra`** writes code - implementation, scripting, and
   mechanical edits.
 
+Writing or updating a skill always runs on `gpt-6.1-sol`, scripts and all -
+a skill is instructions other agents follow, so it is design work.
+
 Leads the main agent spawns are the one exception: a lead may run on
 `gpt-5.6-terra`, as long as every sub-agent it launches for
 implementation, coding, or scripting also runs on `gpt-5.6-terra`.
