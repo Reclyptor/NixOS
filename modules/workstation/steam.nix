@@ -284,6 +284,12 @@ _: {
       #     windows. SDL names the window after the executable, which Nix wraps
       #     as .gamescope-wrapped; the class is pinned back to gamescope for the
       #     Hyprland window rules.
+      #   * gamescope composites on the first Vulkan device that can present,
+      #     and since 3.17.0 that is the Arrow Lake iGPU, which enumerates ahead
+      #     of the RTX 5080. The game still renders on the 5080, so every frame
+      #     crosses GPUs, and with explicit sync off gamescope samples it before
+      #     the copy lands: the game tears. --prefer-vk-device pins compositing
+      #     to the 5080 (10de:2c02), where 3.16 used to land on its own.
       #
       # The environment variables are scoped to gamescope: the game gets Steam's
       # own SDL_VIDEODRIVER back and must not inherit the rest.
@@ -320,7 +326,7 @@ _: {
             GAMESCOPE_SCRIPT_PATH=${steamGamescopeScripts} \
             SDL_VIDEODRIVER=x11 \
             SDL_VIDEO_X11_WMCLASS=gamescope \
-            gamescope --backend sdl "''${flags[@]}" -- "''${game[@]}" "$@"
+            gamescope --backend sdl --prefer-vk-device 10de:2c02 "''${flags[@]}" -- "''${game[@]}" "$@"
         '';
       };
     in
