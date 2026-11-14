@@ -100,6 +100,12 @@ let
         default = [ ];
         description = "Optical drives physically attached to this node. Empty for nodes with none.";
       };
+
+      tenGigabit = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Whether this node has a 10 Gbit/s link to the NAS.";
+      };
     };
   };
 in
@@ -165,6 +171,7 @@ in
         wiredIp = "192.168.1.13";
         wirelessIp = "192.168.1.23";
         k3s.role = "agent";
+        tenGigabit = true;
 
         # This node runs the rippers. Serials verified against /dev/sr* on the
         # host; sg symlinks are needed because MakeMKV talks to the drives

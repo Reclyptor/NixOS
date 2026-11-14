@@ -42,7 +42,9 @@ in
       # Same caveat as gvisor.nix: k3s applies --node-label and --node-taint
       # only at first registration, so the five existing nodes were labelled and
       # tainted by hand with kubectl. This is kept here so a rebuilt or
-      # replacement node comes up correct with no manual step.
+      # replacement node comes up correct with no manual step. The 10g label is
+      # new, so styxeon also needs it applied once by hand:
+      # kubectl label node styxeon network.reclyptor.com/10g=true
       capabilityFlags =
         lib.optionals (config.host.gpu == "nvidia") [
           # Reserves the GPU box for GPU work. The device plugin already
@@ -59,6 +61,9 @@ in
         ]
         ++ lib.optionals (config.host.opticalDrives != [ ]) [
           "--node-label=hardware.reclyptor.com/optical=true"
+        ]
+        ++ lib.optionals config.host.tenGigabit [
+          "--node-label=network.reclyptor.com/10g=true"
         ];
     in
     {
