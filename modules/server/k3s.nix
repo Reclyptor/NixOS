@@ -53,12 +53,6 @@ in
           # here — without that, volumes stop mounting on the next reboot.
           "--node-taint=nvidia.com/gpu=true:NoSchedule"
         ]
-        ++ lib.optionals (config.host.gpu == "amd") [
-          # renderD128 is an AMD render node here, so VAAPI transcoding works.
-          # On the nvidia box that same path is a 3090 that radeonsi cannot
-          # drive — which is exactly why this is a capability and not a hostname.
-          "--node-label=hardware.reclyptor.com/vaapi=true"
-        ]
         ++ lib.optionals (config.host.opticalDrives != [ ]) [
           "--node-label=hardware.reclyptor.com/optical=true"
         ]
