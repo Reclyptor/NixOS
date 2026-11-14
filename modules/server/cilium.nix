@@ -45,6 +45,14 @@ in
                                          # its double-encap broke WireGuard's MTU.
         ipv4NativeRoutingCIDR: "10.42.0.0/16"   # pod CIDR routed natively (not masqueraded)
 
+        # Both were set on the live cluster by a kubectl patch on 2026-06-20 and
+        # are declared here at their live values so the rendered ConfigMap owns
+        # them. Per-endpoint routes send pod traffic straight to each lxc device
+        # instead of through cilium_host; audit mode off means policies enforce.
+        endpointRoutes:
+          enabled: true
+        policyAuditMode: false
+
         # WIRED ONLY (validated): eno1 on archeon/fluxeon/voideon/styxeon, enp6s0 on
         # bytheon. Never wlp2s0/wlo1 (wireless = OOB SSH lifeline).
         devices: "${wiredDevices}"
