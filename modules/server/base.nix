@@ -45,13 +45,18 @@ in
         "sg"
       ];
       boot.kernelParams =
-        if config.host.gpu == "amd" then
-          [
-            "amdgpu.dc=1"
-            "amdgpu.dpm=1"
-          ]
-        else
-          [ "nvidia-drm.modeset=1" ];
+        # 4GiB ARC ceiling. Unset, ARC may grow to RAM minus 1GiB, memory the
+        # kubelet does not account for when it admits pods.
+        [ "zfs.zfs_arc_max=4294967296" ]
+        ++ (
+          if config.host.gpu == "amd" then
+            [
+              "amdgpu.dc=1"
+              "amdgpu.dpm=1"
+            ]
+          else
+            [ "nvidia-drm.modeset=1" ]
+        );
       boot.extraModprobeConfig = lib.mkIf (config.host.gpu == "nvidia") "options nvidia_drm modeset=1";
       boot.supportedFilesystems = [
         "zfs"
