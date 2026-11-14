@@ -22,12 +22,16 @@ in
       ...
     }:
     let
-      # Pinned to Cilium 1.19.8 (supports k8s 1.32–1.35; cluster is k3s v1.35.6).
-      # The pin is intentional — the CNI must not silently auto-update. Bump the
-      # version and hash together to upgrade.
+      # Pinned to Cilium 1.20.4, whose e2e-tested Kubernetes range is 1.33–1.36;
+      # the cluster runs k3s 1.36 (pinned to the minor in k3s.nix). The pin is
+      # intentional — the CNI must not silently auto-update. Bump the version and
+      # hash together, one minor at a time, and check the new release's
+      # compatibility page covers the k3s minor before switching.
+      version = "1.20.4";
+
       chart = pkgs.fetchurl {
-        url = "https://helm.cilium.io/cilium-1.19.8.tgz";
-        hash = "sha256-aXTnTcwB6rOThbi4hA30g64xQGLGCp4bKQ30zTgoH+A=";
+        url = "https://helm.cilium.io/cilium-${version}.tgz";
+        hash = "sha256-UFq/+DhYEd8alJd2/ELp8QaXmJozKsyG1uiTPvy4Ve0=";
       };
 
       values = pkgs.writeText "cilium-values.yaml" ''
@@ -93,10 +97,22 @@ in
         prometheus:
           enabled: true                  # cilium-agent :9962 — cilium_drop_count_total lives here
 
+        # Requests only, sized from 30 days of observed usage (2026-11-13);
+        # no limits, since an OOM-killed CNI component takes networking with it.
+        envoy:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+
         operator:
           replicas: 2                    # 3 servers available
           prometheus:
             enabled: true                # cilium-operator :9963
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
 
         hubble:
           enabled: true
@@ -106,17 +122,31 @@ in
             enabled: [dns, drop, tcp]
           relay:
             enabled: true
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
           ui:
             enabled: true
             service:
               # Hubble UI has no built-in auth, so keep it off the LAN.
               # Reach it with `cilium hubble ui` or a kubectl port-forward.
               type: ClusterIP
+            backend:
+              resources:
+                requests:
+                  cpu: 5m
+                  memory: 64Mi
+            frontend:
+              resources:
+                requests:
+                  cpu: 5m
+                  memory: 32Mi
 
       '';
 
       manifest =
-        pkgs.runCommand "cilium-1.19.8-manifest.yaml" { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
+        pkgs.runCommand "cilium-${version}-manifest.yaml" { nativeBuildInputs = [ pkgs.kubernetes-helm ]; }
           ''
             export HOME="$TMPDIR"
             helm template cilium ${chart} \
