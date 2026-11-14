@@ -75,10 +75,48 @@ in
 
       services.k3s = {
         enable = true;
+        # Pinned to a minor so a nixpkgs bump cannot silently move the cluster to
+        # a new Kubernetes minor (k3s_1_37 already exists upstream). Patch
+        # releases within 1.36 still follow nixpkgs. Before bumping the minor,
+        # check that the pinned Cilium in cilium.nix lists it as supported.
+        package = pkgs.k3s_1_36;
         role = config.host.k3s.role;
         clusterInit = lib.mkIf config.host.k3s.bootstrap true;
         serverAddr = lib.mkIf (!config.host.k3s.bootstrap) "https://127.0.0.1:6443";
         tokenFile = config.sops.secrets."k3s/token".path;
+        # Without reservations allocatable == capacity, so pods could claim the
+        # memory k3s itself needs (kubelet, containerd and, on servers, the
+        # apiserver and an etcd member all live in k3s.service). With the
+        # kubelet's default enforceNodeAllocatable = [ "pods" ] this also caps
+        # kubepods.slice at allocatable, so a pod memory blow-up OOMs inside the
+        # pod budget instead of taking the host down. It does not cap k3s or
+        # system services, and the ZFS ARC sits outside both.
+        #
+        # Sized from 30 days of k3s RSS (servers peak ~2.1Gi plus containerd;
+        # agents ~0.25Gi) and k3s CPU p99 (servers <=0.51 cores, agents <=0.05).
+        extraKubeletConfig =
+          if isServer then
+            {
+              kubeReserved = {
+                cpu = "1000m";
+                memory = "2560Mi";
+              };
+              systemReserved = {
+                cpu = "500m";
+                memory = "1Gi";
+              };
+            }
+          else
+            {
+              kubeReserved = {
+                cpu = "250m";
+                memory = "768Mi";
+              };
+              systemReserved = {
+                cpu = "500m";
+                memory = "1Gi";
+              };
+            };
         extraFlags =
           if isServer then
             [
