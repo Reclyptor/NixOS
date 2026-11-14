@@ -95,6 +95,12 @@ let
         description = "Power limit in watts applied to every NVIDIA GPU at boot. Null keeps the card's default.";
       };
 
+      gpuUnlock = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Whether gpu-unlock lifts the tensor core rate cap on every supported NVIDIA GPU at boot.";
+      };
+
       opticalDrives = lib.mkOption {
         type = lib.types.listOf opticalDriveType;
         default = [ ];
@@ -205,6 +211,7 @@ in
         # GPU 0 sits in thermal slowdown at the 420 W default while serving
         # vLLM, and tensor parallelism runs both cards at its pace.
         gpuPowerLimit = 280;
+        gpuUnlock = true;
       };
     };
   };
