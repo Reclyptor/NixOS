@@ -28,6 +28,15 @@
       flake = false;
     };
 
+    # Pinned to a commit, not left to float: this module rewrites GPU state at
+    # boot on bytheon, so a new revision goes in on purpose, with the node's
+    # owner there for the reboot, and never as a side effect of
+    # `nix flake update`.
+    gpu-unlock = {
+      url = "github:Zagitta/gpu-unlock/7eb51bccae0a0b7e599e084d971170e9a1e82d0c";
+      flake = false;
+    };
+
     # Pinned to a release tag rather than taken from nixpkgs, which trails by two
     # releases: the 0.9.x line is where Claude Code's "blocked" state became
     # trustworthy (Bash approvals, MCP questions), and that signal is the whole

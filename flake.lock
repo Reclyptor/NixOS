@@ -20,6 +20,23 @@
         "type": "github"
       }
     },
+    "gpu-unlock": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793226676,
+        "narHash": "sha256-1KD/J1S1uyI5GGoTwQ1cU/sXeEKlG54exSvi6U+j73M=",
+        "owner": "Zagitta",
+        "repo": "gpu-unlock",
+        "rev": "7eb51bccae0a0b7e599e084d971170e9a1e82d0c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Zagitta",
+        "repo": "gpu-unlock",
+        "rev": "7eb51bccae0a0b7e599e084d971170e9a1e82d0c",
+        "type": "github"
+      }
+    },
     "herdr": {
       "inputs": {
         "nixpkgs": [
@@ -98,6 +115,7 @@
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
+        "gpu-unlock": "gpu-unlock",
         "herdr": "herdr",
         "home-manager": "home-manager",
         "import-tree": "import-tree",
