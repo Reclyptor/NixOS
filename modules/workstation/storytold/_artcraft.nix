@@ -15,6 +15,7 @@
 #
 # Each app gets its own module beside this one. They differ only in pin,
 # version and native dependencies, so the derivation itself lives here once.
+# _app.nix puts each behind its own enable switch.
 { lib, pkgs }:
 
 {
@@ -65,6 +66,9 @@
   # package.sh builds and runs to install its man pages and bash, zsh and fish
   # completions.
   cliDocs ? false,
+  # Appended to the compiled package's postInstall, for files the binary looks
+  # up relative to its own path. Only pdfcraft has any: its OCR models.
+  extraPostInstall ? "",
 }:
 
 let
@@ -208,138 +212,6 @@ let
     # app's nfpm.yaml lists it, so the wrapper carries upstream's full set.
     pkgs.libxrandr
   ];
-in
-pkgs.rustPlatform.buildRustPackage {
-  inherit
-    pname
-    version
-    src
-    cargoHash
-    buildFeatures
-    ;
-
-  cargoDeps = patchedVendor;
-
-  nativeBuildInputs = [
-    pkgs.makeWrapper
-  ]
-  ++ lib.optional cliDocs pkgs.installShellFiles
-  ++ extraNativeBuildInputs;
-  buildInputs = extraBuildInputs;
-
-  # CRAFT_FONTS_REQUIRED and CRAFT_I18N_REQUIRED, as in upstream's release
-  # workflows, turn a checkout the build script cannot use into an error rather
-  # than a silent build without fonts or translations.
-  env =
-    extraEnv
-    // lib.optionalAttrs (craftFonts != null) {
-      CRAFT_FONTS_DIR = "${craftFonts}";
-      CRAFT_FONTS_REQUIRED = "1";
-    }
-    // lib.optionalAttrs (craftI18n != null) {
-      CRAFT_I18N_DIR = "${craftI18n}";
-      CRAFT_I18N_REQUIRED = "1";
-    };
-
-  # The rev has to be spelled out rather than read from the source, which would
-  # be import-from-derivation; this keeps the two from drifting apart.
-  postPatch = lib.optionalString (craftI18nRev != null) ''
-    if [ "$(tr -d '[:space:]' < craft-i18n.rev)" != ${lib.escapeShellArg craftI18nRev} ]; then
-      echo "craftI18nRev does not match craft-i18n.rev ($(cat craft-i18n.rev))" >&2
-      exit 1
-    fi
-  '';
-
-  # Since the 2026-10-28 releases every app patches the whole storytold egui
-  # fork family in, including members it never uses (egui_demo_lib and others),
-  # which Cargo.lock lists as [[patch.unused]] and the vendor tree therefore
-  # lacks. Offline cargo then fails on "patch location does not contain
-  # packages". preConfigure, not postPatch: a derivation's own postPatch runs
-  # before cargoSetupPostPatchHook compares Cargo.lock with the vendored copy.
-  preConfigure = ''
-    ${pkgs.python3.interpreter} -I ${./strip-unused-patches.py}
-  '';
-
-  # What upstream's packaging/linux/package.sh builds. Deliberately not the
-  # workspace default members: those also carry `<app>-web`, a wasm32 target,
-  # and `xtask`, build tooling — neither belongs in a system closure.
-  #
-  # --locked is ours. The build hook passes --offline, which lets a drifted
-  # Cargo.lock be re-resolved against the vendored tree instead of failing; the
-  # committed lockfile is the whole point of a pinned build, so require it.
-  cargoBuildFlags = [
-    "--locked"
-    "-p"
-    pname
-    "-p"
-    "${pname}-cli"
-  ];
-
-  # Scoped to the two crates we actually ship. The full workspace suite is
-  # thousands of tests across forty-odd crates and is upstream's CI job, not a
-  # packaging gate; these catch a broken build of what we install.
-  cargoTestFlags = [
-    "--locked"
-    "-p"
-    pname
-    "-p"
-    "${pname}-cli"
-  ];
-  # Unix-only tests in wordcraft and cadcraft create deliberately non-UTF-8
-  # file names. stdenv's /build is on this host's ZFS utf8only dataset, which
-  # rejects them; the sandbox's private /dev/shm accepts raw filename bytes.
-  # preCheck because stdenv initializes TMPDIR after the derivation environment.
-  preCheck = ''
-    export TMPDIR=$(mktemp -d -p /dev/shm)
-  '';
-
-  # A separate cargo run, after the shipped binaries are built, as cadcraft's
-  # package.sh does it: building the example alongside them would unify its
-  # clap_mangen/clap_complete dev-dependency features into what we install.
-  # The same features as the main build, so cargo reuses those crates rather
-  # than recompiling them without the features.
-  postBuild = lib.optionalString cliDocs ''
-    cargo build -j "$NIX_BUILD_CORES" --offline --locked --profile release \
-      --target ${pkgs.stdenv.hostPlatform.rust.rustcTargetSpec} \
-      ${
-        lib.optionalString (buildFeatures != [ ]) "--features=${lib.concatStringsSep "," buildFeatures}"
-      } \
-      -p ${pname}-cli --example man-and-completions
-    target/${pkgs.stdenv.hostPlatform.rust.rustcTargetSpec}/release/examples/man-and-completions cli-docs
-  '';
-
-  postInstall = ''
-    install -Dm644 packaging/linux/${appId}.desktop \
-      $out/share/applications/${appId}.desktop
-    install -Dm644 packaging/linux/${appId}.mime.xml \
-      $out/share/mime/packages/${appId}.xml
-
-    # @DATE@ is the build date in upstream's env.sh, which would make the output
-    # a function of when it was built. The release date is the reproducible
-    # value and the one AppStream actually wants for a <release>.
-    mkdir -p $out/share/metainfo
-    substitute packaging/linux/${appId}.metainfo.xml.in \
-      $out/share/metainfo/${appId}.metainfo.xml \
-      --replace-fail '@VERSION@' '${version}' \
-      --replace-fail '@DATE@' '${releaseDate}'
-
-    mkdir -p $out/share/icons
-    cp -R assets/app-icon/hicolor $out/share/icons/
-  ''
-  + lib.optionalString cliDocs ''
-    installManPage cli-docs/*.1
-    installShellCompletion --cmd ${pname}-cli \
-      --bash cli-docs/${pname}-cli.bash \
-      --zsh cli-docs/_${pname}-cli \
-      --fish cli-docs/${pname}-cli.fish
-  '';
-
-  postFixup = ''
-    for bin in ${pname} ${pname}-cli; do
-      wrapProgram $out/bin/$bin \
-        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibraries}
-    done
-  '';
 
   meta = {
     inherit description;
@@ -348,4 +220,133 @@ pkgs.rustPlatform.buildRustPackage {
     mainProgram = pname;
     platforms = lib.platforms.linux;
   };
-}
+
+  # The compile, kept free of anything that only matters at run time. Each app
+  # is 600 to 900 crates, and while the wrapper below was part of this
+  # derivation a point release of libx11 recompiled all of them.
+  unwrapped = pkgs.rustPlatform.buildRustPackage {
+    pname = "${pname}-unwrapped";
+    inherit
+      version
+      src
+      cargoHash
+      buildFeatures
+      meta
+      ;
+
+    cargoDeps = patchedVendor;
+
+    nativeBuildInputs = lib.optional cliDocs pkgs.installShellFiles ++ extraNativeBuildInputs;
+    buildInputs = extraBuildInputs;
+
+    # CRAFT_FONTS_REQUIRED and CRAFT_I18N_REQUIRED, as in upstream's release
+    # workflows, turn a checkout the build script cannot use into an error rather
+    # than a silent build without fonts or translations.
+    env =
+      extraEnv
+      // lib.optionalAttrs (craftFonts != null) {
+        CRAFT_FONTS_DIR = "${craftFonts}";
+        CRAFT_FONTS_REQUIRED = "1";
+      }
+      // lib.optionalAttrs (craftI18n != null) {
+        CRAFT_I18N_DIR = "${craftI18n}";
+        CRAFT_I18N_REQUIRED = "1";
+      };
+
+    # The rev has to be spelled out rather than read from the source, which would
+    # be import-from-derivation; this keeps the two from drifting apart.
+    postPatch = lib.optionalString (craftI18nRev != null) ''
+      if [ "$(tr -d '[:space:]' < craft-i18n.rev)" != ${lib.escapeShellArg craftI18nRev} ]; then
+        echo "craftI18nRev does not match craft-i18n.rev ($(cat craft-i18n.rev))" >&2
+        exit 1
+      fi
+    '';
+
+    # Since the 2026-10-28 releases every app patches the whole storytold egui
+    # fork family in, including members it never uses (egui_demo_lib and others),
+    # which Cargo.lock lists as [[patch.unused]] and the vendor tree therefore
+    # lacks. Offline cargo then fails on "patch location does not contain
+    # packages". preConfigure, not postPatch: a derivation's own postPatch runs
+    # before cargoSetupPostPatchHook compares Cargo.lock with the vendored copy.
+    preConfigure = ''
+      ${pkgs.python3.interpreter} -I ${./strip-unused-patches.py}
+    '';
+
+    # What upstream's packaging/linux/package.sh builds. Deliberately not the
+    # workspace default members: those also carry `<app>-web`, a wasm32 target,
+    # and `xtask`, build tooling — neither belongs in a system closure.
+    #
+    # --locked is ours. The build hook passes --offline, which lets a drifted
+    # Cargo.lock be re-resolved against the vendored tree instead of failing; the
+    # committed lockfile is the whole point of a pinned build, so require it.
+    cargoBuildFlags = [
+      "--locked"
+      "-p"
+      pname
+      "-p"
+      "${pname}-cli"
+    ];
+
+    # No test phase. cargo test recompiles both shipped crates a second time, and
+    # the suite is upstream's CI job on every release tag, not a packaging gate.
+    doCheck = false;
+
+    # A separate cargo run, after the shipped binaries are built, as cadcraft's
+    # package.sh does it: building the example alongside them would unify its
+    # clap_mangen/clap_complete dev-dependency features into what we install.
+    # The same features as the main build, so cargo reuses those crates rather
+    # than recompiling them without the features.
+    postBuild = lib.optionalString cliDocs ''
+      cargo build -j "$NIX_BUILD_CORES" --offline --locked --profile release \
+        --target ${pkgs.stdenv.hostPlatform.rust.rustcTargetSpec} \
+        ${
+          lib.optionalString (buildFeatures != [ ]) "--features=${lib.concatStringsSep "," buildFeatures}"
+        } \
+        -p ${pname}-cli --example man-and-completions
+      target/${pkgs.stdenv.hostPlatform.rust.rustcTargetSpec}/release/examples/man-and-completions cli-docs
+    '';
+
+    postInstall = ''
+      install -Dm644 packaging/linux/${appId}.desktop \
+        $out/share/applications/${appId}.desktop
+      install -Dm644 packaging/linux/${appId}.mime.xml \
+        $out/share/mime/packages/${appId}.xml
+
+      # @DATE@ is the build date in upstream's env.sh, which would make the output
+      # a function of when it was built. The release date is the reproducible
+      # value and the one AppStream actually wants for a <release>.
+      mkdir -p $out/share/metainfo
+      substitute packaging/linux/${appId}.metainfo.xml.in \
+        $out/share/metainfo/${appId}.metainfo.xml \
+        --replace-fail '@VERSION@' '${version}' \
+        --replace-fail '@DATE@' '${releaseDate}'
+
+      mkdir -p $out/share/icons
+      cp -R assets/app-icon/hicolor $out/share/icons/
+    ''
+    + lib.optionalString cliDocs ''
+      installManPage cli-docs/*.1
+      installShellCompletion --cmd ${pname}-cli \
+        --bash cli-docs/${pname}-cli.bash \
+        --zsh cli-docs/_${pname}-cli \
+        --fish cli-docs/${pname}-cli.fish
+    ''
+    + extraPostInstall;
+  };
+in
+# What gets installed: the compiled package's share/ as it is, and its two
+# binaries behind the library path. Seconds to rebuild when a library moves.
+pkgs.runCommand "${pname}-${version}"
+  {
+    inherit pname version meta;
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    passthru = { inherit unwrapped; };
+  }
+  ''
+    mkdir -p $out/bin
+    ln -s ${unwrapped}/share $out/share
+    for bin in ${pname} ${pname}-cli; do
+      makeWrapper ${unwrapped}/bin/$bin $out/bin/$bin \
+        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibraries}
+    done
+  ''

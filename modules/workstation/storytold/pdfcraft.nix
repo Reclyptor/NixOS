@@ -6,8 +6,8 @@
 # printcraft to pdfcraft. github.com/storytold/printcraft still resolves, but by
 # redirect; a pinned build names the new repo.
 _: {
-  flake.modules.nixos.workstation =
-    { lib, pkgs, ... }:
+  flake.modules.nixos.workstation = import ./_app.nix "pdfcraft" (
+    { lib, pkgs }:
     let
       # Scan & OCR's two models, pinned by the sha256s upstream's release build
       # verifies them against. Release packages stage them into share/pdfcraft/models,
@@ -28,51 +28,44 @@ _: {
       ];
     in
     {
-      environment.systemPackages = [
-        (
-          (import ./_artcraft.nix { inherit lib pkgs; } {
-            pname = "pdfcraft";
-            version = "0.15.0";
-            hash = "sha256-9XgS4feVsc+2c6aMi9WbG1NI/SjVhjU3otMU9bmQez0=";
-            cargoHash = "sha256-n2hA1QOPUVG65EMCpEWu8kUEHoVV3nTCNq9sja3cNqQ=";
-            releaseDate = "2026-10-28";
-            description = "PDF editor to read, organize, combine, split and secure PDFs";
-            craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+      version = "0.15.0";
+      hash = "sha256-9XgS4feVsc+2c6aMi9WbG1NI/SjVhjU3otMU9bmQez0=";
+      cargoHash = "sha256-n2hA1QOPUVG65EMCpEWu8kUEHoVV3nTCNq9sja3cNqQ=";
+      releaseDate = "2026-10-28";
+      description = "PDF editor to read, organize, combine, split and secure PDFs";
+      craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
 
-            # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
-            # runs on ring). nixpkgs' cargoSetupHook exports AWS_LC_SYS_USE_SYSTEM=1
-            # (since 44cddf92c4), so aws-lc-sys links the system AWS-LC, found
-            # through pkg-config, instead of building its bundled copy.
-            extraNativeBuildInputs = [ pkgs.pkg-config ];
-            extraBuildInputs = [ pkgs.aws-lc ];
+      # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
+      # runs on ring). nixpkgs' cargoSetupHook exports AWS_LC_SYS_USE_SYSTEM=1
+      # (since 44cddf92c4), so aws-lc-sys links the system AWS-LC, found
+      # through pkg-config, instead of building its bundled copy.
+      extraNativeBuildInputs = [ pkgs.pkg-config ];
+      extraBuildInputs = [ pkgs.aws-lc ];
 
-            # pdfcraft-engine -> pdfcraft-ocr -> ocrs -> rten -> rten-gemm, which
-            # calls _mm512_dpbusd_epi32. rustc cannot codegen that intrinsic —
-            # its own stdarch declares the LLVM intrinsic with the wrong vector
-            # types (repro'd on 1.97.1, on 1.98.1 on 2026-10-21 by building
-            # unpatched rten-gemm 0.26.0, and on 1.99.0 with LLVM 21.1.8 on
-            # 2026-10-28) — so the build fails outright, and OCR is not optional
-            # here (apps/pdfcraft/Cargo.toml declares no features at all). The
-            # patch emits the instruction as inline asm instead, which is what rten
-            # already does for the same instruction in its x86_64 kernel.
-            #
-            # Still rten-gemm 0.26.0 at this release, so the patch applies unchanged.
-            # Delete this once rustc ships the fix.
-            vendorPatches = [
-              {
-                crate = "rten-gemm-0.26.0";
-                patch = ./rten-gemm-vpdpbusd-inline-asm.patch;
-              }
-            ];
-          }).overrideAttrs
-            (old: {
-              postInstall = old.postInstall + ''
-                for model in ${lib.escapeShellArgs ocrModels}; do
-                  install -Dm644 "$model" "$out/share/pdfcraft/models/$(stripHash "$model")"
-                done
-              '';
-            })
-        )
+      # pdfcraft-engine -> pdfcraft-ocr -> ocrs -> rten -> rten-gemm, which
+      # calls _mm512_dpbusd_epi32. rustc cannot codegen that intrinsic —
+      # its own stdarch declares the LLVM intrinsic with the wrong vector
+      # types (repro'd on 1.97.1, on 1.98.1 on 2026-10-21 by building
+      # unpatched rten-gemm 0.26.0, and on 1.99.0 with LLVM 21.1.8 on
+      # 2026-10-28) — so the build fails outright, and OCR is not optional
+      # here (apps/pdfcraft/Cargo.toml declares no features at all). The
+      # patch emits the instruction as inline asm instead, which is what rten
+      # already does for the same instruction in its x86_64 kernel.
+      #
+      # Still rten-gemm 0.26.0 at this release, so the patch applies unchanged.
+      # Delete this once rustc ships the fix.
+      vendorPatches = [
+        {
+          crate = "rten-gemm-0.26.0";
+          patch = ./rten-gemm-vpdpbusd-inline-asm.patch;
+        }
       ];
-    };
+
+      extraPostInstall = ''
+        for model in ${lib.escapeShellArgs ocrModels}; do
+          install -Dm644 "$model" "$out/share/pdfcraft/models/$(stripHash "$model")"
+        done
+      '';
+    }
+  );
 }
