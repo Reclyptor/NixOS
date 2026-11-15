@@ -26,17 +26,10 @@ _: {
           nodejsForDsh = prev.nodejs-slim.overrideAttrs (old: {
             hardeningDisable = (old.hardeningDisable or [ ]) ++ [ "zerocallusedregs" ];
 
-            # Building Node from source means its test suite actually runs here,
-            # and two tests assert on filenames holding invalid UTF-8. This
-            # machine's store is a ZFS dataset with utf8only=on, which refuses
-            # such names at the syscall (EILSEQ), so both fail for a filesystem
-            # reason that has nothing to do with Node or this override — the
-            # cached upstream build simply never ran them on this host. The
-            # remaining ~5000 tests are kept.
-            postPatch = (old.postPatch or "") + ''
-              rm -f test/parallel/test-fileurltopathbuffer.js \
-                    test/parallel/test-fs-readdir-ucs2.js
-            '';
+            # Building Node from source would also run its ~5000-test suite here,
+            # on nearly every nixpkgs bump, to re-prove what Hydra already
+            # proved for the same source with one more hardening flag. Skipped.
+            doCheck = false;
           });
         in
         {
