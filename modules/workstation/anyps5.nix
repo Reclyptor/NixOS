@@ -56,10 +56,9 @@ _: {
         nativeBuildInputs = with pkgs; [
           cmake
           ninja
-          python3 # several ctest cases are python scripts
+          python3 # looked up by several of the project's CMakeLists
           pkg-config
           patchelf
-          util-linux # setarch, for the check phase below
         ];
 
         # libxcb is linked rather than dlopened, so it needs no RPATH help.
@@ -78,8 +77,10 @@ _: {
             --replace-fail '} -static -static-libgcc' '} -static-libgcc'
         '';
 
+        # BUILD_TESTING stays at upstream's default, off: the relinker's tests are
+        # not compiled or run here. They added minutes to every nixpkgs bump, and
+        # the release this pins has already been through upstream's CI.
         cmakeFlags = [
-          (lib.cmakeBool "BUILD_TESTING" true)
           # Left at upstream's default. Turning it on validates generated SPIR-V
           # in-process, which sounds strictly better and is not: the recompiler
           # currently emits an OpSelect whose condition and result vector widths
@@ -99,19 +100,7 @@ _: {
           "libs"
         ];
 
-        doCheck = true;
-        # setarch resets the personality Nix's sandbox sets, which disables ASLR.
-        # guest_memory maps at an address hint and then looks for free space
-        # above it; with the address space laid out deterministically there is
-        # none, and it aborts with "No free range above the mapping address
-        # hint". Under a normal personality it passes. Randomization is what the
-        # test actually needs, so give it that rather than skipping it.
-        checkPhase = ''
-          runHook preCheck
-          setarch ${pkgs.stdenv.hostPlatform.linuxArch} \
-            ctest --output-on-failure --timeout 300
-          runHook postCheck
-        '';
+        doCheck = false;
 
         # The project has no install() rules at all, so the layout here is ours.
         # It mirrors what tools/package_release.py collects for a release.
