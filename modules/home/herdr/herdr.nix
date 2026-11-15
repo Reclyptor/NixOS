@@ -1,5 +1,4 @@
-{ inputs, ... }:
-{
+_: {
   flake.modules.homeManager.base =
     {
       config,
@@ -11,13 +10,15 @@
       home = config.home.homeDirectory;
       inherit (config) palette;
 
-      # herdr's own integration assets, read out of the pinned input rather than
-      # vendored, so the scripts can never drift from the binary whose socket
-      # protocol they speak. Both are POSIX sh + python3 and exit 0 immediately
-      # unless HERDR_ENV=1 — outside a herdr pane they do nothing.
-      claudeHookSrc = "${inputs.herdr}/src/integration/assets/claude/herdr-agent-state.sh";
-      codexHookSrc = "${inputs.herdr}/src/integration/assets/codex/herdr-agent-state.sh";
-      copilotHookSrc = "${inputs.herdr}/src/integration/assets/copilot/herdr-agent-state.sh";
+      # herdr's own integration assets, read out of the source the installed
+      # binary is built from rather than vendored, so the scripts can never
+      # drift from the binary whose socket protocol they speak. Both are POSIX
+      # sh + python3 and exit 0 immediately unless HERDR_ENV=1 — outside a herdr
+      # pane they do nothing.
+      hookAssets = "${pkgs.herdr.src}/src/integration/assets";
+      claudeHookSrc = "${hookAssets}/claude/herdr-agent-state.sh";
+      codexHookSrc = "${hookAssets}/codex/herdr-agent-state.sh";
+      copilotHookSrc = "${hookAssets}/copilot/herdr-agent-state.sh";
 
       # Installed at the paths herdr's own installer uses, so `herdr integration
       # status` recognizes them and stays a truthful drift canary. The installer

@@ -30,11 +30,9 @@ let
         else pkg) lprev.nvidiaPackages;
     });
   };
-  # rust-overlay's buildFixes stay out of the system package set. They override
-  # python3 and other widely used libraries, which changes the hash of
-  # everything above them, so Chromium, Electron, Qt and WebKit miss
-  # cache.nixos.org and compile here, the very local builds those test fixes
-  # exist to rescue. Herdr still gets them through overlays.default.
+  # Only overrides of leaf packages belong here. One that touches python3 or a
+  # widely used library changes the hash of everything above it, so Chromium,
+  # Electron, Qt and WebKit miss cache.nixos.org and compile locally.
   buildFixes = _: {
     nixpkgs.overlays = [ nvidiaBinFix ];
   };

@@ -36,30 +36,6 @@
       url = "github:Zagitta/gpu-unlock/7eb51bccae0a0b7e599e084d971170e9a1e82d0c";
       flake = false;
     };
-
-    # Pinned to a release tag rather than taken from nixpkgs, which trails by two
-    # releases: the 0.9.x line is where Claude Code's "blocked" state became
-    # trustworthy (Bash approvals, MCP questions), and that signal is the whole
-    # point of running herdr. Its integration hook scripts are read out of this
-    # source tree too, so they can never drift from the binary.
-    herdr = {
-      url = "github:herdrdev/herdr/v0.9.3";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.rust-overlay.follows = "rust-overlay";
-    };
-
-    # herdr's Rust toolchain comes from rust-overlay. Taken over from herdr's own
-    # lock, which pins a July build that still reads the deprecated stdenv.is*
-    # attributes and warns on every evaluation, so the pin moves with ours.
-    #
-    # The input is a local wrapper around upstream (inputs/rust-overlay):
-    # herdr builds in its own nixpkgs evaluation, which only sees rust-
-    # overlay's overlays.default, and the pycairo check-phase workaround for
-    # this box's utf8only ZFS /nix has to ride along that path.
-    rust-overlay = {
-      url = "path:inputs/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   # Dendritic pattern (https://github.com/mightyiam/dendritic): every file under
