@@ -86,14 +86,25 @@ _: {
       # the target binary instead. Steam's launcher chain is 64-bit even for a
       # 32-bit game, and that chain is what registers with the daemon; the renice
       # is inherited by everything below it.
-      programs.gamemode.package = pkgs.gamemode.overrideAttrs (previous: {
-        postFixup = (previous.postFixup or "") + ''
+      #
+      # A join over the stock package, not an overrideAttrs, so gamemode itself
+      # still comes from the binary cache and only this script is built here.
+      programs.gamemode.package = pkgs.symlinkJoin {
+        # Not its meta: that lists the dev, lib and man outputs to install, and
+        # a join has only the one.
+        inherit (pkgs.gamemode) pname version;
+        paths = [
+          pkgs.gamemode
+          pkgs.gamemode.man
+        ];
+        postBuild = ''
+          rm $out/bin/gamemoderun
           cat > $out/bin/gamemoderun <<'GAMEMODERUN'
           #!${pkgs.runtimeShell}
           # Helper script to launch games with gamemode.
           # Rewritten by modules/workstation/gamemode.nix; see the comment there.
 
-          gamemode_libdir=${builtins.placeholder "lib"}/lib
+          gamemode_libdir=${pkgs.gamemode.lib}/lib
           gamemode_target=$(command -v "$1" 2>/dev/null)
 
           if [ -n "$gamemode_target" ] && [ "$(${pkgs.coreutils}/bin/od -An -t u1 -j 4 -N 1 -- "$gamemode_target" | ${pkgs.coreutils}/bin/tr -d ' ')" = 1 ]; then
@@ -106,6 +117,6 @@ _: {
           GAMEMODERUN
           chmod +x $out/bin/gamemoderun
         '';
-      });
+      };
     };
 }

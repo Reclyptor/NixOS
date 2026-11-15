@@ -34,8 +34,8 @@ _: {
         wayland
       ];
 
-      fluxdown = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
-        pname = "fluxdown";
+      unwrapped = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
+        pname = "fluxdown-unwrapped";
         version = "0.5.5";
 
         # An umbrella tag. The tag namespace also carries per-component tags
@@ -62,7 +62,6 @@ _: {
           pkg-config
           clang
           rustPlatform.bindgenHook
-          makeWrapper
           desktop-file-utils # for the validation below
         ];
 
@@ -123,29 +122,6 @@ _: {
           desktop-file-validate $out/share/applications/com.fluxdown.app.desktop
         '';
 
-        # Every binary finds its siblings relative to current_exe — the desktop
-        # app looks for fluxdown-agent, the agent for fluxdownd and fluxdown_nmh.
-        # makeWrapper keeps them siblings (the real binaries stay in the same
-        # directory as .name-wrapped), so this is safe; splitting them across
-        # outputs would not be.
-        #
-        # ffmpeg and yt-dlp are on PATH deliberately. Without them the engine
-        # downloads third-party static builds into its data directory at runtime;
-        # resolve_ffmpeg falls back to PATH, so providing them stops that.
-        postFixup = ''
-          for bin in fluxdown-desktop fluxdown-agent fluxdownd fluxdown; do
-            wrapProgram $out/bin/$bin \
-              --set-default FLUXDOWN_INSTALL_SOURCE nix \
-              --prefix PATH : ${
-                lib.makeBinPath [
-                  pkgs.ffmpeg
-                  pkgs.yt-dlp
-                ]
-              } \
-              --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath dlopenLibraries}:${pkgs.addDriverRunpath.driverLink}/lib
-          done
-        '';
-
         meta = {
           description = "Multi-protocol download manager with a GPUI desktop app";
           homepage = "https://github.com/zerx-lab/FluxDown";
@@ -154,6 +130,46 @@ _: {
           mainProgram = "fluxdown-desktop";
         };
       });
+
+      # The wrapping lives outside the compile: yt-dlp follows a flake input
+      # that moves on every update, and inside the Rust derivation each of those
+      # recompiled the whole GPUI tree.
+      #
+      # Every binary finds its siblings relative to current_exe — the desktop
+      # app looks for fluxdown-agent, the agent for fluxdownd and fluxdown_nmh —
+      # and a sibling started that way has to be the wrapper too. So bin/ is
+      # copied, not linked: wrapProgram then leaves each real binary beside its
+      # wrapper as .name-wrapped, in one directory. Linking would resolve
+      # current_exe into the unwrapped package, whose siblings are bare.
+      #
+      # ffmpeg and yt-dlp are on PATH deliberately. Without them the engine
+      # downloads third-party static builds into its data directory at runtime;
+      # resolve_ffmpeg falls back to PATH, so providing them stops that.
+      fluxdown =
+        pkgs.runCommand "fluxdown-${unwrapped.version}"
+          {
+            pname = "fluxdown";
+            inherit (unwrapped) version meta;
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            passthru = { inherit unwrapped; };
+          }
+          ''
+            mkdir -p $out
+            cp -r ${unwrapped}/bin $out/bin
+            chmod u+w $out/bin
+            ln -s ${unwrapped}/share $out/share
+            for bin in fluxdown-desktop fluxdown-agent fluxdownd fluxdown; do
+              wrapProgram $out/bin/$bin \
+                --set-default FLUXDOWN_INSTALL_SOURCE nix \
+                --prefix PATH : ${
+                  lib.makeBinPath [
+                    pkgs.ffmpeg
+                    pkgs.yt-dlp
+                  ]
+                } \
+                --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath dlopenLibraries}:${pkgs.addDriverRunpath.driverLink}/lib
+            done
+          '';
     in
     {
       environment.systemPackages = [ fluxdown ];
