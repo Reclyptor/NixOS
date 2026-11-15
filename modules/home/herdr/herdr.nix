@@ -259,6 +259,14 @@
           Restart = "on-failure";
           RestartSec = 2;
 
+          # Every agent and every command an agent runs lives in this unit's
+          # cgroup, so under the default policy (stop) one runaway process takes
+          # the whole herd down: on 2026-11-13 the kernel OOM-killed a single
+          # 49 GB test binary, systemd then failed the unit with 'oom-kill' and
+          # the restart killed every agent session. With continue, the kernel
+          # still kills the offending process and the rest of the unit lives on.
+          OOMPolicy = "continue";
+
           # Panes are forked from this server, so they inherit exactly this
           # environment — and without a display handle in it, a pane cannot reach
           # the clipboard. Claude Code reads pasted images by shelling out to
