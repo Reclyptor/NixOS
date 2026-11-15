@@ -34,6 +34,8 @@ _: {
 
     programs.hyprland = {
       enable = true;
+      # Has to agree with the hyprland overlay, or the module builds a second
+      # Hyprland of its own. See the comment there.
       withUWSM = false;
       xwayland.enable = true;
     };

@@ -28,7 +28,17 @@ _: {
         # the "press it five times" dance seen on 2026-09-22. Its own comments carry the
         # reasoning. Offered upstream rather than kept here indefinitely -- drop the
         # override once it lands in a release.
-        hyprland = prev.hyprland.overrideAttrs (old: {
+        #
+        # withUWSM is turned off here, not only in programs.hyprland. That
+        # module re-overrides whatever package it is given with its own
+        # withUWSM, so leaving the default on made two Hyprlands: the module's
+        # without UWSM, and this one with it for greetd, home-manager and
+        # systemPackages. Both were compiled here, and the man output of
+        # whichever lost the system-path collision was referenced by nothing,
+        # collected by the daily GC, and rebuilt — Hyprland and aquamarine
+        # with it — on the next switch. All UWSM support adds is a
+        # hyprland-uwsm session file, and greetd starts start-hyprland directly.
+        hyprland = (prev.hyprland.override { withUWSM = false; }).overrideAttrs (old: {
           patches = (old.patches or [ ]) ++ [ ./hyprland-retry-rejected-dpms-commits.patch ];
         });
       })
