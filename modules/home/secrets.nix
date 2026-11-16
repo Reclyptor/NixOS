@@ -60,6 +60,9 @@ _: {
               "vllm/deepseek/access-client-secret"
               "agentmemory/claude-token"
               "ytdlp/categories"
+              "spotify/spotify-api-client-id"
+              "spotify/spotify-api-client-secret"
+              "spotify/spotify-soloist-api-key"
             ]
             (name: {
               path = "${config.home.homeDirectory}/.config/sops/secrets/${name}";
