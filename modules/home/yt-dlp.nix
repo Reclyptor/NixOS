@@ -1,5 +1,14 @@
 _: {
   flake.modules.homeManager.base = { pkgs, ... }: {
+    # Linux caps a filename at 255 bytes, and a CJK title spends 3 per
+    # character, so yt-dlp's default full-title template overflows on long
+    # titles -- fragmented downloads first, since their temp names add ~35
+    # bytes. The B flag truncates by bytes on a UTF-8 boundary;
+    # --trim-filenames counts characters and cannot tell the two apart.
+    xdg.configFile."yt-dlp/config".text = ''
+      -o "%(title).150B [%(id)s].%(ext)s"
+    '';
+
     home.file.".local/bin/ytdlp" = {
       executable = true;
       text = ''
@@ -9,7 +18,8 @@ _: {
 
         GUM="${pkgs.gum}/bin/gum"
         NFS_ROOT="/data/nfs/dxp4800/videos"
-        VIDEO_FORMAT="%(upload_date)s.%(title)s.%(id)s.%(ext)s"
+        # Byte-capped like the global config, which --output below overrides.
+        VIDEO_FORMAT="%(upload_date)s.%(title).150B.%(id)s.%(ext)s"
 
         # The category table -- which directories exist and which cookies each
         # needs -- lives in the sops secret rather than here. This repository is
