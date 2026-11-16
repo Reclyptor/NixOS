@@ -8,10 +8,10 @@
 _: {
   flake.modules.nixos.workstation = import ./_app.nix "effectcraft" (
     { pkgs, ... }: {
-      version = "0.18.0";
-      hash = "sha256-5TDL98KE2j9blT8FeqMOTUznhfdJNOO+exn4LJcth58=";
-      cargoHash = "sha256-PxW3amIo5yA2jlupIUePFTx72tdfcmXcyK0/eC79KTM=";
-      releaseDate = "2026-10-28";
+      version = "0.24.1";
+      hash = "sha256-dtqPop1xmtd/duzJt02QCZj5zrtVtyvUI8hj4TbeSkc=";
+      cargoHash = "sha256-TyxQTE247lH2Q1vUJQZudrYSHx7DS+DF5ZfbUUpB/XI=";
+      releaseDate = "2026-11-12";
       description = "Motion graphics and visual effects compositor";
 
       # Same ALSA path as filmcraft, whose media crates it shares.

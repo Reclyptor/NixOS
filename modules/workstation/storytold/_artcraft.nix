@@ -69,6 +69,10 @@
   # Appended to the compiled package's postInstall, for files the binary looks
   # up relative to its own path. Only pdfcraft has any: its OCR models.
   extraPostInstall ? "",
+  # Libraries this app dlopens beyond the suite's common set (runtimeLibraries
+  # below), added to the wrapper's library path. figcraft and wordcraft load
+  # libfontconfig that way.
+  extraRuntimeLibraries ? [ ],
 }:
 
 let
@@ -98,7 +102,9 @@ let
   ) craftFontsRev;
 
   craftI18nHashes = {
-    "9205108cfdced5177706264038848b68b2422d2b" = "sha256-aHgtGkE5VVjsGiD3lZUQzn/1fOGlUxN5Mq4WCer9PGY=";
+    "1e515422afdda2f317af430c1f9d68a5f83935b4" = "sha256-Z6Zmj5tqtMk2fCffSrF2mjP8rlRupOZZeAHW2qmYAuE=";
+    "575cfdef63227b14daf173b8cc87928bfdfa325e" = "sha256-KTP2u+/3LHry7fOLUpv+UOXDBU7LZI5+1U9605jXtT4=";
+    "e02939ef009218e81c44e8ec001fbb7603461de4" = "sha256-t42doZzXT2sip6CbtekGU287fRyPU1hP+0BqXpwbuIw=";
   };
 
   # Translation catalogs a ui crate's build.rs embeds. Without them the build
@@ -132,8 +138,10 @@ let
 
   # Every app checks GitHub for a newer release at start and from Help ▸ Check
   # for Updates, and offers to replace itself, which the read-only store cannot
-  # allow. All of them reach GitHub through craft-update's check_for_update, so
-  # the patch turns that into an error that says where updates come from: no
+  # allow. All of them reach GitHub through craft-update's check_for_update —
+  # still true at the 2026-11-12 releases, where the crate's GitHubSource also
+  # calls the API but is only constructed by the ArtCraft Launcher — so the
+  # patch turns that into an error that says where updates come from: no
   # request, no prompt, and the menu explains why.
   suitePatches = [
     {
@@ -211,7 +219,8 @@ let
     # winit asks for RandR over x11rb rather than through libXrandr, but every
     # app's nfpm.yaml lists it, so the wrapper carries upstream's full set.
     pkgs.libxrandr
-  ];
+  ]
+  ++ extraRuntimeLibraries;
 
   meta = {
     inherit description;

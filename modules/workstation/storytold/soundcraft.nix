@@ -3,10 +3,10 @@
 _: {
   flake.modules.nixos.workstation = import ./_app.nix "soundcraft" (
     { pkgs, ... }: {
-      version = "0.14.0";
-      hash = "sha256-u6aRlfonVjzK6HRfXWDftz118sD3/OR/ZcoALXiky3A=";
-      cargoHash = "sha256-lysmnO12fqA0fJrmunX3kQXWpYPCmJ719LFm4WUwsXY=";
-      releaseDate = "2026-10-28";
+      version = "0.20.1";
+      hash = "sha256-Qew1WjgKWQ58OPZrhHVZRlKkj7u1EjwP9fgEOjKwfkw=";
+      cargoHash = "sha256-rZzO2+VoVp/1nE/fHQ8hqsu7sFEVQX1AFMsPUOjRIK8=";
+      releaseDate = "2026-11-12";
       description = "Digital audio workstation for audio and MIDI";
       cliDocs = true;
 

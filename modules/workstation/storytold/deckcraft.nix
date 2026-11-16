@@ -3,10 +3,10 @@
 _: {
   flake.modules.nixos.workstation = import ./_app.nix "deckcraft" (
     { pkgs, ... }: {
-      version = "0.12.0";
-      hash = "sha256-BWRINVloBo8oCobZ3eW0G5dcWrQ6jYZhuKMHvKUpcWA=";
-      cargoHash = "sha256-befhMAAiQ1OZXfHXakmt9gU00/EEYaANLGEr9s1mKHM=";
-      releaseDate = "2026-10-28";
+      version = "0.18.1";
+      hash = "sha256-nNoZvhnGEFNmh780GtHoQ4jczs65laFRq7+bF4akXTg=";
+      cargoHash = "sha256-IReMe4glJWfNEoLYLcL1GiahvjUSM60oEV576ATNII0=";
+      releaseDate = "2026-11-12";
       description = "Presentation editor for building and showing slide decks";
       craftFontsRev = "37827adc41fd165f9a9234ac40f94dbad353aa69";
 
@@ -16,8 +16,8 @@ _: {
       extraBuildInputs = [ pkgs.alsa-lib ];
 
       extraEnv = {
-        DECKCRAFT_BUILD_SHA = "29f0f7772c47aa2bfb74fcbb0c4d3b1503300849";
-        DECKCRAFT_BUILD_DATE = "2026-10-28";
+        DECKCRAFT_BUILD_SHA = "7cc73ab1895ed2e30c8afbcada20c70b9ea0a440";
+        DECKCRAFT_BUILD_DATE = "2026-11-12";
       };
     }
   );

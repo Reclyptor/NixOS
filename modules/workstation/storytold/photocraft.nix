@@ -2,12 +2,16 @@
 # Adobe-format support: it reads and writes layered PSD/PSB.
 _: {
   flake.modules.nixos.workstation = import ./_app.nix "photocraft" (_: {
-    version = "0.17.0";
-    hash = "sha256-oN6ML1ua31tUzvhB6pfoTrs1VePkH9lM1AXUwLbH97s=";
-    cargoHash = "sha256-vHvLLkzPIcUetxDbDSbTkTYYuAByGxKb7uWAhkoivXE=";
-    releaseDate = "2026-10-28";
+    version = "0.23.1";
+    hash = "sha256-EhyYkRRQBvVX6CbSJX8gk4UOi/zHlE/jgC8wYUfm0ew=";
+    cargoHash = "sha256-1L3JH41lUlbGF+Jq+XKb9t32EfvTdSpgd0GkkVPMg5E=";
+    releaseDate = "2026-11-12";
     description = "Image editor for photos and layered PSD documents";
     craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+
+    # The interface translations moved to storytold/craft-i18n in this
+    # release, as wordcraft's did in 0.11.0.
+    craftI18nRev = "e02939ef009218e81c44e8ec001fbb7603461de4";
 
     # HEIC/HEIF decode, which 0.3.0 could not do: crates/heif landed after
     # that tag. It is off by default so distributors choose it, and
@@ -37,16 +41,16 @@ _: {
 
     # Build provenance, read at compile time by crates/engine/src/build_info.rs
     # and shown in --version and the About dialog. Unset, the binary calls
-    # itself "0.17.0 (dev build)": a build that cannot name the commit it came
+    # itself "<version> (dev build)": a build that cannot name the commit it came
     # from is of no use in a bug report. Both values are properties of the pin
     # above, so stamping them costs nothing in reproducibility. The commit is
-    # v0.17.0^{commit}, which upstream shortens to 9 characters for display.
+    # the tag's ^{commit}, which upstream shortens to 9 characters for display.
     #
     # The only one of the seven ArtCraft apps that reads a provenance; of the
     # rest of the suite, wordcraft, deckcraft, cadcraft and figcraft do too.
     extraEnv = {
-      PHOTOCRAFT_BUILD_SHA = "b8c3f3aa8e2918032cadc0e042664414a03be333";
-      PHOTOCRAFT_BUILD_DATE = "2026-10-28";
+      PHOTOCRAFT_BUILD_SHA = "45066c48292e92229ada3459a83453439514c83d";
+      PHOTOCRAFT_BUILD_DATE = "2026-11-12";
     };
   });
 }

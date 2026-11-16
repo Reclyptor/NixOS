@@ -28,12 +28,16 @@ _: {
       ];
     in
     {
-      version = "0.15.0";
-      hash = "sha256-9XgS4feVsc+2c6aMi9WbG1NI/SjVhjU3otMU9bmQez0=";
-      cargoHash = "sha256-n2hA1QOPUVG65EMCpEWu8kUEHoVV3nTCNq9sja3cNqQ=";
-      releaseDate = "2026-10-28";
+      version = "0.21.1";
+      hash = "sha256-2X2ixtr7mxHRpfhcGghKUO7ib0SFBruBmQPIlTFZ8Ds=";
+      cargoHash = "sha256-sjnRF9WVDRPrgEgwZEyVIEk3qq3Erkv9cBtlkgb52lc=";
+      releaseDate = "2026-11-12";
       description = "PDF editor to read, organize, combine, split and secure PDFs";
       craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
+
+      # The interface translations moved to storytold/craft-i18n in this
+      # release, as wordcraft's did in 0.11.0.
+      craftI18nRev = "575cfdef63227b14daf173b8cc87928bfdfa325e";
 
       # pdfcraft-sign uses aws-lc directly for its signature crypto (rustls here
       # runs on ring). nixpkgs' cargoSetupHook exports AWS_LC_SYS_USE_SYSTEM=1

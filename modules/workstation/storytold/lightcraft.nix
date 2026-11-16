@@ -2,10 +2,10 @@
 # raw developer.
 _: {
   flake.modules.nixos.workstation = import ./_app.nix "lightcraft" (_: {
-    version = "0.15.0";
-    hash = "sha256-oXvuQpFZZMntX1wY8Q+ZpF7TUoamosY9aDbD614JgjA=";
-    cargoHash = "sha256-gQNlh3QElGyWu6jnfdDHaJol5FT3FlN6ylXBZYP2z+4=";
-    releaseDate = "2026-10-28";
+    version = "0.21.1";
+    hash = "sha256-2iqJCmah1bEVCxQ1VeiPWuhuHcR6U6gj6BYYUu4EcsY=";
+    cargoHash = "sha256-TU5eFCjfZrpUTn9r/z5EOG5axvVMz5drG8be1GHjTMI=";
+    releaseDate = "2026-11-12";
     description = "Photo library and non-destructive raw developer";
     craftFontsRev = "b076417b5880bd4154bd22f00695b1d28c6bea83";
 
