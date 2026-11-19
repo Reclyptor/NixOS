@@ -63,6 +63,8 @@ _: {
               "spotify/spotify-api-client-id"
               "spotify/spotify-api-client-secret"
               "spotify/spotify-soloist-api-key"
+              "mozilla/jwt-issuer"
+              "mozilla/jwt-secret"
             ]
             (name: {
               path = "${config.home.homeDirectory}/.config/sops/secrets/${name}";
