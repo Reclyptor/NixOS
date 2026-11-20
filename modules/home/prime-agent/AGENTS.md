@@ -227,21 +227,21 @@ into your context.
 
 ### Model Routing
 Whenever work is parallelized, the role decides the model:
-- **`anthropic/claude-opus-5-5`** investigates, designs, plans, and
+- **`deepseek/deepseek-v4-pro`** investigates, designs, plans, and
   coordinates - research threads, audits, architecture, specs, and merging
   and verifying results.
-- **`anthropic/claude-sonnet-5-5`** writes code - implementation,
+- **`deepseek/deepseek-flash`** writes code - implementation,
   scripting, and mechanical edits.
 
 Writing or updating a skill, scripts and all, and making any configuration
-change always run on `anthropic/claude-opus-5-5`. A skill is instructions
+change always run on `deepseek/deepseek-v4-pro`. A skill is instructions
 other agents follow, and configuration shapes how the whole system behaves,
 so both are design work, not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
-`anthropic/claude-sonnet-5-5`, as long as every sub-agent it launches for
+`deepseek/deepseek-flash`, as long as every sub-agent it launches for
 implementation, coding, or scripting also runs on
-`anthropic/claude-sonnet-5-5`.
+`deepseek/deepseek-flash`.
 
 Set the model explicitly on every `rlm.spawn` (`model=`); never rely on
 inheritance or defaults.
