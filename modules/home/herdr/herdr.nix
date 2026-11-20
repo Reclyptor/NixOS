@@ -257,6 +257,16 @@ _: {
           Documentation = "https://herdr.dev/docs/";
           After = [ "default.target" "gpg-agent-ssh.socket" ];
           Wants = [ "gpg-agent-ssh.socket" ];
+
+          # A rebuild must not restart the server either. The default
+          # stop-start killed every agent on 2026-11-20, and in the gap an
+          # attached client autospawned its own server in a kitty scope, so the
+          # unit then failed with "herdr server is already running". keep-old
+          # leaves a running server alone (starting it only if it is not
+          # running); a new herdr binary takes effect on a deliberate
+          # `systemctl --user restart herdr`, while keymap changes still apply
+          # live through the reload-config activation above.
+          X-SwitchMethod = "keep-old";
         };
 
         Service = {
