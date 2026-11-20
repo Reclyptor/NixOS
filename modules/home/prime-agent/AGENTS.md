@@ -229,9 +229,9 @@ into your context.
 Whenever work is parallelized, the role decides the model:
 - **`deepseek/deepseek-v4-pro`** investigates, designs, plans, and
   coordinates - research threads, audits, architecture, specs, and merging
-  and verifying results.
-- **`deepseek/deepseek-flash`** writes code - implementation,
-  scripting, and mechanical edits.
+  and verifying results - and does all skill and configuration work.
+- **`deepseek/deepseek-flash`** writes code - implementation, scripting,
+  and mechanical edits outside skills and configuration.
 
 Writing or updating a skill, scripts and all, and making any configuration
 change always run on `deepseek/deepseek-v4-pro`. A skill is instructions
@@ -241,7 +241,8 @@ so both are design work, not mechanical edits.
 Leads the main agent spawns are the one exception: a lead may run on
 `deepseek/deepseek-flash`, as long as every sub-agent it launches for
 implementation, coding, or scripting also runs on
-`deepseek/deepseek-flash`.
+`deepseek/deepseek-flash`. Skill and configuration work still runs on
+`deepseek/deepseek-v4-pro`, whichever agent spawns it.
 
 Set the model explicitly on every `rlm.spawn` (`model=`); never rely on
 inheritance or defaults.

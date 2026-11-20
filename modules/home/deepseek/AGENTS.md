@@ -217,9 +217,9 @@ the completion notice.
 Whenever work is parallelized, the role decides the model:
 - **`deepseek-v4-pro`** investigates, designs, plans, and coordinates -
   research threads, audits, architecture, specs, and merging and verifying
-  results.
-- **`deepseek-v4-flash`** writes code - implementation, scripting, and
-  mechanical edits.
+  results - and does all skill and configuration work.
+- **`deepseek-flash`** writes code - implementation, scripting, and
+  mechanical edits outside skills and configuration.
 
 Writing or updating a skill, scripts and all, and making any configuration
 change always run on `deepseek-v4-pro`. A skill is instructions other
@@ -227,13 +227,15 @@ agents follow, and configuration shapes how the whole system behaves, so
 both are design work, not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
-`deepseek-v4-flash`, as long as every sub-agent it launches for
-implementation, coding, or scripting also runs on `deepseek-v4-flash`.
+`deepseek-flash`, as long as every sub-agent it launches for
+implementation, coding, or scripting also runs on `deepseek-flash`.
+Skill and configuration work still runs on `deepseek-v4-pro`, whichever
+agent spawns it.
 
 Set the model explicitly on every `subagent` call; never rely on
 inheritance or defaults. A `subagent_fork` child always inherits its
 parent's model, so a `deepseek-v4-pro` session never forks implementation
-work - it spawns a fresh `deepseek-v4-flash` `subagent` with a complete
+work - it spawns a fresh `deepseek-flash` `subagent` with a complete
 brief instead.
 
 ### Context Decay Awareness

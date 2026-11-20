@@ -211,8 +211,10 @@ Wait for the completion notification.
 ### Model Routing
 Whenever work is parallelized, the role decides the model:
 - **Opus** investigates, designs, plans, and coordinates - research
-  threads, audits, architecture, specs, and merging and verifying results.
-- **Sonnet** writes code - implementation, scripting, and mechanical edits.
+  threads, audits, architecture, specs, and merging and verifying results -
+  and does all skill and configuration work.
+- **Sonnet** writes code - implementation, scripting, and mechanical edits
+  outside skills and configuration.
 
 Writing or updating a skill, scripts and all, and making any configuration
 change always run on Opus. A skill is instructions other agents follow, and
@@ -221,7 +223,8 @@ not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
 Sonnet, as long as every sub-agent it launches for implementation, coding,
-or scripting also runs on Sonnet.
+or scripting also runs on Sonnet. Skill and configuration work still runs
+on Opus, whichever agent spawns it.
 
 Set the model explicitly on every spawn (`model: "opus"` or
 `model: "sonnet"`); never rely on inheritance or defaults. A fork always

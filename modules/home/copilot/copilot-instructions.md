@@ -219,9 +219,9 @@ tool noise into your context. Wait for it to finish.
 Whenever work is parallelized, the role decides the model:
 - **`claude-opus-5.5`** investigates, designs, plans, and coordinates -
   research threads, audits, architecture, specs, and merging and verifying
-  results.
+  results - and does all skill and configuration work.
 - **`claude-sonnet-5.5`** writes code - implementation, scripting, and
-  mechanical edits.
+  mechanical edits outside skills and configuration.
 
 Writing or updating a skill, scripts and all, and making any configuration
 change always run on `claude-opus-5.5`. A skill is instructions other
@@ -231,6 +231,8 @@ both are design work, not mechanical edits.
 Leads the main agent spawns are the one exception: a lead may run on
 `claude-sonnet-5.5`, as long as every sub-agent it launches for
 implementation, coding, or scripting also runs on `claude-sonnet-5.5`.
+Skill and configuration work still runs on `claude-opus-5.5`, whichever
+agent spawns it.
 
 Set the model explicitly on every `task` call (its `model` argument); never
 rely on inheritance or defaults.

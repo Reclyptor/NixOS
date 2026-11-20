@@ -215,9 +215,9 @@ pull in only what the current batch actually needs.
 Whenever work is parallelized, the role decides the model:
 - **`gpt-6.1-sol`** investigates, designs, plans, and coordinates -
   research threads, audits, architecture, specs, and merging and verifying
-  results.
+  results - and does all skill and configuration work.
 - **`gpt-5.6-terra`** writes code - implementation, scripting, and
-  mechanical edits.
+  mechanical edits outside skills and configuration.
 
 Writing or updating a skill, scripts and all, and making any configuration
 change always run on `gpt-6.1-sol`. A skill is instructions other agents
@@ -225,8 +225,9 @@ follow, and configuration shapes how the whole system behaves, so both are
 design work, not mechanical edits.
 
 Leads the main agent spawns are the one exception: a lead may run on
-`gpt-5.6-terra`, as long as every sub-agent it launches for
-implementation, coding, or scripting also runs on `gpt-5.6-terra`.
+`gpt-5.6-terra`, as long as every sub-agent it launches for implementation,
+coding, or scripting also runs on `gpt-5.6-terra`. Skill and configuration
+work still runs on `gpt-6.1-sol`, whichever agent spawns it.
 
 Set `model` explicitly on every `spawn_agent` call; never rely on
 inheritance or defaults.
