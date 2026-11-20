@@ -169,9 +169,11 @@ _: {
         swap_pane_left = "prefix+<"
         swap_pane_right = "prefix+>"
 
-        # Mirrors `bind -r H resize-pane -L 5` in home/tmux.nix. Herdr has no
-        # repeat equivalent, so each press nudges 5% and resize_mode is the real
-        # stand-in for tmux's -r: prefix+r once, then hjkl as long as you like.
+        # Mirrors `bind -r H resize-pane -L 5` in home/tmux.nix. With
+        # overlays/herdr/resize-repeat.patch a prefixed resize stays in resize
+        # mode, so H/J/K/L (and hjkl) keep resizing without the prefix until any
+        # other key, which then goes through as typed. prefix+r enters the same
+        # mode without resizing first.
         resize_pane_left = "prefix+shift+h"
         resize_pane_down = "prefix+shift+j"
         resize_pane_up = "prefix+shift+k"

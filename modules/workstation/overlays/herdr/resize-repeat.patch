@@ -1,0 +1,203 @@
+diff --git a/src/client/shell/input.rs b/src/client/shell/input.rs
+index 7a40e4b..6004800 100644
+--- a/src/client/shell/input.rs
++++ b/src/client/shell/input.rs
+@@ -709,7 +709,21 @@ impl ClientShellState {
+                 {
+                     self.mode = return_mode;
+                     outcome.repaint = true;
++                    // tmux's `bind -r`: a prefixed resize stays in resize mode so
++                    // the same key keeps resizing without the prefix.
++                    let resized = matches!(
++                        binding,
++                        crate::input::KeybindMatch::Action(
++                            crate::input::KeybindAction::ResizePaneLeft
++                                | crate::input::KeybindAction::ResizePaneDown
++                                | crate::input::KeybindAction::ResizePaneUp
++                                | crate::input::KeybindAction::ResizePaneRight
++                        )
++                    );
+                     self.record_binding(binding, outcome);
++                    if resized && self.mode == return_mode {
++                        self.mode = ClientShellMode::Resize;
++                    }
+                     return None;
+                 }
+                 self.mode = return_mode;
+@@ -721,8 +735,12 @@ impl ClientShellState {
+                 None
+             }
+             ClientShellMode::Resize => {
+-                self.route_resize_key(key, outcome);
+-                None
++                if self.route_resize_key(key, outcome) {
++                    None
++                } else {
++                    // The mode has ended; the key is handled as if it never was.
++                    self.route_key_press(key, outcome)
++                }
+             }
+             ClientShellMode::Copy => {
+                 if self
+@@ -1042,12 +1060,17 @@ impl ClientShellState {
+         );
+     }
+ 
++    /// Returns false when the key ends resize mode without being consumed, so
++    /// the caller routes it normally, as tmux does after a `bind -r` key.
+     fn route_resize_key(
+         &mut self,
+         key: &crate::input::TerminalKey,
+         outcome: &mut ClientShellInput,
+-    ) {
+-        let resize_bindings = &self.config.keybinds.keybinds.resize_mode;
++    ) -> bool {
++        use crate::input::KeybindAction;
++
++        let keybinds = &self.config.keybinds.keybinds;
++        let resize_bindings = &keybinds.resize_mode;
+         if key.code == KeyCode::Esc
+             || key.code == KeyCode::Enter
+             || resize_bindings.matches_prefix_key(key)
+@@ -1055,20 +1078,37 @@ impl ClientShellState {
+         {
+             self.mode = self.copy_or_terminal_mode();
+             outcome.repaint = true;
+-            return;
++            return true;
+         }
+ 
+-        let action = match key.code {
+-            KeyCode::Char('h') | KeyCode::Left => Some(crate::input::KeybindAction::ResizePaneLeft),
+-            KeyCode::Char('j') | KeyCode::Down => Some(crate::input::KeybindAction::ResizePaneDown),
+-            KeyCode::Char('k') | KeyCode::Up => Some(crate::input::KeybindAction::ResizePaneUp),
+-            KeyCode::Char('l') | KeyCode::Right => {
+-                Some(crate::input::KeybindAction::ResizePaneRight)
+-            }
++        // The configured resize keys repeat here without their prefix, next to
++        // the mode's own hjkl and arrows.
++        let action = [
++            (&keybinds.resize_pane_left, KeybindAction::ResizePaneLeft),
++            (&keybinds.resize_pane_down, KeybindAction::ResizePaneDown),
++            (&keybinds.resize_pane_up, KeybindAction::ResizePaneUp),
++            (&keybinds.resize_pane_right, KeybindAction::ResizePaneRight),
++        ]
++        .into_iter()
++        .find(|(bindings, _)| bindings.matches_prefix_key(key))
++        .map(|(_, action)| action)
++        .or(match key.code {
++            KeyCode::Char('h') | KeyCode::Left => Some(KeybindAction::ResizePaneLeft),
++            KeyCode::Char('j') | KeyCode::Down => Some(KeybindAction::ResizePaneDown),
++            KeyCode::Char('k') | KeyCode::Up => Some(KeybindAction::ResizePaneUp),
++            KeyCode::Char('l') | KeyCode::Right => Some(KeybindAction::ResizePaneRight),
+             _ => None,
+-        };
+-        if let Some(action) = action {
+-            self.record_binding(crate::input::KeybindMatch::Action(action), outcome);
++        });
++        match action {
++            Some(action) => {
++                self.record_binding(crate::input::KeybindMatch::Action(action), outcome);
++                true
++            }
++            None => {
++                self.mode = self.copy_or_terminal_mode();
++                outcome.repaint = true;
++                false
++            }
+         }
+     }
+ 
+diff --git a/src/client/shell/tests/keybindings_settings.rs b/src/client/shell/tests/keybindings_settings.rs
+index fd3301d..c9c2936 100644
+--- a/src/client/shell/tests/keybindings_settings.rs
++++ b/src/client/shell/tests/keybindings_settings.rs
+@@ -965,3 +965,88 @@ fn resize_mode_reuses_endpoint_resize_and_stays_active_until_done() {
+     assert!(state.handle_input_bytes(b"\r").actions.is_empty());
+     assert_eq!(state.mode, ClientShellMode::Terminal);
+ }
++
++#[test]
++fn prefixed_resize_repeats_without_the_prefix_until_another_key() {
++    fn resized(outcome: &ClientShellInput) -> Option<crate::api::schema::PaneDirection> {
++        match &outcome.actions[..] {
++            [ClientShellAction::Endpoint { request, .. }] => match &request.method {
++                crate::api::schema::Method::PaneResize(params) => Some(params.direction),
++                other => panic!("resize should send a pane resize, got {other:?}"),
++            },
++            [] => None,
++            other => panic!("resize should emit at most one request, got {other:?}"),
++        }
++    }
++
++    let config: Config = toml::from_str(
++        r#"
++        [keys]
++        resize_pane_left = "prefix+shift+h"
++        resize_pane_right = "prefix+shift+l"
++        "#,
++    )
++    .expect("configuration parses");
++    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
++    state.set_snapshot(Box::new(snapshot()));
++    state.set_pane_surface(surface());
++
++    assert!(state.handle_input_bytes(&[0x02]).actions.is_empty());
++    assert_eq!(
++        resized(&state.handle_input_bytes(b"H")),
++        Some(crate::api::schema::PaneDirection::Left)
++    );
++    assert_eq!(state.mode, ClientShellMode::Resize);
++
++    // No prefix from here: the bound keys and the mode's own hjkl keep going.
++    assert_eq!(
++        resized(&state.handle_input_bytes(b"H")),
++        Some(crate::api::schema::PaneDirection::Left)
++    );
++    assert_eq!(
++        resized(&state.handle_input_bytes(b"L")),
++        Some(crate::api::schema::PaneDirection::Right)
++    );
++    assert_eq!(
++        resized(&state.handle_input_bytes(b"h")),
++        Some(crate::api::schema::PaneDirection::Left)
++    );
++    assert_eq!(state.mode, ClientShellMode::Resize);
++
++    // Any other key ends the repeat and reaches the pane, as after tmux's -r.
++    let typed = state.handle_input_bytes(b"x");
++    assert_eq!(state.mode, ClientShellMode::Terminal);
++    assert!(typed.actions.is_empty());
++    assert!(matches!(
++        &typed.requests[..],
++        [ClientMessage::ClientShellPaneInput { events, .. }]
++            if matches!(
++                &events[..],
++                [ClientPaneInputEvent::Key {
++                    code: crate::protocol::ClientKeyCode::Char('x'),
++                    ..
++                }, ..]
++            )
++    ));
++}
++
++#[test]
++fn prefix_after_a_resize_repeat_starts_a_new_binding() {
++    let config: Config = toml::from_str(
++        r#"
++        [keys]
++        resize_pane_left = "prefix+shift+h"
++        "#,
++    )
++    .expect("configuration parses");
++    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
++    state.set_snapshot(Box::new(snapshot()));
++    state.set_pane_surface(surface());
++
++    state.handle_input_bytes(&[0x02]);
++    state.handle_input_bytes(b"H");
++    assert_eq!(state.mode, ClientShellMode::Resize);
++
++    assert!(state.handle_input_bytes(&[0x02]).requests.is_empty());
++    assert_eq!(state.mode, ClientShellMode::Prefix);
++}

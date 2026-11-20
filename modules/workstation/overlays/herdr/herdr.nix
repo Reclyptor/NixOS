@@ -16,13 +16,15 @@ _: {
         # manifest override under ~/.config/herdr/agent-detection/ can only patch
         # rules for an id the binary already knows.
         #
-        # pane-sync and last-tab add the two tmux behaviors herdr has no action
-        # for: synchronize-panes, and last-window as a per-workspace last_tab.
+        # pane-sync, last-tab and resize-repeat add the tmux behaviors herdr
+        # lacks: synchronize-panes, last-window as a per-workspace last_tab, and
+        # bind -r for the resize keys.
         herdr = prev.herdr.overrideAttrs (old: {
           patches = (old.patches or [ ]) ++ [
             ./deepseek-agent.patch
             ./pane-sync.patch
             ./last-tab.patch
+            ./resize-repeat.patch
           ];
         });
       })
