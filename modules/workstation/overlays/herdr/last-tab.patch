@@ -1,0 +1,333 @@
+diff --git a/src/client/shell/actions.rs b/src/client/shell/actions.rs
+index e00b53c..99a13ba 100644
+--- a/src/client/shell/actions.rs
++++ b/src/client/shell/actions.rs
+@@ -1100,6 +1100,15 @@ impl ClientShellState {
+                     pane_id: panes[next].pane_id.clone(),
+                 }))
+             }
++            KeybindAction::LastTab => {
++                let tab_id = self.previous_tab_ids.get(&focused_workspace)?;
++                if Some(tab_id) == focused_tab.as_ref() {
++                    return None;
++                }
++                Some(Method::TabFocus(TabTarget {
++                    tab_id: tab_id.clone(),
++                }))
++            }
+             KeybindAction::LastPane => {
+                 let pane_id = self.previous_pane_id.as_ref()?;
+                 if Some(pane_id.as_str()) == focused_pane.as_deref()
+diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
+index 44f34eb..34ea44b 100644
+--- a/src/client/shell/state.rs
++++ b/src/client/shell/state.rs
+@@ -906,6 +906,9 @@ pub(crate) struct ClientShellState {
+     pub(super) reveal_navigation_workspace: bool,
+     pub(super) overlay: Option<ClientShellOverlay>,
+     pub(super) previous_pane_id: Option<String>,
++    // Per workspace, like tmux's last-window per session: last_tab never leaves
++    // the active workspace.
++    pub(super) previous_tab_ids: HashMap<String, String>,
+     // Local client state, intentionally matching tmux's per-window option rather
+     // than changing shared server-owned tab data.
+     pub(super) synchronized_tabs: HashSet<(ClientEndpointId, String)>,
+@@ -1083,6 +1086,7 @@ impl ClientShellState {
+             reveal_navigation_workspace: false,
+             overlay,
+             previous_pane_id: None,
++            previous_tab_ids: HashMap::new(),
+             synchronized_tabs: HashSet::new(),
+             pane_mouse_gesture: None,
+             link_hover: None,
+@@ -1280,6 +1284,7 @@ impl ClientShellState {
+             .startup_onboarding
+             .then_some(ClientShellOverlay::Onboarding);
+         self.previous_pane_id = None;
++        self.previous_tab_ids.clear();
+         self.synchronized_tabs.clear();
+         self.pane_mouse_gesture = None;
+         self.link_hover = None;
+@@ -1399,6 +1404,29 @@ impl ClientShellState {
+         {
+             self.previous_pane_id = Some(previous.clone());
+         }
++        if !boot_changed {
++            if let Some((workspace_id, previous_tab)) =
++                self.snapshot.as_deref().and_then(|current| {
++                    Some((
++                        current.focused_workspace_id.as_ref()?,
++                        current.focused_tab_id.as_ref()?,
++                    ))
++                })
++            {
++                if snapshot.focused_workspace_id.as_ref() == Some(workspace_id)
++                    && snapshot.focused_tab_id.as_ref() != Some(previous_tab)
++                {
++                    self.previous_tab_ids
++                        .insert(workspace_id.clone(), previous_tab.clone());
++                }
++            }
++        }
++        self.previous_tab_ids.retain(|workspace_id, tab_id| {
++            snapshot
++                .tabs
++                .iter()
++                .any(|tab| tab.workspace_id == *workspace_id && tab.tab_id == *tab_id)
++        });
+         if snapshot_keybindings_changed {
+             if let Err(err) = self.config.apply_snapshot_keybindings(
+                 snapshot.server_keybindings_toml.as_deref(),
+diff --git a/src/client/shell/tests/workspace_navigation.rs b/src/client/shell/tests/workspace_navigation.rs
+index dff7f7d..8fd5ab2 100644
+--- a/src/client/shell/tests/workspace_navigation.rs
++++ b/src/client/shell/tests/workspace_navigation.rs
+@@ -1026,3 +1026,74 @@ fn kitty_ctrl_bracket_cancels_a_blocked_foreign_preview() {
+     assert_ne!(state.mode, ClientShellMode::Navigate);
+     assert!(state.navigate_workspace_id.is_none());
+ }
++
++#[test]
++fn last_tab_returns_to_the_previous_tab_within_the_active_workspace() {
++    fn focus(snapshot: &mut ClientShellSnapshot, revision: u64, workspace: &str, tab: &str) {
++        snapshot.revision = revision;
++        snapshot.focused_workspace_id = Some(workspace.into());
++        snapshot.focused_tab_id = Some(tab.into());
++        for entry in &mut snapshot.tabs {
++            entry.focused = entry.tab_id == tab;
++        }
++    }
++    fn last_tab(state: &mut ClientShellState) -> Option<String> {
++        let mut input = ClientShellInput::default();
++        state.record_binding(
++            crate::input::KeybindMatch::Action(crate::input::KeybindAction::LastTab),
++            &mut input,
++        );
++        // With nothing to return to, the action falls through as an inert
++        // Keybind, exactly like last_pane; only endpoint requests move focus.
++        let requests = input
++            .actions
++            .iter()
++            .filter_map(|action| match action {
++                ClientShellAction::Endpoint { request, .. } => Some(&request.method),
++                _ => None,
++            })
++            .collect::<Vec<_>>();
++        match requests[..] {
++            [] => None,
++            [crate::api::schema::Method::TabFocus(target)] => Some(target.tab_id.clone()),
++            ref other => panic!("last tab should send at most one tab focus, got {other:?}"),
++        }
++    }
++
++    let mut projected = snapshot();
++    let mut second_workspace = projected.workspaces[0].clone();
++    second_workspace.workspace_id = "ws_2".into();
++    second_workspace.active_tab_id = "tab_3".into();
++    second_workspace.focused = false;
++    projected.workspaces.push(second_workspace);
++    for (tab_id, workspace_id) in [("tab_2", "ws_1"), ("tab_3", "ws_2")] {
++        let mut tab = projected.tabs[0].clone();
++        tab.tab_id = tab_id.into();
++        tab.workspace_id = workspace_id.into();
++        tab.focused = false;
++        projected.tabs.push(tab);
++    }
++
++    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
++    state.set_snapshot(Box::new(projected.clone()));
++    assert_eq!(last_tab(&mut state), None, "no tab history yet");
++
++    focus(&mut projected, 2, "ws_1", "tab_2");
++    state.set_snapshot(Box::new(projected.clone()));
++    assert_eq!(last_tab(&mut state).as_deref(), Some("tab_1"));
++
++    // Leaving the workspace is not a tab change inside it: ws_2 has no history,
++    // and last_tab must not pull focus back across workspaces.
++    focus(&mut projected, 3, "ws_2", "tab_3");
++    state.set_snapshot(Box::new(projected.clone()));
++    assert_eq!(last_tab(&mut state), None);
++
++    focus(&mut projected, 4, "ws_1", "tab_2");
++    state.set_snapshot(Box::new(projected.clone()));
++    assert_eq!(last_tab(&mut state).as_deref(), Some("tab_1"));
++
++    projected.revision = 5;
++    projected.tabs.retain(|tab| tab.tab_id != "tab_1");
++    state.set_snapshot(Box::new(projected));
++    assert_eq!(last_tab(&mut state), None, "a closed tab is forgotten");
++}
+diff --git a/src/config/keybinds.rs b/src/config/keybinds.rs
+index b3f8ae9..25d46d8 100644
+--- a/src/config/keybinds.rs
++++ b/src/config/keybinds.rs
+@@ -374,6 +374,7 @@ pub struct Keybinds {
+     pub rename_tab: ActionKeybinds,
+     pub previous_tab: ActionKeybinds,
+     pub next_tab: ActionKeybinds,
++    pub last_tab: ActionKeybinds,
+     pub move_tab_previous: ActionKeybinds,
+     pub move_tab_next: ActionKeybinds,
+     pub switch_tab: Vec<IndexedKeybind>,
+@@ -558,6 +559,7 @@ impl Config {
+             rename_tab: empty_action!(),
+             previous_tab: empty_action!(),
+             next_tab: empty_action!(),
++            last_tab: empty_action!(),
+             move_tab_previous: empty_action!(),
+             move_tab_next: empty_action!(),
+             switch_tab: Vec::new(),
+@@ -697,6 +699,7 @@ impl Config {
+             apply_action!(keybinds.rename_tab, rename_tab, source);
+             apply_action!(keybinds.previous_tab, previous_tab, source);
+             apply_action!(keybinds.next_tab, next_tab, source);
++            apply_action!(keybinds.last_tab, last_tab, source);
+             apply_action!(keybinds.move_tab_previous, move_tab_previous, source);
+             apply_action!(keybinds.move_tab_next, move_tab_next, source);
+             apply_indexed!(
+@@ -1678,6 +1681,24 @@ next_tab = "prefix+n"
+         );
+     }
+ 
++    #[test]
++    fn last_tab_accepts_a_prefix_binding() {
++        let config: Config = toml::from_str(
++            r#"
++            [keys]
++            last_tab = "prefix+backtick"
++            "#,
++        )
++        .expect("configuration parses");
++        assert_eq!(
++            binding_triggers(&config.keybinds().last_tab),
++            vec![BindingTrigger::Prefix((
++                KeyCode::Char('`'),
++                KeyModifiers::empty()
++            ))]
++        );
++    }
++
+     #[test]
+     fn synchronize_panes_accepts_a_prefix_binding() {
+         let config: Config = toml::from_str(
+@@ -1732,6 +1753,7 @@ next_tab = "prefix+n"
+     fn back_and_forth_keybinds_are_unset_by_default() {
+         let kb = Config::default().keybinds();
+         assert!(kb.last_pane.bindings.is_empty());
++        assert!(kb.last_tab.bindings.is_empty());
+     }
+ 
+     #[test]
+diff --git a/src/config/model.rs b/src/config/model.rs
+index 2980db8..fe0ec49 100644
+--- a/src/config/model.rs
++++ b/src/config/model.rs
+@@ -397,6 +397,8 @@ pub struct KeysConfig {
+     pub previous_tab: BindingConfig,
+     /// Select the next tab. Default: "prefix+n".
+     pub next_tab: BindingConfig,
++    /// Focus the last focused tab of the active workspace. Unset by default.
++    pub last_tab: BindingConfig,
+     /// Move the active tab one position toward the front. Unset by default.
+     pub move_tab_previous: BindingConfig,
+     /// Move the active tab one position toward the back. Unset by default.
+@@ -537,6 +539,8 @@ pub(crate) struct KeysConfigOverlay {
+     #[serde(skip_serializing_if = "Option::is_none")]
+     next_tab: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
++    last_tab: Option<BindingConfig>,
++    #[serde(skip_serializing_if = "Option::is_none")]
+     move_tab_previous: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     move_tab_next: Option<BindingConfig>,
+@@ -678,6 +682,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
+         apply_field!(rename_tab);
+         apply_field!(previous_tab);
+         apply_field!(next_tab);
++        apply_field!(last_tab);
+         apply_field!(move_tab_previous);
+         apply_field!(move_tab_next);
+         apply_field!(switch_tab);
+@@ -784,6 +789,7 @@ impl KeysConfig {
+         copy_effective_action_field!(rename_tab, keybinds.rename_tab);
+         copy_effective_action_field!(previous_tab, keybinds.previous_tab);
+         copy_effective_action_field!(next_tab, keybinds.next_tab);
++        copy_effective_action_field!(last_tab, keybinds.last_tab);
+         copy_effective_action_field!(move_tab_previous, keybinds.move_tab_previous);
+         copy_effective_action_field!(move_tab_next, keybinds.move_tab_next);
+         copy_effective_indexed_field!(switch_tab, keybinds.switch_tab);
+@@ -1157,6 +1163,7 @@ impl Default for KeysConfig {
+             rename_tab: BindingConfig::one("prefix+shift+t"),
+             previous_tab: BindingConfig::one("prefix+p"),
+             next_tab: BindingConfig::one("prefix+n"),
++            last_tab: BindingConfig::empty(),
+             move_tab_previous: BindingConfig::empty(),
+             move_tab_next: BindingConfig::empty(),
+             switch_tab: BindingConfig::one("prefix+1..9"),
+diff --git a/src/input/keybind_help.rs b/src/input/keybind_help.rs
+index 8007948..f5d43a0 100644
+--- a/src/input/keybind_help.rs
++++ b/src/input/keybind_help.rs
+@@ -154,6 +154,7 @@ pub(crate) fn keybind_help_groups(
+                 entry(binding_label(&keybinds.rename_tab), "rename tab"),
+                 entry(binding_label(&keybinds.previous_tab), "previous tab"),
+                 entry(binding_label(&keybinds.next_tab), "next tab"),
++                entry(binding_label(&keybinds.last_tab), "last tab"),
+                 entry(binding_label(&keybinds.move_tab_previous), "move tab left"),
+                 entry(binding_label(&keybinds.move_tab_next), "move tab right"),
+                 entry(indexed_label(&keybinds.switch_tab), "switch tab 1-9"),
+diff --git a/src/input/keybindings.rs b/src/input/keybindings.rs
+index 52c0169..fe551a9 100644
+--- a/src/input/keybindings.rs
++++ b/src/input/keybindings.rs
+@@ -36,6 +36,7 @@ pub(crate) enum KeybindAction {
+     RenameTab,
+     PreviousTab,
+     NextTab,
++    LastTab,
+     MoveTabPrevious,
+     MoveTabNext,
+     CloseTab,
+@@ -117,6 +118,7 @@ pub(crate) fn resolve_non_indexed_action(
+         (&keybinds.rename_tab, KeybindAction::RenameTab),
+         (&keybinds.previous_tab, KeybindAction::PreviousTab),
+         (&keybinds.next_tab, KeybindAction::NextTab),
++        (&keybinds.last_tab, KeybindAction::LastTab),
+         (&keybinds.move_tab_previous, KeybindAction::MoveTabPrevious),
+         (&keybinds.move_tab_next, KeybindAction::MoveTabNext),
+         (&keybinds.close_tab, KeybindAction::CloseTab),
+@@ -299,6 +301,22 @@ mod tests {
+         ));
+     }
+ 
++    #[test]
++    fn resolves_last_tab_binding() {
++        let config: crate::config::Config = toml::from_str(
++            r#"
++            [keys]
++            last_tab = "prefix+backtick"
++            "#,
++        )
++        .expect("configuration parses");
++        let key = TerminalKey::new(KeyCode::Char('`'), KeyModifiers::empty());
++        assert!(matches!(
++            resolve_prefix_binding(&config.keybinds(), &key),
++            Some(KeybindMatch::Action(KeybindAction::LastTab))
++        ));
++    }
++
+     #[test]
+     fn resolves_synchronize_panes_binding() {
+         let config: crate::config::Config = toml::from_str(
+diff --git a/src/main.rs b/src/main.rs
+index f97e7e2..f5e5e61 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -167,6 +167,7 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
+ # rename_tab = "prefix+shift+t"
+ # previous_tab = "prefix+p"
+ # next_tab = "prefix+n"
++# last_tab = ""           # optional, unset by default; tmux's last-window, scoped to the active workspace
+ # move_tab_previous = ""   # optional, e.g. "alt+shift+left" moves the tab toward the front
+ # move_tab_next = ""       # optional, e.g. "alt+shift+right" moves the tab toward the back
+ # switch_tab = "prefix+1..9"
