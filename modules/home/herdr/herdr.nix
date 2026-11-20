@@ -130,6 +130,10 @@ _: {
         previous_tab = "prefix+p"
         next_tab = "prefix+n"
         switch_tab = "prefix+1..9"
+        # tmux's last-window, moved off l by the vim focus keys below. last_tab
+        # comes from overlays/herdr/last-tab.patch and, like last-window within a
+        # session, stays inside the active workspace.
+        last_tab = "prefix+backtick"
         move_tab_previous = "prefix+shift+left"
         move_tab_next = "prefix+shift+right"
 
@@ -144,13 +148,13 @@ _: {
         rename_pane = "prefix+shift+p"
         edit_scrollback = "prefix+e"
 
-        # Focus on the arrows, as tmux ships it. Plain prefix+hjkl is left free
-        # on purpose; navigate mode keeps its own hjkl, a separate binding set
-        # that this does not touch.
-        focus_pane_left = "prefix+left"
-        focus_pane_down = "prefix+down"
-        focus_pane_up = "prefix+up"
-        focus_pane_right = "prefix+right"
+        # Focus on hjkl and the arrows, matching the tmux binds in home/tmux.nix.
+        # Navigate mode keeps its own hjkl, a separate binding set that this
+        # does not touch.
+        focus_pane_left = ["prefix+h", "prefix+left"]
+        focus_pane_down = ["prefix+j", "prefix+down"]
+        focus_pane_up = ["prefix+k", "prefix+up"]
+        focus_pane_right = ["prefix+l", "prefix+right"]
 
         # tmux has no reverse cycle, so shift+o mirrors o the way shift mirrors
         # its counterpart everywhere else here.
